@@ -2902,11 +2902,12 @@ void
 disk_unix_to_nib(Disk *dsk, int qtr_track, dword64 dunix_pos, word32 unix_len,
 	int len_bits, dword64 dfcyc)
 {
-	byte	track_buf[TRACK_BUF_LEN];
+	byte	track_stack_buf[TRACK_BUF_LEN];
+	byte	*track_buf;
 	Trk	*trk;
 	byte	*bptr;
 	dword64	dret, dlen;
-	word32	num_bytes, must_clear_track;
+	word32	num_bytes, must_clear_track, buf_len;
 	int	i;
 
 	/* Read track from dsk int track_buf */
@@ -2917,9 +2918,18 @@ disk_unix_to_nib(Disk *dsk, int qtr_track, dword64 dunix_pos, word32 unix_len,
 
 	must_clear_track = 0;
 
+	buf_len = TRACK_BUF_LEN;
+	track_buf = track_stack_buf;
 	if(unix_len > TRACK_BUF_LEN) {
 		printf("diks_unix_to_nib: requested len of image %s = %05x\n",
 			dsk->name_ptr, unix_len);
+		buf_len = unix_len;
+		track_buf = (byte *)malloc(buf_len);
+		if(track_buf == 0) {
+			fatal_printf("Could not allocate %d bytes for track "
+				"of image %s\n", buf_len, dsk->name_ptr);
+			exit(2);
+		}
 	}
 
 	bptr = dsk->raw_data;
@@ -2950,7 +2960,7 @@ disk_unix_to_nib(Disk *dsk, int qtr_track, dword64 dunix_pos, word32 unix_len,
 	}
 
 	if(must_clear_track) {
-		for(i = 0; i < TRACK_BUF_LEN; i++) {
+		for(i = 0; i < (int)buf_len; i++) {
 			track_buf[i] = 0;
 		}
 	}
@@ -3000,6 +3010,10 @@ disk_unix_to_nib(Disk *dsk, int qtr_track, dword64 dunix_pos, word32 unix_len,
 	} else {
 		iwm_nibblize_track_35(dsk, track_buf, qtr_track, unix_len,
 									dfcyc);
+	}
+
+	if(track_buf != track_stack_buf) {
+		free(track_buf);
 	}
 
 	//printf("For qtr_track:%04x, trk->dirty:%d\n", qtr_track, trk->dirty);

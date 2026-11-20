@@ -1352,8 +1352,10 @@ config_load_roms()
 
 			if(ret != len) {
 				fatal_printf("While reading card ROM %s, file "
-					"is too short. (%d) Expected %d bytes, "
-					"read %d bytes\n", errno, len, ret);
+					"is too short. Expected %d bytes, "
+					"read %d bytes\n", &g_cfg_tmp_path[0],
+					len, ret);
+				close(fd);
 				continue;
 			}
 			close(fd);
@@ -1614,6 +1616,9 @@ cfg_parse_one_line(char *buf, int line)
 		pos++;
 	}
 	buf[pos] = 0;
+	if(pos >= len) {
+		return;		// Name with no value, nothing to set
+	}
 	if(strcmp(nameptr, "rom") == 0) {
 		// Translate argument of "-rom" to "g_cfg_rom_path"
 		nameptr = "g_cfg_rom_path";
