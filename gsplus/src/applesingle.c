@@ -19,7 +19,8 @@
 word32
 applesingle_get_be32(const byte *bptr)
 {
-	return (bptr[0] << 24) | (bptr[1] << 16) | (bptr[2] << 8) | bptr[3];
+	return ((word32)bptr[0] << 24) | (bptr[1] << 16) | (bptr[2] << 8) |
+								bptr[3];
 }
 
 word32
@@ -216,7 +217,7 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 	word32	key_block, blocks_used, entry_id, blocks_out, offset, length;
 	word32	magic, version, hdr_pos, did_fork;
 	int	num_entries;
-	int	i;
+	int	i, j;
 
 	// Return 0 if anything is wrong with the .applesingle file
 	// Otherwise, return (blocks_used << 16) | (key_block & 0xffff)
@@ -259,7 +260,7 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 		printf(" header[%d] at +%04x: id:%d, offset:%08x, len:%08x\n",
 			i, hdr_pos, entry_id, offset, length);
 #endif
-		if((offset + length) > dsize) {
+		if(((dword64)offset + length) > dsize) {
 			printf("Applesingle entry_id:%d exceeds file size\n",
 				entry_id);
 			return 0;
@@ -290,14 +291,15 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 		case 9:		// Finder Info
 			if(length < 32) {
 				printf("Invalid Finder info, len:%d\n", length);
+				break;
 			}
 			bptr[8] = 0x12;
 			bptr[8 + 18] = 0x12;
 			bptr[9] = 1;
 			bptr[9 + 18] = 2;
-			for(i = 0; i < 16; i++) {
-				bptr[10 + i] = fptr[offset + i];
-				bptr[10 + 18 + i] = fptr[offset + 16 + i];
+			for(j = 0; j < 16; j++) {
+				bptr[10 + j] = fptr[offset + j];
+				bptr[10 + 18 + j] = fptr[offset + 16 + j];
 			}
 			break;
 		case 11:	// ProDOS File Info

@@ -1985,6 +1985,16 @@ dynapro_prep_image(Disk *dsk, const char *dir_path, word32 num_blocks)
 	word32	ui;
 	int	i;
 
+	// Blocks 0-5 hold the boot block and directory, block 6 onward holds
+	//  the bitmap, so the image must be larger than that.
+	bitmap_size_bytes = (num_blocks + 7) >> 3;
+	bitmap_size_blocks = (bitmap_size_bytes + 512 - 1) >> 9;
+	if(num_blocks <= (6 + bitmap_size_blocks)) {
+		dynapro_error(dsk, "Dynapro directory too small: %d blocks\n",
+							num_blocks);
+		return 0;
+	}
+
 	dsk->raw_data = calloc(num_blocks, 512);
 	if(dsk->raw_data == 0) {
 		dynapro_error(dsk, "Could not allocate %d bytes\n",
@@ -2007,9 +2017,7 @@ dynapro_prep_image(Disk *dsk, const char *dir_path, word32 num_blocks)
 		dynapro_set_word16(&bptr[i*0x200 + 2], i + 3);	// Next_blk
 	}
 
-	// Calculate bitmap to go in blocks 6...
-	bitmap_size_bytes = (num_blocks + 7) >> 3;
-	bitmap_size_blocks = (bitmap_size_bytes + 512 - 1) >> 9;
+	// Set up the bitmap in block 6 and onward
 	bptr = &(dsk->raw_data[6 * 512]);		// Block 6
 	bptr[0] = 0;
 	for(ui = (6 + bitmap_size_blocks); ui < num_blocks; ui++) {
