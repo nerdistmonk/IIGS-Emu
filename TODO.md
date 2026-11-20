@@ -2,7 +2,6 @@
 
 ## Release blockers (July 2026 code review)
 
-- [ ] **Linux tar.gz**: bundle the FetchContent-built `libSDL3.so.0` next to the binary — the `$ORIGIN` rpath already supports it (one `install(FILES ...)` rule). Fix or remove the stale "bundled by the AppImage step" comment near `CMakeLists.txt:388`.
 - [ ] **Stuck modifiers on focus loss** (`sdl_driver.c` event switch): no `SDL_EVENT_WINDOW_FOCUS_GAINED/LOST` handling, so window switching (e.g. Alt+Tab) leaves Open-Apple latched in the emulated ADB. Call `adb_mainwin_focus(1/0)` + `adb_kbd_repeat_off()` and send key-ups for modifier codes 0x37/0x3a/0x36/0x38 on focus lost (cf. `xdriver.c:1124` in the original KEGS tree).
 
 ## Bugs (pre-release, lower urgency)
