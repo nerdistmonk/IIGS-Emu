@@ -554,7 +554,7 @@ void
 fixup_lc()
 {
 	byte	*mem0rd, *mem0wr;
-	word32	bank, lcbank2, c08x_wrdefram, rdrom;
+	word32	bank, lcbank2, c08x_wrdefram, rdrom, rd_off, wr_off;
 	int	k;
 
 	// Fixup memory from 0xd000 - 0xffff in banks 0, 1, $e0, $e1
@@ -587,14 +587,17 @@ fixup_lc()
 		}
 		fixup_any_bank_any_page(bank*0x100 + 0xe0, 0x20,
 					mem0rd + 0xe000, mem0wr + 0xe000);
+		rd_off = 0xd000;
+		wr_off = 0xd000;
 		if(! lcbank2) {		// lcbank1, 0xd000 is ram at 0xc000-cfff
+			// Net offsets: avoids stepping below a NULL base at startup
 			if(!rdrom) {
-				mem0rd -= 0x1000;
+				rd_off = 0xc000;
 			}
-			mem0wr -= 0x1000;
+			wr_off = 0xc000;
 		}
 		fixup_any_bank_any_page(bank*0x100 + 0xd0, 0x10,
-					mem0rd + 0xd000, mem0wr + 0xd000);
+					mem0rd + rd_off, mem0wr + wr_off);
 	}
 
 	/* No need for fixup_brks() since only called from set_statereg(), */
