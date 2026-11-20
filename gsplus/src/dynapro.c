@@ -1971,6 +1971,11 @@ dynapro_file_from_unix(Disk *dsk, Dynapro_file *fileptr)
 	printf("Set %s dir_byte:%07x+0x10=%02x (file_type)\n",
 		fileptr->unix_path, dir_byte, fileptr->file_type);
 #endif
+	if(blocks_out == 0) {
+		// Not via dynapro_error: its 80-byte buffer would cut the path
+		fprintf(stderr, "Dynapro error: could not add file, remove it "
+					"from the folder: %s\n", fileptr->unix_path);
+	}
 
 	return blocks_out;
 }

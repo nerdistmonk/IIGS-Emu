@@ -290,16 +290,18 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 			break;
 		case 9:		// Finder Info
 			if(length < 32) {
-				printf("Invalid Finder info, len:%d\n", length);
-				break;
+				// Short entry: keep the type/creator bytes present
+				printf("Short Finder info, len:%d\n", length);
 			}
 			bptr[8] = 0x12;
 			bptr[8 + 18] = 0x12;
 			bptr[9] = 1;
 			bptr[9 + 18] = 2;
 			for(j = 0; j < 16; j++) {
-				bptr[10 + j] = fptr[offset + j];
-				bptr[10 + 18 + j] = fptr[offset + 16 + j];
+				bptr[10 + j] = (j < length) ?
+							fptr[offset + j] : 0;
+				bptr[10 + 18 + j] = (16 + j < length) ?
+							fptr[offset + 16 + j] : 0;
 			}
 			break;
 		case 11:	// ProDOS File Info
