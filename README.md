@@ -2,15 +2,8 @@
 
 # IIGS-Emu
 
-An accessible build of [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
-emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey,
-packaged with
-[SDL3](https://www.libsdl.org/) for GNU/Linux.
-
-## What it is
-
-IIGS-Emu wraps the GSplus core in a single SDL3 application for GNU/Linux. IIGS-Emu
-tracks the KEGS version GSplus is based on (currently 1.38).
+Originally based on [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
+emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey.
 
 ## You'll need a ROM
 
@@ -28,23 +21,10 @@ it up automatically. You can also select one at runtime: press **F4 → ROM File
 Selection → ROM File** and browse to it. A handful of other common names
 (`APPLE2GS.ROM`, `APPLE2GS.ROM2`, `xgs.rom`, `342-0077-b`, …) are recognized too.
 
-**Finding one:** the cleanest option is to dump the ROM from a real Apple IIgs you
-own. The original KEGS documentation includes a short BASIC program that does it.
-Otherwise, the IIgs ROM is long-unsupported software that's widely circulated
-online: a web search for *"Apple IIgs ROM 03"* (or ROM 01) generally turns one
-up, and the Internet Archive hosts MAME sets that contain a usable ROM. That same
-`README.ROM.files.txt` lists the exact filenames KEGS accepts and how to extract
-or convert a MAME-format dump.
-
 **Did it work?** A valid ROM 01 file is exactly **128 KB** and a ROM 03 is **256
 KB**. If IIGS-Emu boots to the "Check startup device" screen, the ROM loaded fine —
 it just needs a disk. Press **F4** to mount a disk image, or drag one onto the
 window.
-
-## Status
-
-This is an early reboot - expect rough edges. SDL3 **video, input, and audio**
-are working on GNU/Linux.
 
 ### What's been added in IIGS-Emu
 
