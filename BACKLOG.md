@@ -88,25 +88,3 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | **CI smoke test** | High | M | Headless boot (SDL `dummy` video driver) for N emulated frames, checksum the framebuffer. Catches CPU/memory/video regressions on every PR — highest-leverage single test, especially for upstream KEGS merges. Needs a redistributable boot image or ROM-free path. |
-
-## Upstream (offer back to KEGS)
-
-Per policy: core (non-SDL) fixes get offered upstream. Current candidates,
-verified clean by review:
-
-- **VOC SHR shadow fix** — `moremem.c` `fixup_ramwrt()`, bank $E0 pages
-  $6000-$9FFF. Reword the misleading "bank 0" comment first.
-- **Windows timer fix** — `clock.c` `timeBeginPeriod(1)` + Sleep rounding;
-  winmm is already linked in upstream's vcxproj.
-- **dynapro.c dirent guard** — `_WIN32 && _MSC_VER` check; benefits any
-  mingw build of upstream.
-
----
-
-## Suggested order
-
-Fast-forward → Clipboard.
-
-## Dagen's wishlist
-
-_(personal "selfish feature" ideas — add freely)_
