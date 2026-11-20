@@ -1468,7 +1468,10 @@ config_parse_config_kegs_file()
 	if(g_cfg_cwd_str[0] != 0) {
 		ret = chdir(&g_cfg_cwd_str[0]);
 		if(ret != 0) {
-			printf("chdir to %s, errno:%d\n", g_cfg_cwd_str, errno);
+			fatal_printf("cannot change to config directory %s, "
+				"errno:%d!  Stopping!\n", g_cfg_cwd_str, errno);
+			my_exit(3);
+			return;
 		}
 		// Do basename(g_config_kegs_name)--on it's own buffer
 		str = cfg_str_basename(g_config_kegs_name);
@@ -1492,6 +1495,15 @@ config_parse_config_kegs_file()
 	}
 	dsize = 0;
 	if(fd >= 0) {
+		struct stat	cfg_stat;
+
+		if((fstat(fd, &cfg_stat) == 0) && S_ISDIR(cfg_stat.st_mode)) {
+			close(fd);
+			fatal_printf("config file %s is a directory!  "
+				"Stopping!\n", g_config_kegs_name);
+			my_exit(3);
+			return;
+		}
 		dsize = cfg_get_fd_size(fd);
 	}
 	if(fd < 0) {
@@ -2662,13 +2674,13 @@ int
 cfg_guess_image_size(const char *filename)
 {
 	struct stat stat_buf;
-	int	len;
+	off_t	len;
 
 	if(stat(filename, &stat_buf) < 0) {
 		printf("Cannot stat %s\n", filename);
 		return -1;
 	}
-	len = (int)stat_buf.st_size;
+	len = stat_buf.st_size;
 	if(len < 140*1024) {
 		return 0;
 	} else if(len < 140*1024 + 256 + 1) {
@@ -2679,20 +2691,59 @@ cfg_guess_image_size(const char *filename)
 	return 3;
 }
 
+/* Read the disk type from a WOZ file's INFO chunk. Returns 1 for 5.25", 2 for
+ * 3.5", or 0 if the file is not a WOZ image or its type is unrecognized. The
+ * INFO data starts at offset 20 (after the 12-byte file header and the 8-byte
+ * chunk header); disk type is its second byte. */
+static int
+cfg_woz_disk_type(const char *filename)
+{
+	unsigned char hdr[22];
+	FILE	*fp;
+	size_t	n;
+	int	type;
+
+	fp = fopen(filename, "rb");
+	if(!fp) {
+		return 0;
+	}
+	n = fread(hdr, 1, sizeof(hdr), fp);
+	fclose(fp);
+	if((n < sizeof(hdr)) || (memcmp(hdr, "WOZ", 3) != 0) ||
+				((hdr[3] != '1') && (hdr[3] != '2')) ||
+				(memcmp(hdr + 12, "INFO", 4) != 0)) {
+		return 0;
+	}
+	type = hdr[21];
+	if((type == 1) || (type == 2)) {
+		return type;
+	}
+	return 0;
+}
+
 /* Inspect a file and insert it into a guessed slot (drive 1). Used by
- * drag-and-drop: small/large images -> SmartPort (slot 7), 5.25" -> slot 6,
- * 3.5" -> slot 5. */
+ * drag-and-drop: WOZ images use their INFO disk type (5.25" -> slot 6, 3.5" ->
+ * slot 5). Other files fall back to size: small/large images -> SmartPort
+ * (slot 7), 5.25" -> slot 6, 3.5" -> slot 5. */
 void
 cfg_inspect_maybe_insert_file(const char *filename)
 {
 	int	slot;
+	int	woz_type;
 
-	switch(cfg_guess_image_size(filename)) {
-	case 0: slot = 7; break;
-	case 1: slot = 6; break;
-	case 2: slot = 5; break;
-	case 3: slot = 7; break;
-	default: slot = 0; break;
+	woz_type = cfg_woz_disk_type(filename);
+	if(woz_type == 1) {
+		slot = 6;
+	} else if(woz_type == 2) {
+		slot = 5;
+	} else {
+		switch(cfg_guess_image_size(filename)) {
+		case 0: slot = 7; break;
+		case 1: slot = 6; break;
+		case 2: slot = 5; break;
+		case 3: slot = 7; break;
+		default: slot = 0; break;
+		}
 	}
 	if(slot > 0) {
 		printf("Drag-and-drop: inserting %s in slot %d, drive 1\n",

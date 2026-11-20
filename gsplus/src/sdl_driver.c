@@ -491,6 +491,11 @@ sdl_video_init(void)
 	g_mainwin_info.active = 1;
 	g_mainwin_info.data = calloc((size_t)SDL_MAX_WIDTH * SDL_MAX_HEIGHT,
 					sizeof(word32));
+	if(!g_mainwin_info.data) {
+		printf("cannot allocate the %dx%d framebuffer\n",
+			SDL_MAX_WIDTH, SDL_MAX_HEIGHT);
+		exit(1);
+	}
 
 	video_update_scale(km, w, h, 1);
 
@@ -536,8 +541,8 @@ sdl_video_init(void)
 	 * coexist with the core's pacer is a backlog item; for now the core is the
 	 * sole frame-rate authority. */
 	SDL_SetRenderVSync(g_mainwin_info.renderer, 0);
-	printf("SDL renderer backend: %s\n",
-		SDL_GetRendererName(g_mainwin_info.renderer));
+	const char *rname = SDL_GetRendererName(g_mainwin_info.renderer);
+	printf("SDL renderer backend: %s\n", rname ? rname : "unknown");
 
 	/* Keep the IIgs aspect ratio (letterbox) unless -noaspect stretches to fill. */
 	SDL_SetRenderLogicalPresentation(g_mainwin_info.renderer, w, h,
@@ -739,8 +744,8 @@ sdl_open_first_gamepad(void)
 		g_sdl_gamepad = SDL_OpenGamepad(ids[i]);
 		if(g_sdl_gamepad) {
 			g_joystick_native_type1 = 1;
-			printf("SDL gamepad opened: %s\n",
-				SDL_GetGamepadName(g_sdl_gamepad));
+			const char *gname = SDL_GetGamepadName(g_sdl_gamepad);
+			printf("SDL gamepad opened: %s\n", gname ? gname : "unknown");
 			break;
 		}
 	}
@@ -859,6 +864,14 @@ sdl_poll_events(void)
 		case SDL_EVENT_QUIT:
 			g_quit_requested = 1;
 			break;
+		case SDL_EVENT_WINDOW_MOVED:
+			/* Remember the windowed position for the saved config.
+			 * Fullscreen moves are not stored. */
+			if(!g_is_fullscreen) {
+				g_mainwin_xpos = ev.window.data1;
+				g_mainwin_ypos = ev.window.data2;
+			}
+			break;
 		case SDL_EVENT_WINDOW_EXPOSED:
 		case SDL_EVENT_WINDOW_SHOWN:
 		case SDL_EVENT_WINDOW_RESIZED:
@@ -866,6 +879,13 @@ sdl_poll_events(void)
 		case SDL_EVENT_WINDOW_RESTORED:
 			/* Repaint the whole screen when the window (re)appears or resizes. */
 			video_set_x_refresh_needed(g_mainwin_info.kimage_ptr, 1);
+			break;
+		case SDL_EVENT_WINDOW_FOCUS_GAINED:
+			adb_mainwin_focus(1);
+			break;
+		case SDL_EVENT_WINDOW_FOCUS_LOST:
+			adb_mainwin_focus(0);
+			adb_kbd_repeat_off();
 			break;
 		case SDL_EVENT_WINDOW_MOUSE_ENTER:
 			g_mouse_over_window = 1;
@@ -987,8 +1007,13 @@ sdl_build_screenshot_path(char *buf, size_t buflen)
 
 	now = time(NULL);
 	tmv = localtime(&now);
-	strftime(fname, sizeof(fname),
-			"iigs-emu_screenshot_%Y%m%d_%H%M%S.png", tmv);
+	if(tmv) {
+		strftime(fname, sizeof(fname),
+				"iigs-emu_screenshot_%Y%m%d_%H%M%S.png", tmv);
+	} else {
+		snprintf(fname, sizeof(fname),
+				"iigs-emu_screenshot_%lld.png", (long long)now);
+	}
 
 	if(g_cfg_ssdir && g_cfg_ssdir[0]) {
 		size_t len = strlen(g_cfg_ssdir);

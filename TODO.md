@@ -1,16 +1,8 @@
 # TODO
 
-## Release blockers (July 2026 code review)
+## Bugs (pre-release)
 
-- [ ] **Stuck modifiers on focus loss** (`sdl_driver.c` event switch): no `SDL_EVENT_WINDOW_FOCUS_GAINED/LOST` handling, so window switching (e.g. Alt+Tab) leaves Open-Apple latched in the emulated ADB. Call `adb_mainwin_focus(1/0)` + `adb_kbd_repeat_off()` and send key-ups for modifier codes 0x37/0x3a/0x36/0x38 on focus lost (cf. `xdriver.c:1124` in the original KEGS tree).
-
-## Bugs (pre-release, lower urgency)
-
-- [ ] Blur breaks on the software renderer (`sdl_driver.c:1139-1144`): `SDL_ComposeCustomBlendMode` is reportedly unsupported there, so `-nohwaccel 1` + blur gives a dark picture. Not yet reproduced. Check the `SDL_SetTextureBlendMode` return and fall back to a plain copy.
-- [ ] `-cfg missingdir/foo.gsp` silently autocreates `./foo.gsp` in the CWD when the `chdir` fails (`config.c:1469-1491`, reproduced) — skip autocreate and keep the fatal when the directory component doesn't resolve. Also `stat`/`S_IFDIR`-check `-cfg` pointing at an existing directory (currently prints "Could not read config.kegs" and keeps running).
-- [ ] Window position never persists: no `SDL_EVENT_WINDOW_MOVED` handler, so the saved "Main Window X/Y position" config vars never update (cf. `xdriver.c:1208` in the original KEGS tree calling `video_update_xpos_ypos()`).
-- [ ] Hardening: unchecked 5 MB `calloc` (`sdl_driver.c:492`); `localtime()` NULL → `strftime` UB in the screenshot path (`sdl_driver.c:989`); `printf("%s", NULL)` risk on renderer/gamepad names (`sdl_driver.c:540`, `:743`); `st_size` truncated to `int` in `cfg_guess_image_size()` (`config.c:2671`).
-- [ ] Drag-and-drop misroutes ~230 KB 5.25" WOZ images into slot 5 — sniff the WOZ INFO chunk disk type before the size guess (`config.c:2662-2690`).
+- [ ] Drag-and-drop misroutes ~230 KB 5.25" WOZ images into slot 5 (`config.c:cfg_guess_image_size`, `cfg_inspect_maybe_insert_file`) — sniff the WOZ INFO chunk disk type before the size guess.
 
 ## Pre-release polish
 
