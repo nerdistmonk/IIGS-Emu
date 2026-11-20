@@ -9,6 +9,3 @@
 - [ ] Small style fixes: revert the extra tab on `CFGTYPE_INT`/`CFGTYPE_STR` in `config.h:23,27`; rename `SDL_MAX_WIDTH/HEIGHT` macros (`sdl_driver.c:111-112`) to `GSPLUS_` (reserved prefix); reword the VOC comment at `moremem.c:534` after confirming what loop index `i` selects; set `g_audio_enable = 0` when SDL audio init fails (`sdl_snd_driver.c:52-69`) so the core skips dead mixing work.
 - [ ] Optional perf: skip the clear/draw/present in `sdl_update_display` when no rects changed and no effect/expose needs a redraw (full-window blit at 60 fps on the software renderer).
 
-## Backlog
-
-- [ ] Remove `#ifdef INCLUDE_RCSID_C` / `#endif` guards from header files and `#define`/`#undef INCLUDE_RCSID_C` from `sim65816.c` and `sound.c` in `gsplus/src/`. The `const char rcsid_` lines were already removed; these are the leftover scaffolding.
