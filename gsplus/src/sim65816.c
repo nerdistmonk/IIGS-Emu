@@ -2003,7 +2003,7 @@ do_wdm_emulator_id()
 		if(i >= maxlen) {
 			break;
 		}
-		addr = (engine.dbank << 8) | (addr & 0xffff);
+		addr = (engine.dbank << 16) | (addr & 0xffff);
 		set_memory_c(addr, 0x80 | g_emulator_name[i], 1);
 		addr++;
 		engine.xreg = i + 1;
