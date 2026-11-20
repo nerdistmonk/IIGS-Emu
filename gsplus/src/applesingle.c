@@ -237,7 +237,8 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 	magic = applesingle_get_be32(&fptr[0]);
 	version = applesingle_get_be32(&fptr[4]);
 	num_entries = applesingle_get_be16(&fptr[24]);
-	if((magic != 0x00051600) || (version < 0x00020000)) {
+	if((magic != 0x00051600) ||
+			((version != 0x00010000) && (version != 0x00020000))) {
 		printf("Bad Applesingle magic number is: %08x, vers:%08x\n",
 					magic, version);
 		return 0;
@@ -302,6 +303,16 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 							fptr[offset + j] : 0;
 				bptr[10 + 18 + j] = (16 + j < length) ?
 							fptr[offset + 16 + j] : 0;
+			}
+			break;
+		case 7:		// File Info (v1 only; layout depends on home FS)
+			// ProDOS v1 layout: create/mod date+time (8 bytes),
+			// access (2), file type (2), aux type (4)
+			if((version == 0x00010000) && (length >= 16) &&
+					!memcmp(&fptr[8], "ProDOS", 6)) {
+				fileptr->file_type = fptr[offset + 11];
+				fileptr->aux_type = (fptr[offset + 14] << 8) |
+							fptr[offset + 15];
 			}
 			break;
 		case 11:	// ProDOS File Info
