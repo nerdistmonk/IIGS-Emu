@@ -282,9 +282,6 @@ doc_sound_end(int osc, int can_repeat, double eff_dsamps, double dsamps)
 	if(ctl & 0x01) {
 		/* Oscillator already stopped. */
 		halt_printf("Osc %d interrupt, but it was already stop!\n",osc);
-#ifdef HPUX
-		U_STACK_TRACE();
-#endif
 		return;
 	}
 

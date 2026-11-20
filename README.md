@@ -1,15 +1,15 @@
-![IIGS-Emu - cross-platform Apple IIgs emulator](gsplus-social.png)
+![IIGS-Emu - GNU/Linux Apple IIgs emulator](gsplus-social.png)
 
 # IIGS-Emu
 
 An accessible build of [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
 emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey,
 packaged with
-[SDL3](https://www.libsdl.org/) for Linux.
+[SDL3](https://www.libsdl.org/) for GNU/Linux.
 
 ## What it is
 
-IIGS-Emu wraps the GSplus core in a single SDL3 application for Linux. IIGS-Emu
+IIGS-Emu wraps the GSplus core in a single SDL3 application for GNU/Linux. IIGS-Emu
 tracks the KEGS version GSplus is based on (currently 1.38).
 
 ## You'll need a ROM
@@ -44,7 +44,7 @@ window.
 ## Status
 
 This is an early reboot - expect rough edges. SDL3 **video, input, and audio**
-are working on Linux.
+are working on GNU/Linux.
 
 ### What's been added in IIGS-Emu
 
@@ -54,7 +54,7 @@ Some features that are a part of the SDL3 build:
   `-highdpi`, `-novsync`, `-nohwaccel`, plus window position; F11 toggles
   fullscreen.
 - **Screenshot capture** - F10 writes the framebuffer to disk.
-- **Gamepad support** - cross-platform SDL_Gamepad mapped to the IIgs joystick.
+- **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick.
   A connected gamepad is used automatically (with hotplug); without one, the
   numeric keypad emulates the joystick. The stick's circular travel is remapped
   to the square range Apple joysticks have, so games can reach the corners.
@@ -73,7 +73,7 @@ Some features that are a part of the SDL3 build:
   / `-crtvignette`, Ctrl+F11 to toggle. Screen curvature, RGB phosphor mask,
   bloom, and vignette; composes with the scanline simulator.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
-  Linux downloads.
+  GNU/Linux downloads.
 
 ## Controls
 

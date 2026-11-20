@@ -16,9 +16,7 @@
 # include <sys/socket.h>
 # include <netdb.h>
 
-#if defined(HPUX) || defined(__linux__) || defined(SOLARIS)
 # define SCC_SOCKETS
-#endif
 
 
 /* my scc port 0 == channel A, port 1 = channel B */

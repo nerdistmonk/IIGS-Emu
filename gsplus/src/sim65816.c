@@ -666,15 +666,6 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 			printf("Forcing black-and-white hires modes\n");
 			g_cur_a2_stat |= ALL_STAT_COLOR_C021;
 			g_use_bw_hires = 1;
-		} else if(!strncmp("-NS", argv[i], 3)) {
-			// Ignore the legacy -NS argument (macOS launch services)
-			if((i + 1) < argc) {
-				// If the next argument doesn't start with '-',
-				//  then ignore it, too
-				if(argv[i+1][0] != '-') {
-					i++;
-				}
-			}
 		} else if(!strcmp("-logpc", argv[i])) {
 			printf("Force logpc enable\n");
 			debug_logpc_on("on");

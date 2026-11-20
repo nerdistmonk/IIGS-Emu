@@ -40,10 +40,6 @@ typedef unsigned long long dword64;
 #define MAXNUM_HEX_PER_LINE	32
 #define MAX_SCALE_SIZE		5100
 
-#ifdef __NeXT__
-# include <libc.h>
-#endif
-
 #include <unistd.h>
 # include <sys/ioctl.h>
 # include <sys/wait.h>
@@ -57,13 +53,6 @@ typedef unsigned long long dword64;
 #include <errno.h>
 #include <stdarg.h>
 #include <ctype.h>
-#ifdef HPUX
-# include <machine/inline.h>		/* for GET_ITIMER */
-#endif
-
-#ifdef SOLARIS
-# include <sys/filio.h>
-#endif
 
 #define MAX_CHANGE_RECTS	20
 

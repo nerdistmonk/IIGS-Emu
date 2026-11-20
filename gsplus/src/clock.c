@@ -49,11 +49,7 @@ get_dtime()
 	/* No routine cares about the absolute value, only deltas--maybe */
 	/*  take advantage of that in future to increase usec accuracy */
 
-#ifdef SOLARIS
-	gettimeofday(&tp1, (void *)0);
-#else
 	gettimeofday(&tp1, (struct timezone *)0);
-#endif
 
 	dsec = (double)tp1.tv_sec;
 	dusec = (double)tp1.tv_usec;
