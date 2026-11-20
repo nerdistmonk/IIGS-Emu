@@ -40,12 +40,6 @@ KB**. If IIGS-Emu boots to the "Check startup device" screen, the ROM loaded fin
 it just needs a disk. Press **F4** to mount a disk image, or drag one onto the
 window.
 
-## Downloads
-
-Prebuilt Linux archives (`.tar.gz`) are attached to each [release](../../releases).
-The archive relies on a system SDL3 (`libsdl3` from your package manager). A
-self-contained AppImage is planned.
-
 ## Status
 
 This is an early reboot - expect rough edges. SDL3 **video, input, and audio**
@@ -131,35 +125,3 @@ sudo apt install cmake ninja-build build-essential git \
   libpulse-dev libasound2-dev libpipewire-0.3-dev libsndio-dev \
   libdbus-1-dev libudev-dev libibus-1.0-dev
 ```
-
-## About Branches
-
-- KEGS latest is tracked in the `./upstream` directory.
-- An `upstream` branch is updated whenever there's a new KEGS version and merged
-  to `main`.
-- This makes it easy to track KEGS changes somewhat independently of the IIGS-Emu
-  work.
-
-## A note from Dagen
-
-I've tried to reboot IIGS-Emu _many times_ over the past few years and each time 
-I'd sink weeks into building and packaging a new release, and then life would 
-pull me away for months, sometimes years, and momentum would die. I made the 
-decision to use AI to allow me to provide the emulator I wanted to have, which
-is controversial even for me.  But then again, this isn't any different than 
-what I see in every modern development shop.  Things have changed dramatically
-over the past few years.  But I want to be clear about AI usage, and that I
-feel comfortable using it as a tool that needs a lot of oversight. 
-
-KEGS is a brilliant piece of pure C, and is proof that you don't need AI to 
-write great software. Kent Dickey did the hard, beautiful work. The AI here 
-is a pragmatic crutch to keep *my* reboot alive between the demands of real 
-life.
-
-If you want the canonical emulator, go straight to KEGS.  It's great!
-
-I'm just over here having fun making the emulator extensions that I find 
-useful or interesting.  I hope it helps some other people connect to the 
-incredible machine that is the Apple IIgs. Peace!
-
-- Dagen
