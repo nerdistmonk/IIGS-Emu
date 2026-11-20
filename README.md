@@ -95,14 +95,16 @@ This produces the `build/iigs-emu` executable.
 
 ### Dependencies
 
-**Debian/Ubuntu** - the X11/Wayland/audio packages are SDL3's build dependencies:
+You need a C compiler (GCC), CMake, Ninja, and git. SDL3 is used if installed;
+otherwise it is built from source, which needs development headers for your
+system's display and audio stacks:
 
-```sh
-sudo apt install cmake ninja-build build-essential git \
-  libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
-  libxfixes-dev libxss-dev libxtst-dev libxinerama-dev \
-  libwayland-dev wayland-protocols libdecor-0-dev libxkbcommon-dev \
-  libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev \
-  libpulse-dev libasound2-dev libpipewire-0.3-dev libsndio-dev \
-  libdbus-1-dev libudev-dev libibus-1.0-dev
-```
+- **X11 and Wayland:** the X11 extension libraries (Xext, Xrandr, Xcursor, Xi,
+  Xfixes, Xss, Xtst, Xinerama), Wayland client and protocol files, libdecor, and
+  xkbcommon.
+- **Graphics:** DRM, GBM, EGL, and OpenGL/GLES.
+- **Audio:** PulseAudio, ALSA, PipeWire, and sndio.
+- **Other:** D-Bus, udev, and IBus.
+
+Package names vary by distribution. Search your package manager for the matching
+`-dev` or `-devel` packages.
