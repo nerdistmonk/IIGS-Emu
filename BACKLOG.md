@@ -59,13 +59,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | **Pause/resume** hotkey | Med | S | |
 | **Save states / snapshots** | Med | L | Full IIgs machine state; KEGS has none. Stretch. |
 
-## Audio
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| **Volume / mute** hotkey | Med | S | |
-| Audio device selection | Low | S | |
-
 ## Quality of life
 
 | Item | Pri | Eff | Notes |
@@ -73,12 +66,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | **Recent disks/ROMs** menu | Med | M | |
 | Window title shows **mounted disk** | Low | S | |
 | Modern **overlay config menu** (vs. F4 text panel) | Low | L | Big polish, big effort. |
-
-## Packaging / distribution
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| **Linux AppImage** (self-contained) | Med | M | The one non-self-contained download today. |
 
 ## Testing / infrastructure
 
