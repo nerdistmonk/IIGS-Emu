@@ -98,11 +98,6 @@ static int g_screenshot_requested = 0;	/* set by F10, serviced at frame end */
 #define SCAN_TILE_W	64
 #define MASK_TILE_W	63
 
-/* Version string (set by the build from the git tag; see CMakeLists.txt). */
-#ifndef GSPLUS_VERSION_STR
-# define GSPLUS_VERSION_STR	"dev"
-#endif
-
 /* Up-front buffer size: large enough for every IIgs video mode (incl. borders
  * and scaling headroom). The actual window is sized to the current mode. */
 #define SDL_MAX_WIDTH	1280

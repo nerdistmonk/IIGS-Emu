@@ -19,6 +19,7 @@
 #include "protos_sdl.h"
 
 extern int g_preferred_rate;		/* desired sample rate, set by the core */
+extern int g_audio_enable;		/* cleared on init failure so the core skips mixing */
 
 static SDL_AudioStream *g_sdl_audio_stream = NULL;
 
@@ -50,6 +51,7 @@ sdl_snd_init(word32 *shmaddr)
 
 	if(!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
 		printf("SDL_InitSubSystem(AUDIO) failed: %s\n", SDL_GetError());
+		g_audio_enable = 0;
 		sound_set_audio_rate(g_preferred_rate);
 		return;
 	}
@@ -63,6 +65,7 @@ sdl_snd_init(word32 *shmaddr)
 				SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
 	if(!g_sdl_audio_stream) {
 		printf("SDL_OpenAudioDeviceStream failed: %s\n", SDL_GetError());
+		g_audio_enable = 0;
 		sound_set_audio_rate(g_preferred_rate);
 		return;
 	}
