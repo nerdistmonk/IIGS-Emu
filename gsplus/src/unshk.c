@@ -62,7 +62,7 @@ unshk_calc_crc(byte *bptr, int size, word32 start_crc)
 }
 
 int
-unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr)
+unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr, byte *ucend)
 {
 	byte	*start_ucptr;
 	word32	c;
@@ -70,7 +70,7 @@ unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr)
 	int	i;
 
 	// RLE is 3 bytes: { 0xdb, char, count}, where count==0 means output
-	//  one char.
+	//  one char.  Output is capped at ucend so corrupt runs can't overflow.
 	start_ucptr = ucptr;
 	while(len > 0) {
 		c = *cptr++;
@@ -79,10 +79,18 @@ unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr)
 			c = *cptr++;
 			count = *cptr++;
 			len -= 2;
+			if(count + 1 > ucend - ucptr) {
+				printf("RLE output overflow\n");
+				return 1;
+			}
 			for(i = 0; i <= count; i++) {
 				*ucptr++ = c;
 			}
 		} else {
+			if(ucptr >= ucend) {
+				printf("RLE output overflow\n");
+				return 1;
+			}
 			*ucptr++ = c;
 		}
 	}
@@ -257,6 +265,10 @@ unshk_data(Disk *dsk, byte *cptr, word32 compr_size, byte *ucptr,
 			return;				// Ilegal length
 		}
 		len = len & 0x1fff;
+		if(len > 0x1000) {
+			printf("Bad chunk length: %04x\n", len);
+			return;			// Chunks are at most 4K
+		}
 		lzw_len = 0;
 		if(thread_format == 3) {		// LZW/2
 			if(use_lzw) {
@@ -301,7 +313,8 @@ unshk_data(Disk *dsk, byte *cptr, word32 compr_size, byte *ucptr,
 		if(len != 0x1000) {
 			// printf("RLE on %02x.%02x.%02x... %d bytes\n",
 			//	cptr[0], cptr[1], cptr[2], len);
-			ret = unshk_unrle(rle_inptr, len, rle_delim, ucptr);
+			ret = unshk_unrle(rle_inptr, len, rle_delim, ucptr,
+							ucptr + 0x1000);
 			if(ret) {
 				printf("unRLE failed\n");
 				return;
@@ -416,7 +429,8 @@ unshk_parse_header(Disk *dsk, byte *cptr, int compr_size, byte *base_cptr)
 		}
 		if((thread_class == 2) && (thread_kind == 1)) {
 			// Disk image!
-			ucptr = malloc(thread_eof + 0x1000);
+			// LZW output is staged 0x1000 past ucptr, so pad by 0x2000
+			ucptr = malloc(thread_eof + 0x2000);
 			unshk_data(dsk, dptr, comp_thread_eof, ucptr,
 					thread_eof, thread_format, base_cptr);
 			if(dsk->fd == 0) {

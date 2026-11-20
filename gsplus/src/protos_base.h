@@ -670,7 +670,7 @@ word32 woz_add_a_track(Disk *dsk, word32 qtr_track);
 word32 unshk_get_long4(byte *bptr);
 word32 unshk_get_word2(byte *bptr);
 word32 unshk_calc_crc(byte *bptr, int size, word32 start_crc);
-int unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr);
+int unshk_unrle(byte *cptr, int len, word32 rle_delim, byte *ucptr, byte *ucend);
 void unshk_lzw_clear(Lzw_state *lzw_ptr);
 byte *unshk_unlzw(byte *cptr, Lzw_state *lzw_ptr, byte *ucptr, word32 uclen);
 void unshk_data(Disk *dsk, byte *cptr, word32 compr_size, byte *ucptr, word32 uncompr_size, word32 thread_format, byte *base_cptr);
