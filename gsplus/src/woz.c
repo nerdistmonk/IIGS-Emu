@@ -252,6 +252,11 @@ woz_parse_tmap(Disk *dsk, int offset, int size)
 	}
 	wozinfo_ptr->tmap_offset = offset;
 	printf("TMAP field, %d bytes\n", size);
+	if(size < 160) {
+		printf("TMAP field is %d, too short\n", size);
+		wozinfo_ptr->woz_size = 0;
+		return;
+	}
 	bptr = &(wozptr[offset]);
 	for(i = 0; i < 40; i++) {
 		printf("Track %2d.00: %02x, %2d.25:%02x %2d.50:%02x %2d.75:"
