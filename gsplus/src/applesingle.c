@@ -45,6 +45,8 @@ applesingle_set_be16(byte *bptr, word32 val)
 	bptr[0] = val >> 8;
 }
 
+// Writes a v2 AppleSingle file from the ProDOS forks. Entries 3 (real name) and
+// 4 (ShrinkIt resource header/comment) are not preserved, and v1 dates are dropped.
 word32
 applesingle_map_from_prodos(Disk *dsk, Dynapro_file *fileptr, int do_file_data)
 {
