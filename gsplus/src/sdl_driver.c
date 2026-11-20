@@ -100,8 +100,8 @@ static int g_screenshot_requested = 0;	/* set by F10, serviced at frame end */
 
 /* Up-front buffer size: large enough for every IIgs video mode (incl. borders
  * and scaling headroom). The actual window is sized to the current mode. */
-#define SDL_MAX_WIDTH	1280
-#define SDL_MAX_HEIGHT	1024
+#define GSPLUS_MAX_WIDTH	1280
+#define GSPLUS_MAX_HEIGHT	1024
 
 static int g_quit_requested = 0;
 
@@ -481,11 +481,11 @@ sdl_video_init(void)
 	g_mainwin_info.main_height = h;
 	g_mainwin_info.pixels_per_line = w;
 	g_mainwin_info.active = 1;
-	g_mainwin_info.data = calloc((size_t)SDL_MAX_WIDTH * SDL_MAX_HEIGHT,
+	g_mainwin_info.data = calloc((size_t)GSPLUS_MAX_WIDTH * GSPLUS_MAX_HEIGHT,
 					sizeof(word32));
 	if(!g_mainwin_info.data) {
 		printf("cannot allocate the %dx%d framebuffer\n",
-			SDL_MAX_WIDTH, SDL_MAX_HEIGHT);
+			GSPLUS_MAX_WIDTH, GSPLUS_MAX_HEIGHT);
 		exit(1);
 	}
 
@@ -1481,7 +1481,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	ret = kegs_init(mdepth, SDL_MAX_WIDTH, SDL_MAX_HEIGHT, 0);
+	ret = kegs_init(mdepth, GSPLUS_MAX_WIDTH, GSPLUS_MAX_HEIGHT, 0);
 	if(ret) {
 		printf("kegs_init ret: %d, stopping\n", ret);
 		exit(1);

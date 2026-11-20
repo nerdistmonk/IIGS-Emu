@@ -531,7 +531,7 @@ fixup_ramwrt()
 
 		shadow = 0;
 		if(i) {
-			shadow = BANK_SHADOW;		// For VOC SHR in bank 0
+			shadow = BANK_SHADOW;		// Bank E0 SHR shadow; VOC reads SHR from main memory (video.c:1750)
 		}
 		if(ramwrt && (((g_c035_shadow_reg & 0x08) == 0) || i)) {
 			/* shr shadowing */
