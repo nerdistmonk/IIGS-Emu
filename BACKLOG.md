@@ -10,14 +10,14 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 ## Done
 
-- Foundation: SDL3 driver (video/input/audio), CMake build, CI,
+- Foundation: SDL3 driver (video/input/audio), CMake build,
   Linux `.tar.gz` packaging (SDL3 is not bundled; users install it), version-from-tag.
 - **F1 — Window & display options**: `-fullscreen`, `-borderless`, `-noaspect`,
   `-highdpi`, `-nohwaccel`, window position; F11 fullscreen toggle. (`-novsync`
   was later removed — see the vsync item under Display.)
 - **F2 — Scanline simulator**: `-scanline <0-100>`, Shift+F11 toggle.
-- **F3 — Drag-and-drop**: drop a disk image on the window to mount it (slot
-  guessed from file size).
+- **F3 — Drag-and-drop**: drop a disk image on the window to mount it (WOZ slot
+  from its INFO disk type; other images guessed from file size).
 - **Curved CRT effect**: `-crt 1` + `-crtcurve <0-100>` + `-crtmask <0-100>`,
   Ctrl+F11 toggle. Curvature (RenderGeometry mesh) + RGB phosphor mask + bloom +
   vignette, composes with `-scanline`. All on the 2D renderer, no extra libraries.

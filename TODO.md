@@ -1,12 +1,8 @@
 # TODO
 
-## Bugs (pre-release)
-
-- [ ] Drag-and-drop misroutes ~230 KB 5.25" WOZ images into slot 5 (`config.c:cfg_guess_image_size`, `cfg_inspect_maybe_insert_file`) — sniff the WOZ INFO chunk disk type before the size guess.
-
 ## Pre-release polish
 
-- [ ] README: remove the stale `-novsync` flag (`README.md:34`); note the Debian runtime package name is `libsdl3-0`.
+- [ ] Packaging README (`gsplus/src/packaging/README-linux.txt`): note the Debian runtime package name is `libsdl3-0`.
 - [ ] Stale comments: "Shift+F12" screenshot references (`sdl_driver.c:84`, `:1317` — actual key is F10, `sdl_driver.c:891`); "MILESTONE STATUS (Phase 2a)" banner at `sdl_driver.c:18`.
 - [ ] Repo hygiene: root `.gitignore` should ignore `build/` and `.DS_Store`.
 - [ ] Version-string consistency: `sim65816.c:581` prints `argv[%d] = %s` debug noise on every launch; `g_kegs_version_str` (`sim65816.c:86`, "1.38") differs from `GSPLUS_VERSION_STR` ("1.38.0"); unify the fallbacks (`sim65816.c:20` "1.38.0" vs `sdl_driver.c:106` "dev").

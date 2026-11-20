@@ -54,6 +54,15 @@ File: `gsplus/src/applesingle.c`.
 - Dynamic folder config errors are truncated at `CFG_ERR_BUFSIZE` (256, config.c ~100). Raised from 80 in commit 8f96a48.
 - Dynamic folders need a valid `.applesingle` file name for forked files. The name mapping is in `dyna_type.c` (~285-286).
 - WOZ: a `#` on woz-525 is an expected TMAP rejection. SmartPort images (woz-short) are refused silently by design. The user declined adding a message.
+- Drag-and-drop (`cfg_inspect_maybe_insert_file`, config.c): WOZ files route by the INFO chunk disk type (byte 21: 1 = 5.25" to slot 6, 2 = 3.5" to slot 5). Other files use the size guess. Verified with gdb `call` on crafted files.
+
+## Focus, Config, and Window
+
+- SDL resets held keys on focus loss (SDL_SetKeyboardFocus(NULL) calls SDL_ResetKeyboard). No stuck Open-Apple occurred in testing. The real gap was that focus events never reached ADB. They now do via `adb_mainwin_focus()` in sdl_driver.c.
+- `-cfg` with a missing directory is fatal and creates no file. A directory path is rejected with "is a directory".
+- Window moves update `g_mainwin_xpos/ypos` in memory only. They are saved on the next config save. This is intended: moves do not trigger a save.
+- Do not store window position through `video_update_xpos_ypos()`. It clamps to the screen-minus-window size and would corrupt valid positions.
+- Blur with `-nohwaccel 1` renders correctly (checked by screenshot). It does not need a fallback.
 
 ## Git and Commits
 

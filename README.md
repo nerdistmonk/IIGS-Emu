@@ -31,7 +31,7 @@ window.
 Some features that are a part of the SDL3 build:
 
 - **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
-  `-highdpi`, `-novsync`, `-nohwaccel`, plus window position; F11 toggles
+  `-highdpi`, `-nohwaccel`, plus window position; F11 toggles
   fullscreen.
 - **Screenshot capture** - F10 writes the framebuffer to disk.
 - **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick.
@@ -43,7 +43,7 @@ Some features that are a part of the SDL3 build:
 - **Terminal debugger** - a REPL for the built-in 65816 debugger from the
   controlling terminal.
 - **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
-  guesses the slot from its size.
+  picks the slot from the WOZ disk type or the file size.
 - **Centered 8-bit video modes** - 40/80-column text, GR, HGR and DHGR are
   560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
   GSplus's left-align. `-centera2 0` (or the Display Effects menu) restores
@@ -78,8 +78,9 @@ but you can also edit most settings by hitting `F4` for the configuration menu.
 | **Ctrl + F11** | Toggle the CRT curved screen effect | GS+ |
 | **Ctrl + F12** | Reset the IIgs (Ctrl-Reset) | GS+ |
 
-You can also **drag & drop** a disk image onto the window to mount it (slot
-guessed from size). 
+You can also **drag & drop** a disk image onto the window to mount it. WOZ images
+go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are
+placed by file size.
 
 ## Building from source
 
