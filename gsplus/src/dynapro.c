@@ -2283,8 +2283,9 @@ dynapro_mount(Disk *dsk, char *dir_path, word32 num_blocks)
 	}
 	// dynapro_debug_update(dsk);
 	if(ret == 0) {
-		dynapro_error(dsk, "Folder too large.  dynapro_build_map "
-								"ret:0\n");
+		dynapro_error(dsk, "Could not map folder into %u blocks (volume "
+					"full or a file could not be mapped).  "
+					"dynapro_build_map ret:0\n", num_blocks);
 	} else {
 		ret = dynapro_validate_disk(dsk);
 	}

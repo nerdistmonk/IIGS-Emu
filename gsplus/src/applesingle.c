@@ -261,8 +261,8 @@ applesingle_from_unix(Disk *dsk, Dynapro_file *fileptr, byte *fptr,
 			i, hdr_pos, entry_id, offset, length);
 #endif
 		if(((dword64)offset + length) > dsize) {
-			printf("Applesingle entry_id:%d exceeds file size\n",
-				entry_id);
+			printf("Applesingle entry_id:%d exceeds file size: %s\n",
+				entry_id, fileptr->unix_path);
 			return 0;
 		}
 		switch(entry_id) {

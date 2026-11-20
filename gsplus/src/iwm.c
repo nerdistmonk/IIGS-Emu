@@ -1395,7 +1395,7 @@ iwm_read_data_fast(Disk *dsk, dword64 dfcyc)
 #endif
 	if(!g_fast_disk_unnib) {
 		dbg_log_info(dfcyc, dsk->cur_fbit_pos,
-			(dec << 24) | (bit_pos * 2), (val << 16) | 0xeb);
+			((word32)dec << 24) | (bit_pos * 2), (val << 16) | 0xeb);
 	}
 	return val & 0xff;
 }

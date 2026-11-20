@@ -2061,7 +2061,7 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 	}
 
 	if((dsk->fd < 0) && !dynamic_blocks) {
-		printf("Trying to open %s read-only, errno: %d\n", name_ptr,
+		printf("Trying to open %s read-only, errno: %d\n", dsk->name_ptr,
 								errno);
 		dsk->fd = open(name_ptr, O_RDONLY, 0x1b6);
 		locked = 2;
@@ -2070,7 +2070,7 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 	iwm_printf("open returned: %d\n", dsk->fd);
 
 	if((dsk->fd < 0) && !dynamic_blocks) {
-		fatal_printf("Disk image %s does not exist!\n", name_ptr);
+		fatal_printf("Disk image %s does not exist!\n", dsk->name_ptr);
 		free(dsk->raw_data);
 		return;
 	}
@@ -2146,9 +2146,9 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 			printf("Setting DOS 3.3 vol num to %d\n", dsk->vol_num);
 		}
 		//	Some 2IMG archives have the size byte reversed
-		dsize = (buf_2img[31] << 24) + (buf_2img[30] << 16) +
+		dsize = ((word32)buf_2img[31] << 24) + (buf_2img[30] << 16) +
 				(buf_2img[29] << 8) + buf_2img[28];
-		dunix_pos = (buf_2img[27] << 24) + (buf_2img[26] << 16) +
+		dunix_pos = ((word32)buf_2img[27] << 24) + (buf_2img[26] << 16) +
 				(buf_2img[25] << 8) + buf_2img[24];
 		if(dsize == 0x800c00) {
 			//	Byte reversed 0x0c8000
@@ -2160,7 +2160,7 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 			/*  www.whatisthe2gs.apple2.org.za/the_ring/ */
 			if(buf_2img[12] == 1) {
 				/* then get the size from 0x14 in blocks */
-				dsize = (buf_2img[23] << 24) +
+				dsize = ((word32)buf_2img[23] << 24) +
 					(buf_2img[22] << 16) +
 					(buf_2img[21] << 8) + buf_2img[20];
 				dsize = dsize * 512;	/* it was blocks */
