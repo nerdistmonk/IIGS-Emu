@@ -1,7 +1,7 @@
 # IIGS-Emu Backlog
 
 Planned and possible work for IIGS-Emu. Everything below targets the SDL3 build
-(the focus — see the README). Items marked **(core)** already exist in the KEGS
+(the focus — see the README). Items marked **(core)** already exist in the GSplus
 core and mainly need wiring into the SDL driver; everything else is new.
 
 Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
@@ -84,4 +84,4 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **CI smoke test** | High | M | Headless boot (SDL `dummy` video driver) for N emulated frames, checksum the framebuffer. Catches CPU/memory/video regressions on every PR — highest-leverage single test, especially for upstream KEGS merges. Needs a redistributable boot image or ROM-free path. |
+| **CI smoke test** | High | M | Headless boot (SDL `dummy` video driver) for N emulated frames, checksum the framebuffer. Catches CPU/memory/video regressions on every PR — highest-leverage single test, especially for upstream GSplus merges. Needs a redistributable boot image or ROM-free path. |

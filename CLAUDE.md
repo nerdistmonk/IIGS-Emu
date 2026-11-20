@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IIGS-Emu is a cross-platform Apple IIgs emulator based on KEGS (Kent's Emulated GS) by Kent Dickey. It emulates the 65816 CPU, all Apple IIgs graphics/sound modes, disk controllers, serial ports, and more. Licensed under GPLv3.
+IIGS-Emu is a Linux Apple IIgs emulator based on GSplus, which derives from KEGS (Kent's Emulated GS) by Kent Dickey. It emulates the 65816 CPU, all Apple IIgs graphics/sound modes, disk controllers, serial ports, and more. Licensed under GPLv3.
 
 ## Repository Structure
 
 - `gsplus/src/` — Active source code and build files (this is where you build)
 - `gsplus/lib/` — Icons and the `make_icons` script that generates `gsplus/src/gsplus_icon.h`
 
-The `upstream` branch tracks KEGS releases; `main` is the primary development branch.
+The `upstream` remote points at digarok/gsplus; `main` is the primary development branch.
 
 ## Build Commands
 

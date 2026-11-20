@@ -2,14 +2,15 @@
 
 # IIGS-Emu
 
-An accessible, cross-platform build of [KEGS](http://kegs.sourceforge.net) - 
-Kent Dickey's Apple IIgs emulator - packaged with
+An accessible build of [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
+emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey,
+packaged with
 [SDL3](https://www.libsdl.org/) for Linux.
 
 ## What it is
 
-IIGS-Emu wraps the KEGS core in a single SDL3 application for Linux. IIGS-Emu
-tracks the KEGS version it's based on (currently 1.38).
+IIGS-Emu wraps the GSplus core in a single SDL3 application for Linux. IIGS-Emu
+tracks the KEGS version GSplus is based on (currently 1.38).
 
 ## You'll need a ROM
 
@@ -65,8 +66,8 @@ Some features that are a part of the SDL3 build:
   guesses the slot from its size.
 - **Centered 8-bit video modes** - 40/80-column text, GR, HGR and DHGR are
   560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
-  KEGS's left-align. `-centera2 0` (or the Display Effects menu) restores
-  the KEGS behavior.
+  GSplus's left-align. `-centera2 0` (or the Display Effects menu) restores
+  the GSplus behavior.
 - **CRT scanline simulator** - `-scanline <0-100>`, Shift+F11 to toggle.
 - **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
   / `-crtvignette`, Ctrl+F11 to toggle. Screen curvature, RGB phosphor mask,
@@ -81,21 +82,21 @@ but you can also edit most settings by hitting `F4` for the configuration menu.
 
 | Key | Action | Source |
 |---|---|---|
-| **F1** | Open-Apple (⌘) modifier, for keyboards without an Apple/Command key | KEGS/GS+ |
-| **F4** | Open the configuration menu (mount disks, pick a ROM, settings) | KEGS/GS+ |
-| **F5** | Toggle the status line | KEGS/GS+ |
-| **F6** | Cycle emulation speed (1 MHz / 2.8 MHz / fast) | KEGS/GS+ |
-| **F7** | Toggle the debugger | KEGS/GS+ |
-| **Shift + F7** | Toggle fast disk emulation | KEGS/GS+ |
-| **F8** | Grab / release the mouse (warp + hide pointer) | KEGS/GS+ |
-| **F9** | Invert paddles | KEGS/GS+ |
-| **Shift + F9** | Swap paddles | KEGS/GS+ |
-| **Ctrl + F9** | Copy screen text to the clipboard | KEGS/GS+ |
+| **F1** | Open-Apple (⌘) modifier, for keyboards without an Apple/Command key | GS+ |
+| **F4** | Open the configuration menu (mount disks, pick a ROM, settings) | GS+ |
+| **F5** | Toggle the status line | GS+ |
+| **F6** | Cycle emulation speed (1 MHz / 2.8 MHz / fast) | GS+ |
+| **F7** | Toggle the debugger | GS+ |
+| **Shift + F7** | Toggle fast disk emulation | GS+ |
+| **F8** | Grab / release the mouse (warp + hide pointer) | GS+ |
+| **F9** | Invert paddles | GS+ |
+| **Shift + F9** | Swap paddles | GS+ |
+| **Ctrl + F9** | Copy screen text to the clipboard | GS+ |
 | **F10** | Save a screenshot | GS+ |
 | **F11** | Toggle fullscreen | GS+ |
 | **Shift + F11** | Toggle the CRT scanline effect | GS+ |
 | **Ctrl + F11** | Toggle the CRT curved screen effect | GS+ |
-| **Ctrl + F12** | Reset the IIgs (Ctrl-Reset) | KEGS/GS+ |
+| **Ctrl + F12** | Reset the IIgs (Ctrl-Reset) | GS+ |
 
 You can also **drag & drop** a disk image onto the window to mount it (slot
 guessed from size). 

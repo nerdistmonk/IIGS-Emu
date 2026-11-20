@@ -21,7 +21,7 @@ cmake_minimum_required(VERSION 3.20)
 # Declare the project: a name, a version, and the language used.
 project(gsplus
     VERSION 1.38.0
-    DESCRIPTION "IIGS-Emu - cross-platform Apple IIgs emulator (KEGS-based)"
+    DESCRIPTION "IIGS-Emu - Apple IIgs emulator (GSplus-based)"
     LANGUAGES C)
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
