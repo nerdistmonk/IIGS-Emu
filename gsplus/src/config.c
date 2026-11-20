@@ -2102,6 +2102,13 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 		}
 	} else {
 		ret = (int)read(dsk->fd, (char *)&buf_2img[0], 512);
+		if(ret < 0) {
+			ret = 0;
+		}
+		// Zero the unread tail so header fields past EOF are deterministic
+		for(i = ret; i < 512; i++) {
+			buf_2img[i] = 0;
+		}
 		dsize = cfg_get_fd_size(dsk->fd);
 	}
 
