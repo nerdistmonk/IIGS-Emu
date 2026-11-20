@@ -97,7 +97,7 @@ int	g_user_page2_shadow = 1;
 char	g_cfg_printf_buf[CFG_PRINTF_BUFSIZE];
 char	g_config_kegs_buf[CONF_BUF_LEN];
 
-#define CFG_ERR_BUFSIZE		80
+#define CFG_ERR_BUFSIZE		256
 #define CFG_ERR_MAX		5
 
 int	g_cfg_err_pos = 0;
