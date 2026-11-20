@@ -76,6 +76,7 @@ but you can also edit most settings by hitting `F4` for the configuration menu.
 | **F11** | Toggle fullscreen | GS+ |
 | **Shift + F11** | Toggle the CRT scanline effect | GS+ |
 | **Ctrl + F11** | Toggle the CRT curved screen effect | GS+ |
+| **Scroll Lock** or **middle-click** | Toggle mouse capture (confines the pointer to the window) | GS+ |
 | **Ctrl + F12** | Reset the IIgs (Ctrl-Reset) | GS+ |
 
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images

@@ -26,6 +26,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
   menu to route paddles to it.
 - **Screenshots**: F10 captures the framebuffer (`-ssdir` sets the output
   directory).
+- **Mouse capture**: Scroll Lock or middle-click confines the pointer to the window.
 
 ---
 
@@ -39,7 +40,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **Mouse capture** toggle | Med | S | Grab/release the pointer via a hotkey. |
 | Configurable **key remapping** | Low | M | Currently a fixed scancode→ADB table. |
 | **Gamepad button remapping** | Low | S | SDL_Gamepad's stable button names make a small remap table in the config menu cheap. |
 
@@ -64,7 +64,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | **Recent disks/ROMs** menu | Med | M | |
-| Window title shows **mounted disk** | Low | S | |
 | Modern **overlay config menu** (vs. F4 text panel) | Low | L | Big polish, big effort. |
 
 ## Testing / infrastructure

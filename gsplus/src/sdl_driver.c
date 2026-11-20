@@ -840,6 +840,17 @@ sdl_update_cursor_visibility(void)
 	}
 }
 
+/* Scroll Lock or a middle-click toggles pointer capture. The pointer stays
+ * confined to the window so the IIgs mouse never loses track of it. */
+static void
+sdl_toggle_mouse_grab(Window_info *win)
+{
+	bool grab = !SDL_GetWindowMouseGrab(win->window);
+
+	SDL_SetWindowMouseGrab(win->window, grab);
+	printf("Mouse capture %s\n", grab ? "on" : "off");
+}
+
 static void
 sdl_poll_events(void)
 {
@@ -896,6 +907,13 @@ sdl_poll_events(void)
 			}
 			break;
 		case SDL_EVENT_KEY_DOWN:
+			/* Scroll Lock toggles pointer capture. Not sent to the IIgs. */
+			if(ev.key.scancode == SDL_SCANCODE_SCROLLLOCK) {
+				if(!ev.key.repeat) {
+					sdl_toggle_mouse_grab(win);
+				}
+				break;
+			}
 			/* F10 saves a screenshot (gsplus convention). F10 and F11 are
 			 * the only function keys KEGS leaves unused, so they're safe to
 			 * claim without shadowing an emulator hotkey (notably F12 =
@@ -932,7 +950,8 @@ sdl_poll_events(void)
 			sdl_handle_key(win, ev.key.scancode, 0, ev.key.repeat);
 			break;
 		case SDL_EVENT_KEY_UP:
-			if(ev.key.scancode == SDL_SCANCODE_F11) {
+			if(ev.key.scancode == SDL_SCANCODE_F11 ||
+					ev.key.scancode == SDL_SCANCODE_SCROLLLOCK) {
 				break;
 			}
 			/* Swallow the matching F10 release so the IIgs never sees a
@@ -958,6 +977,14 @@ sdl_poll_events(void)
 			break;
 		case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		case SDL_EVENT_MOUSE_BUTTON_UP:
+			/* Middle-click toggles pointer capture; the IIgs mouse has
+			 * only one button, so it is not forwarded. */
+			if(ev.button.button == SDL_BUTTON_MIDDLE) {
+				if(ev.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+					sdl_toggle_mouse_grab(win);
+				}
+				break;
+			}
 			SDL_ConvertEventToRenderCoordinates(win->renderer, &ev);
 			mask = sdl_button_mask(ev.button.button);
 			mx = video_scale_mouse_x(win->kimage_ptr, (int)ev.button.x, 0);
