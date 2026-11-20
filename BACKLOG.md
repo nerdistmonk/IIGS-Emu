@@ -11,7 +11,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 ## Done
 
 - Foundation: SDL3 driver (video/input/audio), CMake build, CI,
-  self-contained packaging (Linux `.tar.gz`), version-from-tag.
+  Linux `.tar.gz` packaging (SDL3 is not bundled; users install it), version-from-tag.
 - **F1 — Window & display options**: `-fullscreen`, `-borderless`, `-noaspect`,
   `-highdpi`, `-nohwaccel`, window position; F11 fullscreen toggle. (`-novsync`
   was later removed — see the vsync item under Display.)
