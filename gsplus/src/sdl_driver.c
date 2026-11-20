@@ -14,9 +14,6 @@
  * The core hands us framebuffers as Kimage objects. Each frame we ask the core
  * to copy its changed rectangles into our pixel buffer (video_out_data) and we
  * upload those to an SDL streaming texture.
- *
- * MILESTONE STATUS (Phase 2a): video + window + quit work. Keyboard/mouse input
- * (2b) and real audio (2c) are TODO; see the marked spots below.
  */
 
 #include <SDL3/SDL.h>
@@ -81,7 +78,7 @@ static int g_is_fullscreen = 0;		/* current fullscreen state (F11 toggles) */
 static int g_mouse_over_window = 0;	/* cursor is inside our window (ENTER/LEAVE) */
 static int g_cursor_hidden = 0;		/* current SDL cursor state we last set */
 static int g_scanline_saved = 50;	/* intensity to restore when toggled back on */
-static int g_screenshot_requested = 0;	/* set by Shift+F12, serviced at frame end */
+static int g_screenshot_requested = 0;	/* set by F10, serviced at frame end */
 
 /* CRT effect tuning. The curvature amount is a config var (g_crt_curve, 0-100);
  * these bake the rest of the look so the user gets one "CRT Effect" toggle. */
@@ -1339,7 +1336,7 @@ sdl_update_display(Window_info *win)
 		sdl_render_overlays(win);
 	}
 
-	/* Service a pending Shift+F12 capture now, while the just-drawn frame is
+	/* Service a pending F10 capture now, while the just-drawn frame is
 	 * still in the back buffer (RenderPresent may invalidate it). */
 	if(g_screenshot_requested) {
 		sdl_save_screenshot(win);

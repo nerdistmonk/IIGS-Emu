@@ -150,36 +150,3 @@ set_target_properties(gsplus-sdl PROPERTIES
 message(STATUS "IIGS-Emu: configured SDL3 target (gsplus-sdl)")
 
 
-# ============================================================================
-#  Packaging
-# ============================================================================
-#
-#  `cmake --install build --prefix <dir>` stages the app; `cpack` wraps the
-#  staged files into a downloadable TGZ. The goal is an artifact a user can
-#  download and run with NO prerequisites beyond SDL3.
-# ----------------------------------------------------------------------------
-# Install to the package root (no bin/ subdir) so the .tar.gz has the
-# executable at the top level.
-install(TARGETS gsplus-sdl RUNTIME DESTINATION .)
-# The SDL3 .so is not bundled; README-linux.txt tells the user how to install
-# it (distro package or build from source).
-install(FILES packaging/README-linux.txt DESTINATION .)
-set(CPACK_GENERATOR "TGZ")
-# Put the CPU architecture in the archive name (IIGS-Emu-x.y.z-Linux-x86_64
-# vs -Linux-aarch64) so the two Linux release assets don't collide.
-set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-# No top-level "<name>-<version>" wrapper dir -- put files at the archive root.
-set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-
-# Every artifact ships the project README and the GPL license text (the GPL
-# requires the license to accompany distributed binaries). These paths are
-# relative to gsplus/src, so ../.. is the repository root.
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../README.md"
-              "${CMAKE_CURRENT_SOURCE_DIR}/../../LICENSE"
-        DESTINATION .)
-
-set(CPACK_PACKAGE_NAME "IIGS-Emu")
-set(CPACK_PACKAGE_VENDOR "GSplus Contributors")
-set(CPACK_PACKAGE_VERSION "${GSPLUS_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
-include(CPack)

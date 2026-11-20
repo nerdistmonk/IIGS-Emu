@@ -22,12 +22,6 @@ cmake --build build --target gsplus-sdl
 ```
 Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. See README.md for the apt package list.
 
-### Package
-```bash
-cmake --build build --target package
-```
-Produces a `.tar.gz` in `build/`.
-
 ### Clean
 ```bash
 rm -rf build
