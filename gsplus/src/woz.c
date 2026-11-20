@@ -150,8 +150,7 @@ woz_check_file(Disk *dsk)
 
 	crcnew = woz_calc_crc32(newwozptr, woz_size, 12);
 	free(newwozptr);
-	printf("Woz check file complete.  mem %08x vs fd %08x, freed %p\n",
-		crc, crcnew, newwozptr);
+	printf("Woz check file complete.  mem %08x vs fd %08x\n", crc, crcnew);
 
 	bptr = dsk->cur_trk_ptr->raw_bptr;
 	printf("dsk->cur_trk_ptr->raw_bptr = %p.  offset:%d\n", bptr,

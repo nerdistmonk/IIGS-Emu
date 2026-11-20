@@ -1291,6 +1291,7 @@ scc_add_to_readbufv(dword64 dfcyc, int port, const char *fmt, ...)
 		}
 		scc_add_to_readbuf(dfcyc, port, c);
 	}
+	free(bufptr);
 	va_end(ap);
 }
 
