@@ -15,11 +15,7 @@
 #include <stdarg.h>
 #include "config.h"
 
-#if defined(_WIN32) && defined(_MSC_VER)
-# include "win_dirent.h"	/* MSVC has no <dirent.h>; windriver.c implements it */
-#else
-# include <dirent.h>		/* mingw (incl. the SDL build), Linux, macOS */
-#endif
+#include <dirent.h>
 
 extern int Verbose;
 extern word32 g_vbl_count;
@@ -39,7 +35,6 @@ extern int g_adb_swap_command_option;
 
 extern int g_limit_speed;
 extern int g_zip_speed_mhz;
-extern int g_force_depth;
 int g_serial_cfg[2] = { 0, 1 };		// Slot 1=0=Real serial (printer?)
 					// Slot 2=1=Virt Modem
 int g_serial_mask[2] = { 0, 0 };
@@ -47,7 +42,6 @@ char *g_serial_remote_ip[2] = { "", "" };	// cfg_init_menus will malloc()
 int g_serial_remote_port[2] = { 9100, 9100 };
 char *g_serial_device[2] = { "/dev/tty.USB.0", "/dev/tty.USB.1" };
 				// cfg_init_menus() will malloc() the above
-int g_serial_win_device[2] = { 0, 0 };		// Disabled
 int g_serial_modem_response_code = 10;		// 10 - 2400
 int g_serial_modem_allow_incoming = 0;		// 1 for BBS'es
 int g_serial_modem_init_telnet = 1;		// 1 for BBS'es
@@ -116,14 +110,8 @@ int	g_cfg_curs_mousetext = 0;
 int	g_cfg_screen_changed = 0;
 byte	g_cfg_screen[24][80];
 
-// Note: the SDL build compiles the core without -DMAC, so guard on
-//  __APPLE__ too to keep case-insensitive matching on macOS (default
-//  APFS/HFS+ volumes are case-insensitive).
-#if defined(MAC) || defined(__APPLE__) || defined(_WIN32)
-int	g_cfg_ignorecase = 1;		// Ignore case in filenames
-#else
+// Ignore case in filenames (default-off; case-sensitive on Linux)
 int	g_cfg_ignorecase = 0;
-#endif
 
 #define CFG_MAX_OPTS	34
 #define CFG_OPT_MAXSTR	100
@@ -162,7 +150,7 @@ extern Cfg_menu g_cfg_sdl_video_menu[];
 /* SDL display options not present in upstream KEGS. Registered in the Video
  * Settings menu below, so they're settable via the config panel, config.kegs,
  * and the command line (KEGS style, e.g. "-g_fullscreen 1"). The SDL driver
- * reads them; the X11 and native macOS drivers ignore them. (Window size and
+ * reads them; the X11 driver ignores them. (Window size and
  * position use KEGS's existing g_mainwin_width/height/xpos/ypos.) */
 int	g_fullscreen = 0;	/* fullscreen state; applied live, F11 also toggles it */
 int	g_borderless = 0;	/* no window title bar / border */
@@ -316,8 +304,6 @@ Cfg_menu g_cfg_serial_menu[] = {
 		KNMP(g_serial_cfg[0]), CFGTYPE_INT },
 { "  Status        ", (void *)cfg_get_serial0_status, 0, 0, CFGTYPE_FUNC },
 { "  Real Device   ", KNMP(g_serial_device[0]), CFGTYPE_FILE },
-{ "  Windows Device,0,Disabled,1,COM1,2,COM2,3,COM3,4,COM4",
-		KNMP(g_serial_win_device[0]), CFGTYPE_INT },
 { "  Remote IP     ", KNMP(g_serial_remote_ip[0]), CFGTYPE_STR },
 { "  Remote Port   ", KNMP(g_serial_remote_port[0]), CFGTYPE_INT },
 { "  Serial Mask   ,0,Send full 8-bit data,1,Mask off high bit",
@@ -329,8 +315,6 @@ Cfg_menu g_cfg_serial_menu[] = {
 		KNMP(g_serial_cfg[1]), CFGTYPE_INT },
 { "  Status        ", (void *)cfg_get_serial1_status, 0, 0, CFGTYPE_FUNC },
 { "  Real Device   ", KNMP(g_serial_device[1]), CFGTYPE_FILE },
-{ "  Windows Device,1,COM1,2,COM2,3,COM3,4,COM4",
-		KNMP(g_serial_win_device[1]), CFGTYPE_INT },
 { "  Remote IP     ", KNMP(g_serial_remote_ip[1]), CFGTYPE_STR },
 { "  Remote Port   ", KNMP(g_serial_remote_port[1]), CFGTYPE_INT },
 { "  Serial Mask   ,0,Send full 8-bit data,1,Mask off high bit",
@@ -362,13 +346,7 @@ Cfg_menu g_cfg_modem_menu[] = {
 
 Cfg_menu g_cfg_video_menu[] = {
 { "Video Settings", g_cfg_video_menu, 0, 0, CFGTYPE_MENU },
-/* Only the X11 driver (xdriver.c) reads g_force_depth; it's a dead no-op on
- * the SDL builds (mac/windows/linux), the native macOS app, and legacy
- * Windows, so only show it on the legacy X11/Linux build. */
-#if !defined(MAC) && !defined(SDL_INPUT) && !defined(_WIN32)
-{ "Force X-windows display depth", KNMP(g_force_depth), CFGTYPE_INT },
-#endif
-{ "GSplus Display Effects (SDL)", g_cfg_sdl_video_menu, 0, 0, CFGTYPE_SUBMENU },
+{ "IIGS-Emu Display Effects (SDL)", g_cfg_sdl_video_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Enable VOC,0,Disabled,1,Enabled", KNMP(g_voc_enable), CFGTYPE_INT },
 { "Default Main Window width", KNMP(g_mainwin_width), CFGTYPE_INT },
 { "Default Main Window height", KNMP(g_mainwin_height), CFGTYPE_INT },
@@ -386,12 +364,12 @@ Cfg_menu g_cfg_video_menu[] = {
 
 /* SDL-only display options, split out of Video Settings so each page fits the
  * 24-line control panel. Not present in upstream KEGS: the SDL driver reads
- * them; the X11 and native macOS drivers ignore them. Each is also settable
+ * them; the X11 driver ignores them. Each is also settable
  * via config.kegs and the command line (KEGS style, e.g. "-fullscreen 1").
  * The name_str (the CLI flag / config.kegs key) has no "g_" prefix -- that's
  * just our C convention for globals, not something users should type. */
 Cfg_menu g_cfg_sdl_video_menu[] = {
-{ "GSplus Display Effects (SDL)", g_cfg_sdl_video_menu, 0, 0, CFGTYPE_MENU },
+{ "IIGS-Emu Display Effects (SDL)", g_cfg_sdl_video_menu, 0, 0, CFGTYPE_MENU },
 { "Fullscreen,0,No,1,Yes", &g_fullscreen, "fullscreen", 0, CFGTYPE_INT },
 { "Borderless Window (restart required),0,No,1,Yes", &g_borderless, "borderless", 0, CFGTYPE_INT },
 { "Ignore Aspect Ratio (restart required),0,No,1,Yes", &g_noaspect, "noaspect", 0, CFGTYPE_INT },
@@ -418,7 +396,7 @@ Cfg_menu g_cfg_sdl_video_menu[] = {
 };
 
 Cfg_menu g_cfg_main_menu[] = {
-{ "GSplus Configuration", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
+{ "IIGS-Emu Configuration", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
 { "Disk Configuration", g_cfg_disk_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_SUBMENU },
 { "ROM File Selection", g_cfg_rom_menu, 0, 0, CFGTYPE_SUBMENU },
@@ -1180,7 +1158,7 @@ cfg_normalize_hex_color(char *str)
 void
 cfg_int_update(int *iptr, int new_val)
 {
-	int	old_val, cfg_changed, remote_changed, serial_changed;
+	int	old_val, cfg_changed, remote_changed;
 	int	i;
 
 	// Called to handle an integer being changed in the F4 config menus
@@ -1212,7 +1190,6 @@ cfg_int_update(int *iptr, int new_val)
 
 	for(i = 0; i < 2; i++) {
 		remote_changed = 0;
-		serial_changed = 0;
 		cfg_changed = 0;
 		if(iptr == &g_serial_cfg[i]) {
 			cfg_changed = 1;
@@ -1220,12 +1197,8 @@ cfg_int_update(int *iptr, int new_val)
 		if(iptr == &g_serial_remote_port[i]) {
 			remote_changed = 1;
 		}
-		if(iptr == &g_serial_win_device[i]) {
-			serial_changed = 1;
-		}
-		if(cfg_changed || remote_changed || serial_changed) {
-			scc_config_changed(i, cfg_changed, remote_changed,
-							serial_changed);
+		if(cfg_changed || remote_changed) {
+			scc_config_changed(i, cfg_changed, remote_changed, 0);
 		}
 	}
 }
@@ -1239,7 +1212,7 @@ cfg_load_charrom()
 	int	fd;
 
 	printf("Loading character ROM from: %s\n", g_cfg_charrom_path);
-	fd = open(g_cfg_charrom_path, O_RDONLY | O_BINARY);
+	fd = open(g_cfg_charrom_path, O_RDONLY);
 	if(fd < 0) {
 		printf("Cannot open %s\n", g_cfg_charrom_path);
 		return;
@@ -1278,7 +1251,7 @@ config_load_roms()
 		return;
 	}
 	printf("Found ROM at path: %s\n", g_cfg_tmp_path);
-	fd = open(&g_cfg_tmp_path[0], O_RDONLY | O_BINARY);
+	fd = open(&g_cfg_tmp_path[0], O_RDONLY);
 	if(fd < 0) {
 		fatal_printf("Open ROM file %s failed:%d, errno:%d\n",
 				&g_cfg_tmp_path[0], fd, errno);
@@ -1366,7 +1339,7 @@ config_load_roms()
 								names_ptr);
 
 		if(ret != 0) {
-			fd = open(&(g_cfg_tmp_path[0]), O_RDONLY | O_BINARY);
+			fd = open(&(g_cfg_tmp_path[0]), O_RDONLY);
 			if(fd < 0) {
 				fatal_printf("Open card ROM file %s failed: %d "
 					"err:%d\n", &g_cfg_tmp_path[0], fd,
@@ -1505,7 +1478,7 @@ config_parse_config_kegs_file()
 	(void)!getcwd(&g_cfg_cwd_str[0], CFG_PATH_MAX);
 	printf("CWD is now: %s\n", &g_cfg_cwd_str[0]);
 
-	fd = open(g_config_kegs_name, O_RDONLY | O_BINARY);
+	fd = open(g_config_kegs_name, O_RDONLY);
 	if((fd < 0) && (errno == ENOENT)) {
 		// File doesn't exist (e.g. a -cfg name that isn't there yet).
 		//  Create it, matching the auto-create behavior for the
@@ -2079,13 +2052,13 @@ insert_disk(int slot, int drive, const char *name, int ejected,
 	}
 
 	if((dsk->fd < 0) && !locked && !dynamic_blocks) {
-		dsk->fd = open(name_ptr, O_RDWR | O_BINARY, 0x1b6);
+		dsk->fd = open(name_ptr, O_RDWR, 0x1b6);
 	}
 
 	if((dsk->fd < 0) && !dynamic_blocks) {
 		printf("Trying to open %s read-only, errno: %d\n", name_ptr,
 								errno);
-		dsk->fd = open(name_ptr, O_RDONLY | O_BINARY, 0x1b6);
+		dsk->fd = open(name_ptr, O_RDONLY, 0x1b6);
 		locked = 2;
 	}
 
@@ -2465,7 +2438,7 @@ cfg_partition_find_by_name_or_num(Disk *dsk, const char *in_partnamestr,
 		g_cfg_part_path[i] = 0;
 	}
 
-	fd = open(dsk->name_ptr, O_RDONLY | O_BINARY, 0x1b6);
+	fd = open(dsk->name_ptr, O_RDONLY, 0x1b6);
 	if(fd < 0) {
 		fatal_printf("Cannot open disk image: %s\n", dsk->name_ptr);
 		return -1;
@@ -2529,7 +2502,7 @@ cfg_partition_make_list_from_name(const char *namestr)
 {
 	int	fd, ret;
 
-	fd = open(namestr, O_RDONLY | O_BINARY, 0x1b6);
+	fd = open(namestr, O_RDONLY, 0x1b6);
 	if(fd < 0) {
 		fatal_printf("Cannot open part image: %s\n", namestr);
 		return 0;
@@ -2722,29 +2695,12 @@ cfg_inspect_maybe_insert_file(const char *filename)
 int
 cfg_stat(char *path, struct stat *sb, int do_lstat)
 {
-	int	ret, len, removed_slash;
-
-	removed_slash = 0;
-	len = 0;
-
-	/* Windows doesn't like to stat paths ending in a /, so remove it */
-	len = (int)strlen(path);
-#ifdef _WIN32
-	if((len > 1) && (path[len - 1] == '/') ) {
-		path[len - 1] = 0;	/* remove the slash */
-		removed_slash = 1;
-	}
-#endif
+	int	ret;
 
 	if(do_lstat) {
 		ret = lstat(path, sb);
 	} else {
 		ret = stat(path, sb);
-	}
-
-	/* put the slash back */
-	if(removed_slash) {
-		path[len - 1] = '/';
 	}
 
 	return ret;
@@ -2805,10 +2761,6 @@ cfg_set_le32(byte *bptr, word32 val)
 void
 config_file_to_pipe(Disk *dsk, const char *cmd_ptr, const char *name_ptr)
 {
-#ifdef _WIN32
-	printf("Cannot do pipe from cmd %s to %s\n", cmd_ptr, name_ptr);
-	return;
-#else
 	int	output_pipe[2];
 	byte	*bptr2;
 	char	*bufptr;
@@ -2841,7 +2793,7 @@ config_file_to_pipe(Disk *dsk, const char *cmd_ptr, const char *name_ptr)
 		}
 		// The child.  Open 0 as the file, and then do system
 		close(0);
-		fd = open(name_ptr, O_RDONLY | O_BINARY, 0x1b6);
+		fd = open(name_ptr, O_RDONLY, 0x1b6);
 		if(fd != 0) {
 			exit(1);
 		}
@@ -2885,7 +2837,6 @@ config_file_to_pipe(Disk *dsk, const char *cmd_ptr, const char *name_ptr)
 		dsk->raw_dsize = pos;
 	}
 	free(bufptr);
-#endif
 }
 
 void

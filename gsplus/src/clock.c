@@ -10,12 +10,7 @@
 
 #include "defc.h"
 #include <time.h>
-#ifdef _WIN32
-# include <windows.h>
-# include <mmsystem.h>
-#else
-# include <sys/time.h>
-#endif
+#include <sys/time.h>
 
 extern int Verbose;
 extern word32 g_vbl_count;
@@ -45,80 +40,34 @@ double
 get_dtime()
 {
 
-#ifdef _WIN32
-	FILETIME filetime;
-	dword64	dlow, dhigh;
-#else
 	struct timeval tp1;
 	double	dsec;
 	double	dusec;
-#endif
 	double	dtime;
 
 	/* Routine used to return actual system time as a double */
 	/* No routine cares about the absolute value, only deltas--maybe */
 	/*  take advantage of that in future to increase usec accuracy */
 
-#ifdef _WIN32
-	//dtime = timeGetTime() / 1000.0;
-	GetSystemTimePreciseAsFileTime(&filetime);
-	dlow = filetime.dwLowDateTime;
-	dhigh = filetime.dwHighDateTime;
-	dlow = (dhigh << 32) | dlow;
-	dtime = (double)dlow;
-	dtime = dtime / (1000*1000*10.0);	// FILETIME is in 100ns incs
-#else
-
-# ifdef SOLARIS
+#ifdef SOLARIS
 	gettimeofday(&tp1, (void *)0);
-# else
+#else
 	gettimeofday(&tp1, (struct timezone *)0);
-# endif
+#endif
 
 	dsec = (double)tp1.tv_sec;
 	dusec = (double)tp1.tv_usec;
 
 	dtime = dsec + (dusec / (1000.0 * 1000.0));
-#endif
 
 	return dtime;
 }
 
-#ifdef _WIN32
-/* By default the Windows scheduler tick is ~15.6ms, so Sleep(16) rounds up to
- * the next tick and actually blocks 15.6 or 31.2ms -- jitter of nearly a whole
- * frame. That jitter is what starves the audio queue and makes Windows playback
- * stutter. timeBeginPeriod(1) raises the resolution to 1ms so Sleep(n) is
- * accurate to ~1ms and the per-frame pacing (and thus the audio feed) is smooth.
- * Called once, lazily; restored at exit so we don't leave the system clock
- * running hot. */
-static void
-win32_restore_timer_period(void)
-{
-	timeEndPeriod(1);
-}
-
-static void
-win32_raise_timer_resolution(void)
-{
-	static int	done = 0;
-
-	if(!done) {
-		done = 1;
-		if(timeBeginPeriod(1) == TIMERR_NOERROR) {
-			atexit(win32_restore_timer_period);
-		}
-	}
-}
-#endif
-
 int
 micro_sleep(double dtime)
 {
-#ifndef _WIN32
 	struct timeval Timer;
 	int	ret;
-#endif
 
 	if(dtime <= 0.0) {
 		return 0;
@@ -132,10 +81,6 @@ micro_sleep(double dtime)
 	printf("usleep: %f\n", dtime);
 #endif
 
-#ifdef _WIN32
-	win32_raise_timer_resolution();
-	Sleep((word32)(dtime * 1000.0 + 0.5));	/* round to nearest ms */
-#else
 	Timer.tv_sec = 0;
 	Timer.tv_usec = (dtime * 1000000.0);
 	if( (ret = select(0, 0, 0, 0, &Timer)) < 0) {
@@ -143,7 +88,6 @@ micro_sleep(double dtime)
 			ret, errno);
 		return -1;
 	}
-#endif
 	return 0;
 }
 
@@ -218,21 +162,12 @@ update_cur_time()
 	secs = mktime(tm_ptr);
 
 	secs2 = secs2 - secs;		// this is the timezone offset
-#if defined(MAC) || defined(__APPLE__)
-	/* Mac OS X's mktime function modifies the tm_ptr passed in for */
-	/*  the CDT timezone and breaks this algorithm.  So on a Mac, we */
-	/*  will use the tm_ptr->gmtoff member to correct the time */
-	/* Note: the SDL build compiles the core without -DMAC, so guard on */
-	/*  __APPLE__ too to keep correct clock behavior on macOS. */
-	secs = secs + tm_ptr->tm_gmtoff;
-#else
 	secs = cur_time - secs2;
 
 	if(tm_ptr->tm_isdst) {
 		/* adjust for daylight savings time */
 		secs += 3600;
 	}
-#endif
 
 	/* add in secs to make date based on Apple Jan 1, 1904 instead of */
 	/*  Unix's Jan 1, 1970 */

@@ -21,7 +21,6 @@ extern int g_serial_mask[2];
 extern char *g_serial_remote_ip[2];
 extern int g_serial_remote_port[2];
 extern char *g_serial_device[2];
-extern int g_serial_win_device[2];
 extern int g_irq_pending;
 
 /* scc	port 0 == channel A = slot 1 = c039/c03b */
@@ -71,8 +70,6 @@ scc_init()
 		scc_ptr->sockaddr_ptr = 0;
 		scc_ptr->sockaddr_size = 0;
 		scc_ptr->unix_dev_fd = -1;
-		scc_ptr->win_com_handle = 0;
-		scc_ptr->win_dcb_ptr = 0;
 		scc_ptr->br_event_pending = 0;
 		scc_ptr->rx_event_pending = 0;
 		scc_ptr->tx_event_pending = 0;
@@ -332,11 +329,7 @@ scc_regen_clocks(int port)
 
 	cur_state = scc_ptr->cur_state;
 	if(cur_state == 0) {		// real serial ports
-#ifdef _WIN32
-		scc_serial_win_change_params(port);
-#else
 		scc_serial_unix_change_params(port);
-#endif
 	}
 }
 
@@ -347,11 +340,7 @@ scc_port_close(int port)
 
 	scc_ptr = &(g_scc[port]);
 
-#ifdef _WIN32
-	scc_serial_win_close(port);
-#else
 	scc_serial_unix_close(port);
-#endif
 	scc_socket_close(port);
 
 	scc_ptr->cur_state = -1;		// Nothing open
@@ -366,11 +355,7 @@ scc_port_open(dword64 dfcyc, int port)
 	printf("scc_port_open port:%d cfg:%d\n", port, cfg);
 
 	if(cfg == 0) {		// Real host serial port
-#ifdef _WIN32
-		scc_serial_win_open(port);
-#else
 		scc_serial_unix_open(port);
-#endif
 	} else if(cfg >= 1) {
 		scc_socket_open(dfcyc, port, cfg);
 	}
@@ -505,11 +490,7 @@ scc_try_to_empty_writebuf(dword64 dfcyc, int port)
 	scc_ptr->write_called_this_vbl = 1;
 
 	if(cur_state == 0) {
-#if defined(_WIN32)
-		scc_serial_win_empty_writebuf(port);
-#else
 		scc_serial_unix_empty_writebuf(port);
-#endif
 	} else if(cur_state >= 1) {
 		scc_socket_empty_writebuf(dfcyc, port);
 	}
@@ -547,11 +528,7 @@ scc_try_fill_readbuf(dword64 dfcyc, int port)
 
 	cur_state = scc_ptr->cur_state;
 	if(cur_state == 0) {
-#if defined(_WIN32)
-		scc_serial_win_fill_readbuf(dfcyc, port, space_left);
-#else
 		scc_serial_unix_fill_readbuf(dfcyc, port, space_left);
-#endif
 	} else if(cur_state >= 1) {
 		scc_socket_fill_readbuf(dfcyc, port, space_left);
 	}
@@ -600,10 +577,8 @@ show_scc_state()
 				scc_ptr->reg[j], scc_ptr->reg[j+1],
 				scc_ptr->reg[j+2], scc_ptr->reg[j+3]);
 		}
-		printf("state: %d, sockfd:%llx rdwrfd:%llx, win_com:%p, "
-			"win_dcb:%p\n", scc_ptr->cur_state,
-			(dword64)scc_ptr->sockfd, (dword64)scc_ptr->rdwrfd,
-			scc_ptr->win_com_handle, scc_ptr->win_dcb_ptr);
+		printf("state: %d, sockfd:%llx rdwrfd:%llx\n", scc_ptr->cur_state,
+			(dword64)scc_ptr->sockfd, (dword64)scc_ptr->rdwrfd);
 		printf("in_rdptr: %04x, in_wr:%04x, out_rd:%04x, out_wr:%04x\n",
 			scc_ptr->in_rdptr, scc_ptr->in_wrptr,
 			scc_ptr->out_rdptr, scc_ptr->out_wrptr);

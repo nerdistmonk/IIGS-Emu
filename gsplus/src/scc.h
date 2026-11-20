@@ -13,18 +13,10 @@
 
 #include <ctype.h>
 
-#ifdef _WIN32
-# include <winsock2.h>
-#else
 # include <sys/socket.h>
-# include <netinet/in.h>
 # include <netdb.h>
-#endif
 
 #if defined(HPUX) || defined(__linux__) || defined(SOLARIS)
-# define SCC_SOCKETS
-#endif
-#if defined(MAC) || defined(__MACH__) || defined(_WIN32)
 # define SCC_SOCKETS
 #endif
 
@@ -36,10 +28,8 @@
 
 #define SCC_MODEM_MAX_CMD_STR	128
 
-#ifndef _WIN32
-# define SOCKET			int		/* For non-Windows */
-# define INVALID_SOCKET		(-1)		/* For non-Windows */
-#endif
+# define SOCKET			int		/* Unix socket fd */
+# define INVALID_SOCKET		(-1)
 
 STRUCT(Scc) {
 	int	cur_state;
@@ -49,8 +39,6 @@ STRUCT(Scc) {
 	void	*sockaddr_ptr;		// Socket: pointer to sockaddr struct
 	int	sockaddr_size;		// Socket: sizeof(sockaddr_in)
 	int	unix_dev_fd;		// Unix fd to real serial device
-	void	*win_com_handle;	// Win32 handle to COMx port
-	void	*win_dcb_ptr;		// Win32 ptr to COMx DCB
 	int	read_called_this_vbl;
 	int	write_called_this_vbl;
 

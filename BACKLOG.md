@@ -1,6 +1,6 @@
-# GSplus Backlog
+# IIGS-Emu Backlog
 
-Planned and possible work for GSplus. Everything below targets the SDL3 build
+Planned and possible work for IIGS-Emu. Everything below targets the SDL3 build
 (the focus — see the README). Items marked **(core)** already exist in the KEGS
 core and mainly need wiring into the SDL driver; everything else is new.
 
@@ -11,8 +11,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 ## Done
 
 - Foundation: SDL3 driver (video/input/audio), CMake build, cross-platform CI,
-  self-contained packaging (macOS `.dmg`, Linux `.tar.gz`, Windows `.zip`),
-  version-from-tag.
+  self-contained packaging (Linux `.tar.gz`), version-from-tag.
 - **F1 — Window & display options**: `-fullscreen`, `-borderless`, `-noaspect`,
   `-highdpi`, `-nohwaccel`, window position; F11 fullscreen toggle. (`-novsync`
   was later removed — see the vsync item under Display.)
@@ -50,7 +49,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 |---|---|---|---|
 | **Integer / pixel-perfect scaling** toggle | Med | S | Crisp 1×/2×/3× vs. letterbox stretch; also stops scanline shimmer at non-integer scales. |
 | Linear-filter option | Low | S | Smooth-scaling alternative to nearest. |
-| Re-add **vsync** option properly | Low | M | Removed pre-1.38.0 (double-pacing caused half-speed + Windows audio gaps). Right fix: when vsync is on, let it drive pacing and drop the sleep-based clock — one pacer, not two. |
+| Re-add **vsync** option properly | Low | M | Removed pre-1.38.0 (double-pacing caused half-speed + audio gaps). Right fix: when vsync is on, let it drive pacing and drop the sleep-based clock — one pacer, not two. |
 
 ## Runtime / system
 
@@ -80,8 +79,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | **Linux AppImage** (self-contained) | Med | M | The one non-self-contained download today. |
-| **Code signing** (Windows/macOS) | Low | M | Needs a cert / Azure Trusted Signing. |
-| Local **mingw cross-compile** for fast Windows iteration | Low | S | Catch Win compile/link errors on macOS in seconds. |
 
 ## Testing / infrastructure
 

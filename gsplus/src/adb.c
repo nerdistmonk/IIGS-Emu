@@ -113,8 +113,8 @@ int	g_adb_mouse_coord = 0;
 #define MAX_KBD_PASTE_BUF	32768
 
 int	g_adb_mainwin_has_focus = 1;
-#if defined(__linux__) || defined(_WIN32)
-int	g_adb_swap_command_option = 1;		// Default to swap on Linux/Win
+#if defined(__linux__)
+int	g_adb_swap_command_option = 1;		// Default to swap on Linux
 #else
 int	g_adb_swap_command_option = 0;
 #endif
@@ -1976,7 +1976,7 @@ adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c,
 	word32	restore_c025_val, restorek_c025_val;
 	int	special, ascii_and_type, ascii, new_shift, a2code, other_a2code;
 
-	/* this routine called by xdriver to pass raw codes--handle */
+	/* this routine called by the display driver to pass raw codes--handle */
 	/*  ucontroller and ADB bus protocol issues here */
 	/* if autopoll on, pass it on through to c025,c000 regs */
 	/*  else only put it in kbd reg 3, and pull SRQ if needed */

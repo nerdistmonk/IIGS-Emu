@@ -20,22 +20,12 @@ void dynapro_error(Disk *dsk, const char *fmt, ...) __attribute__ ((
 						__format__(printf, 2, 3)));
 #endif
 
-/* xdriver.c and macdriver.c and windriver.c */
-int win_nonblock_read_stdin(int fd, char *bufptr, int len);
-
 /* special scc_unixdriver.c prototypes */
 void scc_serial_unix_open(int port);
 void scc_serial_unix_close(int port);
 void scc_serial_unix_change_params(int port);
 void scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left);
 void scc_serial_unix_empty_writebuf(int port);
-
-/* special scc_windriver.c prototypes */
-void scc_serial_win_open(int port);
-void scc_serial_win_close(int port);
-void scc_serial_win_change_params(int port);
-void scc_serial_win_fill_readbuf(dword64 dfcyc, int port, int space_left);
-void scc_serial_win_empty_writebuf(int port);
 
 /* special joystick_driver.c prototypes */
 void joystick_init(void);
@@ -359,10 +349,6 @@ void scc_socket_send_modem_code(dword64 dfcyc, int port, int code);
 void scc_socket_modem_connect(dword64 dfcyc, int port);
 void scc_socket_modem_do_ring(dword64 dfcyc, int port);
 void scc_socket_do_answer(dword64 dfcyc, int port);
-
-
-
-/* scc_windriver.c */
 
 
 

@@ -10,8 +10,7 @@
  * reliable_buf_write() -> child_send_samples() hands us interleaved 16-bit
  * stereo samples (4 bytes per frame) at g_preferred_rate. We feed those straight
  * into an SDL3 SDL_AudioStream, which buffers (and resamples if needed) and
- * plays them -- so we don't need the manual ring buffer the old CoreAudio /
- * SDL2 backends maintained.
+ * plays them -- so we don't need a manual ring buffer.
  */
 
 #include <SDL3/SDL.h>

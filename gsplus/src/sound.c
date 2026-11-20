@@ -30,8 +30,7 @@ extern dword64 g_last_vbl_dfcyc;
 int	g_queued_samps = 0;
 int	g_queued_nonsamps = 0;
 
-#if defined(HPUX) || defined(__linux__) || defined(_WIN32) || defined(MAC) || \
-		defined(SDL_AUDIO)
+#if defined(__linux__) || defined(SDL_AUDIO)
 int	g_audio_enable = -1;
 #else
 int	g_audio_enable = 0;		/* Not supported: default to off */
@@ -230,7 +229,7 @@ sound_file_open()
 		return;
 	}
 
-	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0x1b6);
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0x1b6);
 	if(fd < 0) {
 		printf("open_sound_file open ret: %d, errno: %d\n", fd, errno);
 		sound_file_close();

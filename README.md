@@ -1,49 +1,34 @@
-![GSplus - cross-platform Apple IIgs emulator](gsplus-social.png)
+![IIGS-Emu - cross-platform Apple IIgs emulator](gsplus-social.png)
 
-# GSplus
+# IIGS-Emu
 
 An accessible, cross-platform build of [KEGS](http://kegs.sourceforge.net) - 
 Kent Dickey's Apple IIgs emulator - packaged with
-[SDL3](https://www.libsdl.org/) for macOS, Linux, and Windows.
+[SDL3](https://www.libsdl.org/) for Linux.
 
 ## What it is
 
-GSplus wraps the KEGS core in a single SDL3 application that builds and runs the
-same way on macOS, Linux, and Windows. It is **focused on the SDL3 build** - if
-you want the native macOS or Windows versions, use
-[KEGS](http://kegs.sourceforge.net) directly. GSplus tracks the KEGS version it's
-based on (currently 1.38).
-
-<table>
-  <tr>
-    <td><a href="screenshots/gsplus-mac-wolf3d.png"><img src="screenshots/gsplus-mac-wolf3d.png" alt="Wolfenstein 3D running in GSplus" width="400"></a></td>
-    <td><a href="screenshots/gsplus-mac-arkanoid2.png"><img src="screenshots/gsplus-mac-arkanoid2.png" alt="Arkanoid II running in GSplus" width="400"></a></td>
-  </tr>
-  <tr>
-    <td><a href="screenshots/gsplus-mac-animasia3d.png"><img src="screenshots/gsplus-mac-animasia3d.png" alt="Animasia 3D running in GSplus" width="400"></a></td>
-    <td><a href="screenshots/gsplus-mac-3200-image.png"><img src="screenshots/gsplus-mac-3200-image.png" alt="3200-color image displayed in GSplus" width="400"></a></td>
-  </tr>
-</table>
+IIGS-Emu wraps the KEGS core in a single SDL3 application for Linux. IIGS-Emu
+tracks the KEGS version it's based on (currently 1.38).
 
 ## You'll need a ROM
 
-Like any IIgs emulator, GSplus needs an Apple IIgs ROM file to boot. Without one
+Like any IIgs emulator, IIGS-Emu needs an Apple IIgs ROM file to boot. Without one
 it starts into a configuration screen with nothing to run. The ROM is Apple's
-copyrighted firmware, so GSplus can't ship it — you supply your own.
+copyrighted firmware, so IIGS-Emu can't ship it — you supply your own.
 
 **Which ROM:** the IIgs shipped with two ROM versions. **ROM 03** (256 KB, the
 later model) is the usual choice; **ROM 01** (128 KB) is also fully supported.
-GSplus does **not** support the early ROM 0.
+IIGS-Emu does **not** support the early ROM 0.
 
 **Where to put it:** name the file `ROM`, `ROM.01`, or `ROM.03` and place it in
-your home directory, next to the app, or next to your `config.kegs`. GSplus picks
+your home directory, next to the app, or next to your `config.kegs`. IIGS-Emu picks
 it up automatically. You can also select one at runtime: press **F4 → ROM File
 Selection → ROM File** and browse to it. A handful of other common names
 (`APPLE2GS.ROM`, `APPLE2GS.ROM2`, `xgs.rom`, `342-0077-b`, …) are recognized too.
 
 **Finding one:** the cleanest option is to dump the ROM from a real Apple IIgs you
-own — KEGS includes a short BASIC program that does it, in
-[`upstream/kegs/doc/README.ROM.files.txt`](upstream/kegs/doc/README.ROM.files.txt).
+own. The original KEGS documentation includes a short BASIC program that does it.
 Otherwise, the IIgs ROM is long-unsupported software that's widely circulated
 online: a web search for *"Apple IIgs ROM 03"* (or ROM 01) generally turns one
 up, and the Internet Archive hosts MAME sets that contain a usable ROM. That same
@@ -51,33 +36,22 @@ up, and the Internet Archive hosts MAME sets that contain a usable ROM. That sam
 or convert a MAME-format dump.
 
 **Did it work?** A valid ROM 01 file is exactly **128 KB** and a ROM 03 is **256
-KB**. If GSplus boots to the "Check startup device" screen, the ROM loaded fine —
+KB**. If IIGS-Emu boots to the "Check startup device" screen, the ROM loaded fine —
 it just needs a disk. Press **F4** to mount a disk image, or drag one onto the
 window.
 
 ## Downloads
 
-Prebuilt apps are attached to each [release](../../releases). The builds aren't
-code-signed yet, so your OS may warn that the app is from an unidentified
-developer the first time you run it. This is expected:
-
-**Windows** - SmartScreen blocks unsigned downloads. Click **More info → Run
-anyway**. If the `.exe` won't start after unzipping, right-click it →
-**Properties** → tick **Unblock** → **OK**. Keep `SDL3.dll` next to the `.exe`.
-
-**macOS** - the app is only ad-hoc signed, so Gatekeeper flags it. Right-click
-the app → **Open**, then confirm **Open**. If macOS still refuses, run
-`xattr -dr com.apple.quarantine /Applications/GSplus.app`.
-
-**Linux** - the `.tar.gz` relies on a system SDL3 (`libsdl3` from your package
-manager). A self-contained AppImage is planned.
+Prebuilt Linux archives (`.tar.gz`) are attached to each [release](../../releases).
+The archive relies on a system SDL3 (`libsdl3` from your package manager). A
+self-contained AppImage is planned.
 
 ## Status
 
 This is an early reboot - expect rough edges. SDL3 **video, input, and audio**
-are working on macOS, Linux, and Windows.
+are working on Linux.
 
-### What's been added in GSplus
+### What's been added in IIGS-Emu
 
 Some features that are a part of the SDL3 build:
 
@@ -93,18 +67,18 @@ Some features that are a part of the SDL3 build:
   Configuration.
 - **Terminal debugger** - a REPL for the built-in 65816 debugger from the
   controlling terminal.
-- **Drag-and-drop disk loading** - drop a disk image on the window and GSplus
+- **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
   guesses the slot from its size.
 - **Centered 8-bit video modes** - 40/80-column text, GR, HGR and DHGR are
-  560 pixels wide vs. super-hires' 640; GSplus centers them instead of
+  560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
   KEGS's left-align. `-centera2 0` (or the Display Effects menu) restores
   the KEGS behavior.
 - **CRT scanline simulator** - `-scanline <0-100>`, Shift+F11 to toggle.
 - **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
   / `-crtvignette`, Ctrl+F11 to toggle. Screen curvature, RGB phosphor mask,
   bloom, and vignette; composes with the scanline simulator.
-- **One cross-platform build** - the same SDL3 app and CMake build on macOS,
-  Linux, and Windows, with prebuilt downloads for each.
+- **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
+  Linux downloads.
 
 ## Controls
 
@@ -134,7 +108,7 @@ guessed from size).
 
 ## Building from source
 
-GSplus builds with CMake (Ninja generator). SDL3 is used if installed, otherwise
+IIGS-Emu builds with CMake (Ninja generator). SDL3 is used if installed, otherwise
 built from source automatically. From the repository root:
 
 ```sh
@@ -142,22 +116,11 @@ cmake -G Ninja -B build -S gsplus/src
 cmake --build build --target gsplus-sdl
 ```
 
-This produces the GSplus app:
-
-- **macOS:** `build/GSplus.app`
-- **Linux:** `build/gsplus`
-- **Windows:** `build/gsplus.exe` (with `SDL3.dll` alongside)
+This produces the `build/iigs-emu` executable.
 
 ### Dependencies
 
-**macOS** (Homebrew, plus the Xcode Command Line Tools):
-
-```sh
-brew install cmake ninja sdl3
-```
-
-**Linux** (Debian/Ubuntu) - the X11/Wayland/audio packages are SDL3's build
-dependencies:
+**Debian/Ubuntu** - the X11/Wayland/audio packages are SDL3's build dependencies:
 
 ```sh
 sudo apt install cmake ninja-build build-essential git \
@@ -169,23 +132,17 @@ sudo apt install cmake ninja-build build-essential git \
   libdbus-1-dev libudev-dev libibus-1.0-dev
 ```
 
-**Windows** ([MSYS2](https://www.msys2.org/), in the MINGW64 shell):
-
-```sh
-pacman -S git mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
-```
-
 ## About Branches
 
 - KEGS latest is tracked in the `./upstream` directory.
 - An `upstream` branch is updated whenever there's a new KEGS version and merged
   to `main`.
-- This makes it easy to track KEGS changes somewhat independently of the GSplus
+- This makes it easy to track KEGS changes somewhat independently of the IIGS-Emu
   work.
 
 ## A note from Dagen
 
-I've tried to reboot GSplus _many times_ over the past few years and each time 
+I've tried to reboot IIGS-Emu _many times_ over the past few years and each time 
 I'd sink weeks into building and packaging a new release, and then life would 
 pull me away for months, sometimes years, and momentum would die. I made the 
 decision to use AI to allow me to provide the emulator I wanted to have, which

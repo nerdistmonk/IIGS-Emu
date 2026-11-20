@@ -18,11 +18,7 @@
 typedef unsigned char byte;
 typedef unsigned short word16;
 typedef unsigned int word32;
-#if _MSC_VER
-typedef unsigned __int64 dword64;
-#else
 typedef unsigned long long dword64;
-#endif
 
 /* 28MHz crystal, plus every 65th 1MHz cycle is stretched 140ns */
 #define CYCS_28_MHZ		(28636360)
@@ -48,11 +44,9 @@ typedef unsigned long long dword64;
 # include <libc.h>
 #endif
 
-#ifndef _WIN32
-# include <unistd.h>
+#include <unistd.h>
 # include <sys/ioctl.h>
 # include <sys/wait.h>
-#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -69,19 +63,6 @@ typedef unsigned long long dword64;
 
 #ifdef SOLARIS
 # include <sys/filio.h>
-#endif
-
-#ifdef _WIN32
-# include <direct.h>
-# include <io.h>
-# pragma warning(disable : 4996)	/* open() is deprecated...sigh */
-int ftruncate(int fd, word32 length);
-int lstat(const char *path, struct stat *bufptr);
-#endif
-
-#ifndef O_BINARY
-/* work around some Windows junk */
-# define O_BINARY	0
 #endif
 
 #define MAX_CHANGE_RECTS	20
@@ -319,7 +300,6 @@ STRUCT(Lzw_state) {
 #define VERBOSE_SCC	0x080
 #define VERBOSE_TEST	0x100
 #define VERBOSE_VIDEO	0x200
-#define VERBOSE_MAC	0x400
 #define VERBOSE_DYNA	0x800
 
 #ifdef NO_VERB
@@ -338,7 +318,6 @@ STRUCT(Lzw_state) {
 #define scc_printf	if(DO_VERBOSE && (Verbose & VERBOSE_SCC)) printf
 #define test_printf	if(DO_VERBOSE && (Verbose & VERBOSE_TEST)) printf
 #define vid_printf	if(DO_VERBOSE && (Verbose & VERBOSE_VIDEO)) printf
-#define mac_printf	if(DO_VERBOSE && (Verbose & VERBOSE_MAC)) printf
 #define dyna_printf	if(DO_VERBOSE && (Verbose & VERBOSE_DYNA)) printf
 
 

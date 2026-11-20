@@ -1,7 +1,7 @@
-GSplus on Linux
+IIGS-Emu on Linux
 ===============
 
-GSplus needs the SDL3 library installed on your system. If launching
+IIGS-Emu needs the SDL3 library installed on your system. If launching
 fails with an error like:
 
     error while loading shared libraries: libSDL3.so.0:
@@ -36,6 +36,6 @@ SDL3 at all -- build it from source:
 Running
 -------
 
-GSplus also needs an Apple IIgs ROM file and a config file to be useful.
+IIGS-Emu also needs an Apple IIgs ROM file and a config file to be useful.
 See README.md (included alongside this file) for setup instructions,
 hotkeys, and everything else.

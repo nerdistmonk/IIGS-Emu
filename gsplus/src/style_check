@@ -53,10 +53,6 @@ while($#ARGV >= 0) {
 				$bad++;
 			}
 		}
-		if($line =~ /\r$/) {		# Line ends with Ctrl-M
-			print "Windows linebreak detected\n";
-			$bad = 101;
-		}
 		while($line =~ m/^([^"]*)("[^"]*")(.*)$/) {
 			# Convert text in strings to '-' to avoid space checks
 			$prev = $1;

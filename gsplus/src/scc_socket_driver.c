@@ -8,8 +8,7 @@
 /*      See the file COPYING.txt or https://www.gnu.org/licenses/     */
 /**********************************************************************/
 
-// This file contains the socket calls for Win32 and Mac/Linux
-// Win32: see: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/
+// This file contains the BSD socket calls for Linux.
 
 // Modem init string GBBS GSPORT.HST: ats0=1s2=128v0
 // Modem init string Warp6: atm0e0v0s0=0s7=25   atx4h0  at&c1&d2
@@ -28,22 +27,10 @@ extern int g_serial_modem_response_code;
 extern int g_serial_modem_allow_incoming;
 extern int g_serial_modem_init_telnet;
 
-#ifdef _WIN32
-#include <winsock2.h>
-typedef int socklen_t;
-#endif
-
-#ifndef _WIN32
 extern int h_errno;
-#endif
 
-int g_wsastartup_called = 0;
-
-#ifndef _WIN32
-// SOCKET is defined in scc.h, and is an "int" for non-Windows systems
-// INVALID_SOCKET is -1 for non-WINDOWS
+// SOCKET is defined in scc.h as an int; INVALID_SOCKET is -1
 # define closesocket(s)		close(s)
-#endif
 
 /* Usage: scc_socket_open() called to init socket mode */
 /*  At all times, we try to have a listen running on the incoming socket */
@@ -57,16 +44,6 @@ scc_socket_open(dword64 dfcyc, int port, int cfg)
 	Scc	*scc_ptr;
 
 	// printf("scc_socket_open p:%d cfg:%d\n", port, cfg);
-#if defined(_WIN32) && defined(SCC_SOCKETS)
-	WSADATA	wsadata;
-	int	ret;
-
-	if(g_wsastartup_called == 0) {
-		ret = WSAStartup(MAKEWORD(2,0), &wsadata);
-		printf("WSAStartup ret: %d\n", ret);
-		g_wsastartup_called = 1;
-	}
-#endif
 	scc_ptr = &(g_scc[port]);
 	scc_ptr->cur_state = cfg;		// successful socket
 	scc_ptr->sockfd = INVALID_SOCKET; /* Indicate no socket open yet */
@@ -337,13 +314,8 @@ scc_socket_open_outgoing(dword64 dfcyc, int port, const char *remote_ip_str,
 	hostentptr = gethostbyname(remote_ip_str);
 	printf("Connecting to %s, port:%d\n", remote_ip_str, remote_port);
 	if(hostentptr == 0) {
-#ifdef _WIN32
-		fatal_printf("Lookup host %s failed\n",
-						&scc_ptr->modem_cmd_str[0]);
-#else
 		fatal_printf("Lookup host %s failed, herrno: %d\n",
 					&scc_ptr->modem_cmd_str[0], h_errno);
-#endif
 		closesocket(sockfd);
 		scc_socket_close_extended(dfcyc, port, 0);
 		return;
@@ -381,23 +353,11 @@ scc_socket_make_nonblock(dword64 dfcyc, int port)
 #ifdef SCC_SOCKETS
 	Scc	*scc_ptr;
 	SOCKET	sockfd;
-	int	ret;
-# ifdef _WIN32
-	u_long	flags;
-# else
-	int	flags;
-# endif
+	int	flags, ret;
 
 	scc_ptr = &(g_scc[port]);
 	sockfd = scc_ptr->sockfd;
 
-# ifdef _WIN32
-	flags = 1;
-	ret = ioctlsocket(sockfd, FIONBIO, &flags);
-	if(ret != 0) {
-		printf("ioctlsocket ret: %d\n", ret);
-	}
-# else
 	flags = fcntl(sockfd, F_GETFL, 0);
 	if(flags == -1) {
 		printf("fcntl GETFL ret: %d, errno: %d\n", flags, errno);
@@ -410,7 +370,6 @@ scc_socket_make_nonblock(dword64 dfcyc, int port)
 		scc_socket_close_extended(dfcyc, port, 0);
 		return;
 	}
-# endif
 #endif
 }
 
@@ -443,8 +402,7 @@ scc_accept_socket(dword64 dfcyc, int port)
 
 		flags = 0;
 		ret = 0;
-#ifndef _WIN32
-		/* For Linux, we need to set O_NONBLOCK on the rdwrfd */
+		/* Set O_NONBLOCK on the rdwrfd */
 		flags = fcntl(rdwrfd, F_GETFL, 0);
 		if(flags == -1) {
 			printf("fcntl GETFL ret: %d, errno: %d\n", flags,errno);
@@ -455,7 +413,6 @@ scc_accept_socket(dword64 dfcyc, int port)
 			printf("fcntl SETFL ret: %d, errno: %d\n", ret, errno);
 			return;
 		}
-#endif
 		scc_ptr->rdwrfd = rdwrfd;
 		printf("Set port[%d].rdwrfd = %llx\n", port, (dword64)rdwrfd);
 
@@ -735,9 +692,7 @@ void
 scc_socket_empty_writebuf(dword64 dfcyc, int port)
 {
 #ifdef SCC_SOCKETS
-# ifndef _WIN32
 	struct sigaction newact, oldact;
-# endif
 	Scc	*scc_ptr;
 	dword64	diff_dusec;
 	SOCKET	rdwrfd;
@@ -819,7 +774,6 @@ scc_socket_empty_writebuf(dword64 dfcyc, int port)
 				}
 				scc_ptr->out_char_dfcyc = dfcyc;
 			}
-# ifndef _WIN32
 			// ignore SIGPIPE around writes to the socket, so we
 			//  can catch a closed socket and prepare to accept
 			//  a new connection.  Otherwise, SIGPIPE kills KEGS
@@ -827,15 +781,12 @@ scc_socket_empty_writebuf(dword64 dfcyc, int port)
 			newact.sa_handler = SIG_IGN;
 			newact.sa_flags = 0;
 			sigaction(SIGPIPE, &newact, &oldact);
-# endif
 
 			ret = (int)send(rdwrfd, &(scc_ptr->out_buf[rdptr]),
 									len, 0);
 
-# ifndef _WIN32
 			sigaction(SIGPIPE, &oldact, 0);
 			/* restore previous SIGPIPE behavior */
-# endif
 
 #if 0
 			printf("sock output: %02x, len:%d\n",

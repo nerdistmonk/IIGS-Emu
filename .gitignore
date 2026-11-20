@@ -1,14 +1,10 @@
 *.o
 
 # Build / runtime artifacts
-gsplus/GSplus.app/
 gsplus/src/build/
 config.kegs
-gsplus_screenshot_*.png
+iigs-emu_screenshot_*.png
 
 # Local Claude Code tooling
 .agents/
 skills-lock.json
-
-# Absolute trash
-.DS_Store

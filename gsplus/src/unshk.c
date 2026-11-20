@@ -470,7 +470,7 @@ unshk(Disk *dsk, const char *name_str)
 	}
 
 	// File is not opened yet, try to open it
-	fd = open(name_str, O_RDONLY | O_BINARY, 0x1b6);
+	fd = open(name_str, O_RDONLY, 0x1b6);
 	if(fd < 0) {
 		return;
 	}

@@ -25,18 +25,11 @@
 # include <sys/soundcard.h>
 #endif
 
-#ifndef _WIN32
-# include <sys/socket.h>
-# include <netinet/in.h>
-#endif
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <errno.h>
 
-#if defined(_WIN32) || defined(__CYGWIN__) || defined(MAC)
-# define KEGS_CAN_FORK	0
-#else
-	// Linux, or other Unix, we may fork and run sound in the child
-# define KEGS_CAN_FORK	1
-#endif
+#define KEGS_CAN_FORK	1	// Linux: we fork and run sound in the child
 
 extern int Verbose;
 
@@ -48,7 +41,6 @@ extern word32 *g_sound_shm_addr;
 int	g_preferred_rate = 48000;
 int	g_audio_socket = -1;
 int	g_bytes_written = 0;
-int	g_pulse_audio = 0;
 int	g_pipe_fd[2] = { -1, -1 };
 int	g_pipe2_fd[2] = { -1, -1 };
 
@@ -93,37 +85,16 @@ snddrv_init()
 	size = SOUND_SHM_SAMP_SIZE * SAMPLE_CHAN_SIZE;
 
 	use_shm = KEGS_CAN_FORK;
-#ifdef PULSE_AUDIO
-	use_shm = 0;
-#endif
 #ifdef SDL_AUDIO
 	use_shm = 0;			// SDL audio runs in-process, never forks
 #endif
 	if(!use_shm) {
-		/* windows and mac, and Linux Pulse Audio */
 		shmaddr = malloc(size);
 		memset(shmaddr, 0, size);
 		g_sound_shm_addr = shmaddr;
-#if defined(MAC)
-		macsnd_init();
-		return;
-#elif defined(SDL_AUDIO)
+#ifdef SDL_AUDIO
 		sdl_snd_init(shmaddr);
 		return;
-#elif defined(_WIN32)
-		win32snd_init(shmaddr);
-		return;
-#endif
-#ifdef PULSE_AUDIO
-		ret = pulse_audio_init(shmaddr);
-		if(ret == 0) {
-			g_pulse_audio = 1;
-			return;		// Success!
-		}
-		free(shmaddr);
-		g_sound_shm_addr = 0;
-		use_shm = 1;
-		// Otherwise, fall back on /dev/dsp
 #endif
 	}
 
@@ -253,16 +224,9 @@ snddrv_shutdown()
 {
 #ifdef SDL_AUDIO
 	sdl_snd_shutdown();
-#elif defined(_WIN32)
-	win32snd_shutdown();
 #else
 	if((g_audio_enable != 0) && (g_pipe_fd[1] >= 0)) {
 		close(g_pipe_fd[1]);
-	}
-#endif
-#ifdef PULSE_AUDIO
-	if(g_pulse_audio) {
-		pulse_audio_shutdown();
 	}
 #endif
 }
@@ -287,10 +251,10 @@ snddrv_send_sound(int real_samps, int size)
 	//					(real_samps << 30) + size);
 
 	call_playit = 0;
-#if defined(MAC) || defined(_WIN32) || defined(SDL_AUDIO)
-	call_playit = 1;			// In-process audio: mac/windows/SDL
+#ifdef SDL_AUDIO
+	call_playit = 1;			// In-process audio via SDL
 #endif
-	if(call_playit || g_pulse_audio) {
+	if(call_playit) {
 		child_sound_playit(tmp);
 		return;
 	}
@@ -420,19 +384,8 @@ child_send_samples(byte *ptr, int size)
 {
 #ifdef SDL_AUDIO
 	return sdl_send_audio(ptr, size);
-#elif defined(_WIN32)
-	return win32_send_audio(ptr, size);
 #else
-# ifdef MAC
-	return mac_send_audio(ptr, size);
-# else
-#  ifdef PULSE_AUDIO
-	if(g_pulse_audio) {
-		return pulse_audio_send_audio(ptr, size);
-	}
-#  endif
 	return (int)write(g_audio_socket, ptr, size);
-# endif
 #endif
 }
 

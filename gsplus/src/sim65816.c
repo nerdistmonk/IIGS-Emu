@@ -490,7 +490,7 @@ int	g_screen_depth = 8;
 void
 print_usage(const char *argv0)
 {
-	printf("KEGS/GSplus v%s - Apple IIgs emulator\n\n",
+	printf("KEGS/IIGS-Emu v%s - Apple IIgs emulator\n\n",
 						&g_kegs_version_str[0]);
 	printf("Usage: %s [options]\n\n", argv0);
 	printf("Options:\n");
@@ -499,8 +499,8 @@ print_usage(const char *argv0)
 	printf("  -noignbadacc     Do not ignore bad memory accesses\n");
 	printf("  -noignhalt       Do not ignore code-red halts\n");
 #ifndef SDL_INPUT
-	/* X11-only display flags; xdriver.c is the only reader, so these are
-	 * dead no-ops in SDL builds and omitted from that help text. */
+	/* X11-only display flags; they have no effect in SDL builds, so they are
+	 * omitted from the help text. */
 	printf("  -24              Force 24-bit visual\n");
 	printf("  -16              Force 16-bit visual\n");
 	printf("  -15              Force 15-bit visual\n");
@@ -667,7 +667,7 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 			g_cur_a2_stat |= ALL_STAT_COLOR_C021;
 			g_use_bw_hires = 1;
 		} else if(!strncmp("-NS", argv[i], 3)) {
-			// Some Mac argument, just ignore it
+			// Ignore the legacy -NS argument (macOS launch services)
 			if((i + 1) < argc) {
 				// If the next argument doesn't start with '-',
 				//  then ignore it, too
@@ -1574,7 +1574,7 @@ update_60hz(dword64 dfcyc, double dtime_now)
 
 		draw_iwm_status(2, status_buf);
 
-		snprintf(status_buf, sizeof(status_buf), " GSplus %-6s      "
+		snprintf(status_buf, sizeof(status_buf), " IIGS-Emu %-6s      "
 			"Press F4 for Config Menu    %s %s",
 			GSPLUS_VERSION_STR, code_str1, code_str2);
 		video_update_status_line(3, status_buf);
@@ -2101,7 +2101,7 @@ must_write(int fd, byte *bufptr, dword64 dsize)
 
 	dlen = dsize;
 	while(dlen != 0) {
-		// Support Windows64, which can only rd/wr 2GB max per call
+		// Limit each write() call to 1GB
 		this_len = (1UL << 30);
 		if(dlen < this_len) {
 			this_len = (word32)dlen;
@@ -2145,10 +2145,6 @@ kegs_malloc_str(const char *in_str)
 dword64
 kegs_lseek(int fd, dword64 offs, int whence)
 {
-#ifdef _WIN32
-	return _lseeki64(fd, offs, whence);
-#else
 	return lseek(fd, offs, whence);
-#endif
 }
 

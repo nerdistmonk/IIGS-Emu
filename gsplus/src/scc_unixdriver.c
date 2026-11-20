@@ -8,20 +8,17 @@
 /*      See the file COPYING.txt or https://www.gnu.org/licenses/     */
 /**********************************************************************/
 
-/* This file contains the Mac/Linux calls to a real serial port */
+/* This file contains the Linux calls to a real serial port */
 
 #include "defc.h"
 #include "scc.h"
 
-#ifndef _WIN32
-# include <termios.h>
-#endif
+#include <termios.h>
 
 extern Scc g_scc[2];
 extern word32 g_c025_val;
 extern char *g_serial_device[2];
 
-#ifndef _WIN32
 void
 scc_serial_unix_open(int port)
 {
@@ -121,7 +118,7 @@ scc_serial_unix_change_params(int port)
 	termios_buf.c_cflag |= CRTSCTS;			// Linux: CTS/RTS
 #endif
 #ifdef CRTS_IFLOW
-	termios_buf.c_cflag |= CDTR_IFLOW | CRTS_IFLOW;		// Mac: CTS/RTS
+	termios_buf.c_cflag |= CDTR_IFLOW | CRTS_IFLOW;		// CTS/RTS
 #endif
 
 	printf("fd: %d, baudrate: %d, iflag:%x, oflag:%x, cflag:%x, lflag:%x\n",
@@ -221,4 +218,3 @@ scc_serial_unix_empty_writebuf(int port)
 		}
 	}
 }
-#endif	/* !_WIN32 */

@@ -13,11 +13,7 @@
 //  forked files are storage_type $5 from Technote tn-pdos-025.
 
 #include "defc.h"
-#if defined(_WIN32) && defined(_MSC_VER)
-# include "win_dirent.h"	/* MSVC has no <dirent.h>; windriver.c implements it */
-#else
-# include <dirent.h>		/* mingw (incl. the SDL build), Linux, macOS */
-#endif
+#include <dirent.h>
 #include <time.h>
 
 extern int Verbose;
@@ -281,7 +277,7 @@ dynapro_malloc_file(char *path_ptr, dword64 *dsize_ptr, int extra_size)
 	int	i;
 
 	*dsize_ptr = 0;
-	fd = open(path_ptr, O_RDONLY | O_BINARY, 0x1b6);
+	fd = open(path_ptr, O_RDONLY, 0x1b6);
 	if(fd < 0) {
 		return 0;
 	}
@@ -646,11 +642,7 @@ dynapro_process_write_dir(Disk *dsk, Dynapro_file *parent_ptr,
 		parent_dir_byte = parent_ptr->dir_byte;
 		if(head_ptr == 0) {
 			// Do mkdir to make sure it exists
-#ifdef _WIN32
-			iret = _mkdir(str);
-#else
 			iret = mkdir(str, 0x1ff);
-#endif
 			error = errno;
 			dyna_printf("Did mkdir %s, iret:%d\n", str, iret);
 			if(iret < 0) {
@@ -946,7 +938,7 @@ dynapro_write_to_unix_file(const char *unix_path, byte *data_ptr, word32 size)
 	dword64	dret;
 	int	fd;
 
-	fd = open(unix_path, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0x1b6);
+	fd = open(unix_path, O_WRONLY | O_CREAT | O_TRUNC, 0x1b6);
 	if(fd < 0) {
 		printf("Open %s for writing failed\n", unix_path);
 		exit(1);
@@ -2293,9 +2285,7 @@ dynapro_mount(Disk *dsk, char *dir_path, word32 num_blocks)
 		dynapro_free_dynapro_info(dsk);
 		return -1;
 	}
-#ifndef _WIN32
 	setvbuf(stdout, 0, _IOLBF, 0);
-#endif
 	dsk->fd = 0;
 	return 0;
 }

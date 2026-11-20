@@ -979,7 +979,7 @@ undeflate_gzip(Disk *dsk, const char *name_str)
 
 	// On success, set dsk->fd=0 and dsk->raw_data,raw_dsize properly.
 	printf("undeflate_gzip on file %s\n", name_str);
-	fd = open(name_str, O_RDONLY | O_BINARY, 0x1b6);
+	fd = open(name_str, O_RDONLY, 0x1b6);
 	if(fd < 0) {
 		return;
 	}

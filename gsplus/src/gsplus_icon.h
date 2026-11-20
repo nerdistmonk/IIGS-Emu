@@ -1,5 +1,5 @@
 /* Generated from lib/gsplusicon.png by lib/make_icons -- do not
- * edit. GSplus window icon (RGBA) for SDL_SetWindowIcon. */
+ * edit. IIGS-Emu window icon (RGBA) for SDL_SetWindowIcon. */
 #ifndef GSPLUS_ICON_H
 #define GSPLUS_ICON_H
 

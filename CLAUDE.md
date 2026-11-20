@@ -4,41 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GSplus is a cross-platform Apple IIgs emulator based on KEGS (Kent's Emulated GS) by Kent Dickey. It emulates the 65816 CPU, all Apple IIgs graphics/sound modes, disk controllers, serial ports, and more. Licensed under GPLv3.
+IIGS-Emu is a cross-platform Apple IIgs emulator based on KEGS (Kent's Emulated GS) by Kent Dickey. It emulates the 65816 CPU, all Apple IIgs graphics/sound modes, disk controllers, serial ports, and more. Licensed under GPLv3.
 
 ## Repository Structure
 
 - `gsplus/src/` — Active source code and build files (this is where you build)
-- `gsplus/lib/` — Icons, NIB files, and asset resources
-- `upstream/kegs/` — Upstream KEGS tracked separately, merged to main when updated
-- `upstream/kegs/doc/` — Comprehensive documentation (architecture internals, platform setup, compatibility)
+- `gsplus/lib/` — Icons and the `make_icons` script that generates `gsplus/src/gsplus_icon.h`
 
 The `upstream` branch tracks KEGS releases; `main` is the primary development branch.
 
 ## Build Commands
 
-### macOS (default target)
+Linux is the only supported platform. From the repository root:
 ```bash
-cd gsplus/src
-make -j 20
+cmake -G Ninja -B build -S gsplus/src
+cmake --build build --target gsplus-sdl
 ```
-Produces `gsplus/KEGSMAC.app`. Requires Xcode with command-line tools installed.
+Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. See README.md for the apt package list.
 
-### Linux (X11)
+### Package
 ```bash
-cd gsplus/src
-rm vars; ln -s vars_x86linux vars
-make -j 20
+cmake --build build --target package
 ```
-Produces `xkegs`. Requires `libX11-devel`, `libXext-devel`, `pulseaudio-libs-devel`.
-
-### Windows
-Open `gsplus/src/kegswin.vcxproj` in Visual Studio Community Edition and press F7.
+Produces a `.tar.gz` in `build/`.
 
 ### Clean
 ```bash
-cd gsplus/src
-make clean
+rm -rf build
 ```
 
 ## Architecture
@@ -77,13 +69,13 @@ make clean
 - `debugger.c` — Built-in 65816 debugger/monitor
 
 ### Platform Drivers
-The emulator core is platform-independent. Platform-specific code is isolated in driver files:
+The emulator core is platform-independent. Platform-specific code is isolated in the SDL driver files:
 
-| Component | macOS | Linux | Windows |
-|-----------|-------|-------|---------|
-| Display | `AppDelegate.swift` + `MainView.swift` | `xdriver.c` | `windriver.c` |
-| Audio | `macsnd_driver.c` (CoreAudio) | `pulseaudio_driver.c` | `win32snd_driver.c` |
-| Serial | `scc_unixdriver.c` | `scc_unixdriver.c` | `scc_windriver.c` |
+| Component | File |
+|-----------|------|
+| Display, input, gamepad | `sdl_driver.c` (SDL3) |
+| Audio | `sdl_snd_driver.c` (SDL3) |
+| Serial | `scc_unixdriver.c` |
 
 ### Key Headers
 - `defc.h` — Global defines, structs, macros (included by nearly every .c file)
@@ -92,13 +84,11 @@ The emulator core is platform-independent. Platform-specific code is isolated in
 
 ## Build System Details
 
-The Makefile includes `vars` (platform config) and `ldvars` (object file list). To change platforms, symlink the appropriate vars file (`vars_mac`, `vars_x86linux`, etc.) to `vars`. Swift files are compiled via the `comp_swift` wrapper script. The `dependency` file contains header dependency rules.
-
-Compiler flags are set in `vars`: `-Wall -O2 -DMAC` for macOS. The `-DMAC` define selects macOS-specific code paths throughout the codebase.
+`gsplus/src/CMakeLists.txt` defines the build. The core sources are listed explicitly in `GSPLUS_CORE_SOURCES`. The `gsplus_core_sdl` library is compiled with `-DSDL_AUDIO -DSDL_INPUT`, which selects the SDL audio and gamepad backends.
 
 ## Runtime Requirements
 
-The emulator needs an Apple IIgs ROM file to run. Demo disk images (`NUCLEUS03.gz`, `XMAS_DEMO.gz`) are included in `upstream/kegs/`. Configuration is stored in `config.kegs`.
+The emulator needs an Apple IIgs ROM file to run. Configuration is stored in `config.kegs`.
 
 ## No Test Suite
 

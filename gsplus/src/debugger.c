@@ -1694,9 +1694,9 @@ do_debug_unix(const char *str, int old_mode)
 	dbg_printf("About to open: %s,len: %d\n", localbuf,
 						(int)strlen(localbuf));
 	if(load) {
-		fd = open(localbuf, O_RDONLY | O_BINARY);
+		fd = open(localbuf, O_RDONLY);
 	} else {
-		fd = open(localbuf, O_WRONLY | O_CREAT | O_BINARY, 0x1b6);
+		fd = open(localbuf, O_WRONLY | O_CREAT, 0x1b6);
 	}
 	if(fd < 0) {
 		dbg_printf("Open %s failed: %d. errno:%d\n", localbuf, fd,

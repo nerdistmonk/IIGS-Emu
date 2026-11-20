@@ -23,8 +23,6 @@ const char rcsdif_defcomm_h[] = "@(#)$KmKId: defcomm.h,v 1.109 2023-11-12 15:29:
 #define JOYSTICK_MOUSE		1
 #define JOYSTICK_LINUX		2
 #define JOYSTICK_KEYPAD		3
-#define JOYSTICK_WIN32_1	4
-#define JOYSTICK_WIN32_2	5
 
 #define MAX_BREAK_POINTS	0x20
 

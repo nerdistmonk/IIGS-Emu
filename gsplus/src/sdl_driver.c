@@ -7,9 +7,7 @@
 /* SDL3 display/input driver and program entry point.
  *
  * KEGS has no platform-independent main(): each display driver owns the entry
- * point and the run loop, calling into the core. This file is the SDL3
- * equivalent of xdriver.c (X11) / windriver.c (Win32). The loop is:
- *
+* point and the run loop, calling into the core. The loop is: *
  *     parse_argv() -> kegs_init() -> sdl_video_init()
  *     while(running) { run_16ms(); poll input; push framebuffer }
  *
@@ -26,21 +24,7 @@
 
 #include "defc.h"
 #include "protos_sdl.h"
-#ifndef __APPLE__
-# include "gsplus_icon.h"	/* embedded RGBA window icon (see below) */
-#endif
-
-#ifdef _WIN32
-# include <sys/stat.h>
-/* mingw/Windows has no lstat(). The core declares it (defc.h) and the native
- * Windows driver (windriver.c, which the SDL build excludes) provides this
- * shim -- so we supply it here. Windows has no POSIX symlinks, so stat() does. */
-int
-lstat(const char *path, struct stat *bufptr)
-{
-	return stat(path, bufptr);
-}
-#endif
+#include "gsplus_icon.h"	/* embedded RGBA window icon (see below) */
 
 /* Each KEGS driver defines its own private "window info" wrapper around a core
  * Kimage. Ours holds the SDL window/renderer/texture plus the scratch pixel
@@ -147,8 +131,7 @@ sdl_create_texture(Window_info *win, int w, int h)
 	 * SDL_UpdateTexture and keep the rest of the frame intact. Static textures
 	 * are the documented target for SDL_UpdateTexture and preserve their
 	 * contents between frames; partial SDL_UpdateTexture on a streaming texture
-	 * is unreliable on the D3D11 backend (Windows showed a black window). */
-	win->texture = SDL_CreateTexture(win->renderer, SDL_PIXELFORMAT_ARGB8888,
+	 * is unreliable on some SDL render backends. */	win->texture = SDL_CreateTexture(win->renderer, SDL_PIXELFORMAT_ARGB8888,
 					SDL_TEXTUREACCESS_STATIC, w, h);
 	if(!win->texture) {
 		printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
@@ -488,13 +471,13 @@ sdl_video_init(void)
 	 * palettes. The Apple II text/lores/hires palette (g_a2palette_1624) is
 	 * populated ONLY by video_set_palette(); without this call it stays all
 	 * zeros and every text/HGR pixel renders black, while super-hires (which
-	 * uses g_palette_8to1624 directly) still works. The X11 and Win32 drivers
-	 * do exactly this in their own init. */
+	 * uses g_palette_8to1624 directly) still works. The X11 driver does
+	 * exactly this in its own init. */
 	video_set_red_mask(0xff0000);
 	video_set_green_mask(0x00ff00);
 	video_set_blue_mask(0x0000ff);
-	/* Mark framebuffer pixels opaque (alpha 0xff), like the mac driver
-	 * does, so the backbuffer/screenshots carry a consistent alpha. (Note
+	/* Mark framebuffer pixels opaque (alpha 0xff) so the backbuffer/screenshots
+	 * carry a consistent alpha. (Note
 	 * the core only applies this in its scaled copy paths; nothing in the
 	 * render path may depend on framebuffer alpha -- the glow pass learned
 	 * this the hard way and now adds RGB independent of alpha.) */
@@ -517,7 +500,7 @@ sdl_video_init(void)
 	if(g_borderless) { flags |= SDL_WINDOW_BORDERLESS; }
 	if(g_fullscreen) { flags |= SDL_WINDOW_FULLSCREEN; g_is_fullscreen = 1; }
 
-	g_mainwin_info.window = SDL_CreateWindow("GSplus",
+	g_mainwin_info.window = SDL_CreateWindow("IIGS-Emu",
 				w, h, flags);
 	if(!g_mainwin_info.window) {
 		printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -528,11 +511,7 @@ sdl_video_init(void)
 					g_mainwin_xpos, g_mainwin_ypos);
 	}
 
-	/* Window/taskbar icon for Linux and Windows. Not on macOS: SDL3's
-	 * cocoa backend implements this as setApplicationIconImage, which
-	 * would replace the bundle's full-res .icns dock icon with this
-	 * small bitmap. */
-#ifndef __APPLE__
+	/* Window/taskbar icon. */
 	{
 		SDL_Surface *icon = SDL_CreateSurfaceFrom(gsplus_icon_width,
 				gsplus_icon_height, SDL_PIXELFORMAT_RGBA32,
@@ -542,7 +521,6 @@ sdl_video_init(void)
 			SDL_DestroySurface(icon);
 		}
 	}
-#endif
 
 	/* "-nohwaccel 1" forces the software renderer; otherwise SDL picks the best. */
 	g_mainwin_info.renderer = SDL_CreateRenderer(g_mainwin_info.window,
@@ -568,24 +546,16 @@ sdl_video_init(void)
 
 	sdl_create_texture(&g_mainwin_info, w, h);
 
-	/* Mark this window active so the core renders into it. The X11 and Win32
-	 * drivers do this in their window-create routines; without it kimage->active
-	 * stays 0 and video_get_active() makes us skip every frame (black screen). */
+	/* Mark this window active so the core renders into it. Without this,
+	 * kimage->active stays 0 and video_get_active() makes us skip every frame
+	 * (black screen). */
 	video_set_active(km, 1);
 
 	/* Force the core to output the entire screen on the first frame. Without
 	 * this, static content (e.g. the no-ROM config panel) is drawn once during
 	 * kegs_init -- before this window/texture existed -- and never produces
-	 * dirty rectangles again, leaving the texture black. The X11 and Win32
-	 * drivers do the same on window expose. */
+	 * dirty rectangles again, leaving the texture black. */
 	video_set_x_refresh_needed(km, 1);
-
-#ifdef __APPLE__
-	/* SDL has now installed its default macOS menu bar. Strip the ⌘ shortcuts
-	 * off its items so combos like ⌘W/⌘Q reach the emulated IIgs (which uses
-	 * ⌘ as Open-Apple), and move GSplus's own Quit to ⌥⌘Q. */
-	sdl_mac_fix_menu();
-#endif
 }
 
 /* --------------------------------------------------------------------------
@@ -593,13 +563,12 @@ sdl_video_init(void)
  *
  * We key off SDL_Scancode (the physical key position, layout-independent and
  * stable across SDL versions) rather than the layout-dependent keycode. The
- * ADB codes are exactly those the core expects (taken from xdriver.c's
- * g_x_a2_key_to_xsym table); they feed the same adb_physical_key_update() the
- * X11 and native-mac drivers use.
+ * ADB codes are exactly those the core expects (the same table the original
+ * X11 driver used); they feed adb_physical_key_update().
  *
  * Modifier keys appear twice (left/right) mapped to the same ADB code, matching
  * the IIgs which has a single code per modifier. GUI/⌘ -> Open-Apple (Command,
- * 0x37); Alt/Option -> Option (0x3a) -- consistent on macOS and PC.
+ * 0x37); Alt/Option -> Option (0x3a).
  * ------------------------------------------------------------------------- */
 struct sdl_key_map {
 	SDL_Scancode	sc;
@@ -722,8 +691,7 @@ sdl_handle_key(Window_info *win, SDL_Scancode sc, int is_up, int repeat)
 }
 
 /* Mouse button index -> IIgs button mask. SDL buttons are 1=left, 2=middle,
- * 3=right; (1 << b) >> 1 gives left=1, middle=2, right=4 (same as xdriver). */
-static int
+ * 3=right; (1 << b) >> 1 gives left=1, middle=2, right=4. */static int
 sdl_button_mask(int sdl_button)
 {
 	return (1 << sdl_button) >> 1;
@@ -1020,7 +988,7 @@ sdl_build_screenshot_path(char *buf, size_t buflen)
 	now = time(NULL);
 	tmv = localtime(&now);
 	strftime(fname, sizeof(fname),
-			"gsplus_screenshot_%Y%m%d_%H%M%S.png", tmv);
+			"iigs-emu_screenshot_%Y%m%d_%H%M%S.png", tmv);
 
 	if(g_cfg_ssdir && g_cfg_ssdir[0]) {
 		size_t len = strlen(g_cfg_ssdir);
@@ -1368,8 +1336,8 @@ sdl_update_display(Window_info *win)
  * A reader thread blocks on stdin so the SDL main loop never stalls; complete
  * lines land in a small queue that sdl_debugger_poll() drains while the CPU is
  * halted (middle-click break, or the F7 toggle). Launched with no terminal
- * (double-clicked .app/.exe), stdin hits EOF and the thread simply exits -- the
- * emulator runs normally, just without an interactive debugger.
+ * (for example from a file manager), stdin hits EOF and the thread simply
+ * exits -- the emulator runs normally, just without an interactive debugger.
  * ------------------------------------------------------------------------- */
 
 #define DBG_LINE_MAX	256
@@ -1429,7 +1397,7 @@ sdl_dbg_dequeue(char *out)
 static void
 sdl_dbg_prompt(void)
 {
-	printf("gsplus> ");
+	printf("iigs-emu> ");
 	fflush(stdout);
 	g_dbg_prompt_shown = 1;
 }
@@ -1488,7 +1456,7 @@ main(int argc, char **argv)
 	int	mdepth = 32;		/* ARGB8888 -> 32-bit pixels */
 	int	ret;
 
-	printf("GSplus %s (SDL3)\n", GSPLUS_VERSION_STR);
+	printf("IIGS-Emu %s (SDL3)\n", GSPLUS_VERSION_STR);
 
 	ret = parse_argv(argc, argv, 1);
 	if(ret) {

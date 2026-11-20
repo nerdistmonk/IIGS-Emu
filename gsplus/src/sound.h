@@ -11,10 +11,8 @@
 /*      See the file COPYING.txt or https://www.gnu.org/licenses/     */
 /**********************************************************************/
 
-#if !defined(_WIN32) && !defined(__CYGWIN__)
 # include <sys/ipc.h>
 # include <sys/shm.h>
-#endif
 
 #define SOUND_SHM_SAMP_SIZE		(32*1024)
 
@@ -84,18 +82,4 @@ STRUCT(Mockingboard) {
 	word32	disable_mask;
 };
 
-/* prototypes for win32snd_driver.c functions */
-void win32snd_init(word32 *);
-void win32snd_shutdown(void);
-void child_sound_init_win32(void);
-int win32_send_audio(byte *ptr, int size);
-
-/* Prototypes for macsnd_driver.c functions */
-int mac_send_audio(byte *ptr, int in_size);
-void macsnd_init();
-
-/* Prototypes for pulseaudio_driver.c functions */
-int pulse_audio_init();
-int pulse_audio_send_audio(byte *ptr, int in_size);
-void pulse_audio_shutdown(void);
 

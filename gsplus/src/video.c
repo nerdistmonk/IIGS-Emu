@@ -1891,7 +1891,7 @@ video_update_through_line(int line)
 	g_vid_update_last_line = last_line;
 	g_video_save_all_stat_pos = pos;
 
-	/* deal with border and forming rects for xdriver.c to use */
+	/* deal with border and forming rects for the display driver to use */
 	if(line >= 262) {
 		if(g_num_lines_prev_superhires != g_num_lines_superhires) {
 			/* switched in/out from superhires--refresh borders */
@@ -2335,8 +2335,7 @@ video_out_query(Kimage *kimage_ptr)
 	return num_change_rects;
 }
 
-// video_out_done: used by specialize xdriver platform code which needs to
-//  clear the num_change_rects=0.
+// video_out_done: used by the display driver to clear num_change_rects=0.
 void
 video_out_done(Kimage *kimage_ptr)
 {
@@ -2344,7 +2343,7 @@ video_out_done(Kimage *kimage_ptr)
 	kimage_ptr->x_refresh_needed = 0;
 }
 
-// Called by xdriver.c to copy KEGS's kimage data to the vptr buffer
+// Called by the display driver to copy KEGS's kimage data to the vptr buffer
 int
 video_out_data(void *vptr, Kimage *kimage_ptr, int out_width_act,
 		Change_rect *rectptr, int pos)
