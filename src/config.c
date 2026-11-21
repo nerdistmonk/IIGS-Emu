@@ -168,6 +168,7 @@ int	g_hblur = 0;		/* horizontal linear blur, 0-100 (0=off, sharp) */
 int	g_vblur = 0;		/* vertical linear blur, 0-100 (0=off, sharp) */
 int	g_hide_mouse = 1;	/* hide host cursor over the window / in fullscreen */
 char	*g_cfg_ssdir = "";	/* screenshot output dir ("" = current dir) */
+char	*g_cfg_last_dir = 0;	/* last folder browsed in disk selector; saved as "lastdir" */
 char	*g_cfg_menu_fg = "FFFFFF"; /* config menu text color, RRGGBB hex */
 char	*g_cfg_menu_bg = "1E2A56"; /* config menu background, RRGGBB hex */
 
@@ -1652,6 +1653,11 @@ cfg_parse_one_line(char *buf, int line)
 		}
 	}
 
+	if(strcmp(nameptr, "lastdir") == 0) {
+		cfg_file_update_ptr(&g_cfg_last_dir, &buf[pos], 0);
+		return;
+	}
+
 	/* Look up nameptr to find type */
 	type = -1;
 	defptr = 0;
@@ -1893,6 +1899,10 @@ config_write_config_kegs_file(int get_status)
 								curstr);
 			}
 		}
+	}
+
+	if(g_cfg_last_dir && g_cfg_last_dir[0]) {
+		fprintf(fconf, "lastdir = %s\n", g_cfg_last_dir);
 	}
 
 	fprintf(fconf, "\n");
@@ -3642,8 +3652,18 @@ cfg_create_new_image()
 }
 
 void
+cfg_remember_disk_browse_dir()
+{
+	if((g_cfg_slotdrive & 0xfff) == 0xfff) {
+		return;		/* not browsing for a disk (ROM, charrom, etc.) */
+	}
+	cfg_file_update_ptr(&g_cfg_last_dir, &g_cfg_file_curpath[0], 1);
+}
+
+void
 cfg_file_init()
 {
+	struct stat stat_buf;
 	int	slot, drive, is_dynapro;
 	int	i;
 
@@ -3680,6 +3700,15 @@ cfg_file_init()
 		// Use the full path to the dir (don't strip off last part)
 		cfg_strncpy(&g_cfg_file_curpath[0], &g_cfg_tmp_path[0],
 							CFG_PATH_MAX);
+	}
+	if(((g_cfg_slotdrive & 0xfff) != 0xfff) && g_cfg_last_dir) {
+		// Start in the last folder browsed, if it still exists
+		cfg_strncpy(&g_cfg_file_path[0], g_cfg_last_dir, CFG_PATH_MAX);
+		if((cfg_stat(&g_cfg_file_path[0], &stat_buf, 0) == 0) &&
+					((stat_buf.st_mode & S_IFMT) == S_IFDIR)) {
+			cfg_strncpy(&g_cfg_file_curpath[0], &g_cfg_file_path[0],
+							CFG_PATH_MAX);
+		}
 	}
 	g_cfg_dirlist.invalid = 1;
 }
@@ -4373,6 +4402,7 @@ cfg_file_selected()
 			/* go up one directory */
 			cfg_get_base_path(&g_cfg_file_curpath[0],
 						&g_cfg_file_curpath[0], 1);
+			cfg_remember_disk_browse_dir();
 			return;
 		}
 
@@ -4421,6 +4451,7 @@ cfg_file_selected()
 		/* it's a directory */
 		cfg_strncpy(&g_cfg_file_curpath[0], &g_cfg_file_path[0],
 								CFG_PATH_MAX);
+		cfg_remember_disk_browse_dir();
 	} else if(g_cfg_newdisk_select) {
 		// Do not allow selecting files, just ignore it
 	} else if((g_cfg_slotdrive & 0xfff) < 0xfff) {
