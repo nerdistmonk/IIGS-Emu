@@ -1272,7 +1272,7 @@ adb_get_keypad_xy(int get_y)
 			if(g_keypad_key_is_down[key]) {
 				num_keys++;
 				x = x + (j - 1)*32768;
-				y = y + (i - 1)*32768;
+				y = y + (1 - i)*32768;
 			}
 			key++;
 		}
