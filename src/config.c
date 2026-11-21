@@ -389,7 +389,6 @@ Cfg_menu g_cfg_sdl_video_menu[] = {
 { "Vertical Blur 0-100", &g_vblur, "vblur", 0, CFGTYPE_INT },
 { "Hide Mouse Cursor,0,No,1,Yes", &g_hide_mouse, "hidemouse", 0, CFGTYPE_INT },
 { "Screenshot Directory", &g_cfg_ssdir, "ssdir", 0, CFGTYPE_STR },
-{ "", 0, 0, 0, 0 },
 { "Menu Text Color (RRGGBB hex)", &g_cfg_menu_fg, "menutextcolor", 0, CFGTYPE_STR },
 { "Menu Background (RRGGBB hex)", &g_cfg_menu_bg, "menubgcolor", 0, CFGTYPE_STR },
 { "", 0, 0, 0, 0 },
