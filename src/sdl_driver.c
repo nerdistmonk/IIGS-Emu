@@ -1449,22 +1449,51 @@ static int g_dbg_q_tail = 0;		/* next slot to write (reader thread) */
 static SDL_Mutex *g_dbg_mutex = NULL;
 static int g_dbg_prompt_shown = 0;
 
-/* Reader thread: block on stdin, push each completed line onto the queue. */
+static void
+sdl_dbg_push(const char *line)
+{
+	int	next;
+
+	SDL_LockMutex(g_dbg_mutex);
+	next = (g_dbg_q_tail + 1) % DBG_QUEUE_LEN;
+	if(next != g_dbg_q_head) {		/* silently drop if full */
+		SDL_strlcpy(g_dbg_queue[g_dbg_q_tail], line, DBG_LINE_MAX);
+		g_dbg_q_tail = next;
+	}
+	SDL_UnlockMutex(g_dbg_mutex);
+}
+
+/* Reader thread: block on stdin, push each completed line onto the queue.
+ * Uses read(), not fgets(): a thread blocked inside stdio holds stdin's
+ * FILE lock, and exit() then deadlocks flushing it. */
 static int SDLCALL
 sdl_stdin_reader(void *data)
 {
+	char	buf[256];
 	char	line[DBG_LINE_MAX];
-	int	next;
+	int	len = 0, i;
+	ssize_t	n;
 
 	(void)data;
-	while(fgets(line, sizeof(line), stdin)) {
-		SDL_LockMutex(g_dbg_mutex);
-		next = (g_dbg_q_tail + 1) % DBG_QUEUE_LEN;
-		if(next != g_dbg_q_head) {		/* silently drop if full */
-			SDL_strlcpy(g_dbg_queue[g_dbg_q_tail], line, DBG_LINE_MAX);
-			g_dbg_q_tail = next;
+	while((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
+		for(i = 0; i < n; i++) {
+			if(buf[i] == '\n') {
+				line[len] = 0;
+				sdl_dbg_push(line);
+				len = 0;
+				continue;
+			}
+			if(len == DBG_LINE_MAX - 1) {	/* split overlong lines */
+				line[len] = 0;
+				sdl_dbg_push(line);
+				len = 0;
+			}
+			line[len++] = buf[i];
 		}
-		SDL_UnlockMutex(g_dbg_mutex);
+	}
+	if(len > 0) {			/* EOF without a trailing newline */
+		line[len] = 0;
+		sdl_dbg_push(line);
 	}
 	return 0;		/* EOF: no terminal attached, or input closed */
 }
