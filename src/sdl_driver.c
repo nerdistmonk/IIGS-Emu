@@ -801,7 +801,7 @@ joystick_update_buttons(void)
 void
 joystick_update(dword64 dfcyc)
 {
-	int	i;
+	int	i, x, y;
 
 	/* Default: centered, both buttons up. 0xc keeps the unused upper
 	 * paddle buttons high, matching the native backends. */
@@ -815,12 +815,62 @@ joystick_update(dword64 dfcyc)
 	}
 	/* SDL gamepad axes are already Sint16 (-32768..32767), exactly the
 	 * paddle range the core expects. */
-	g_paddle_val[0] = SDL_GetGamepadAxis(g_sdl_gamepad,
-						SDL_GAMEPAD_AXIS_LEFTX);
-	g_paddle_val[1] = SDL_GetGamepadAxis(g_sdl_gamepad,
-						SDL_GAMEPAD_AXIS_LEFTY);
+	x = SDL_GetGamepadAxis(g_sdl_gamepad, SDL_GAMEPAD_AXIS_LEFTX);
+	y = SDL_GetGamepadAxis(g_sdl_gamepad, SDL_GAMEPAD_AXIS_LEFTY);
+	/* D-pad (a hat, or a DB mapping onto buttons/axes) overrides the stick,
+	 *  so pads without a left stick, like a SNES pad, still move the player */
+	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
+		x = -32767;
+	}
+	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
+		x = 32767;
+	}
+	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP)) {
+		y = -32767;
+	}
+	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
+		y = 32767;
+	}
+	g_paddle_val[0] = x;
+	g_paddle_val[1] = y;
 	joystick_update_buttons();
 	paddle_update_trigger_dcycs(dfcyc);
+}
+
+/* Load SDL's controller mapping database. Looks next to the binary first
+ *  (copied there at build time), then in ~/.config/iigs-emu/ as a fallback. */
+static void
+sdl_load_gamepad_mappings(void)
+{
+	const char *base, *xdg, *home;
+	char	path[1024];
+	int	count;
+
+	base = SDL_GetBasePath();
+	if(base) {
+		snprintf(path, sizeof(path), "%sgamecontrollerdb.txt", base);
+		count = SDL_AddGamepadMappingsFromFile(path);
+		if(count > 0) {
+			printf("Loaded %d gamepad mappings: %s\n", count, path);
+			return;
+		}
+	}
+	xdg = getenv("XDG_CONFIG_HOME");
+	if(xdg && xdg[0]) {
+		snprintf(path, sizeof(path), "%s/iigs-emu/gamecontrollerdb.txt",
+									xdg);
+	} else {
+		home = getenv("HOME");
+		if(!home) {
+			return;
+		}
+		snprintf(path, sizeof(path),
+				"%s/.config/iigs-emu/gamecontrollerdb.txt", home);
+	}
+	count = SDL_AddGamepadMappingsFromFile(path);
+	if(count > 0) {
+		printf("Loaded %d gamepad mappings: %s\n", count, path);
+	}
 }
 
 /* Called once from kegs_init() (before sdl_video_init's SDL_Init). */
@@ -832,6 +882,7 @@ joystick_init(void)
 		printf("SDL_INIT_GAMEPAD failed: %s\n", SDL_GetError());
 		return;
 	}
+	sdl_load_gamepad_mappings();
 	sdl_open_first_gamepad();
 }
 
