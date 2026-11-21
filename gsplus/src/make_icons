@@ -4,8 +4,8 @@
 Usage:  ./make_icons [source.png]        (default: gsplusicon.png)
 
 Reads a square source PNG (1024x1024 recommended) and writes
-../src/gsplus_icon.h: a 128x128 RGBA array passed to SDL_SetWindowIcon for
-the window and taskbar icon at runtime.
+gsplus_icon.h in this directory: a 128x128 RGBA array passed to
+SDL_SetWindowIcon for the window and taskbar icon at runtime.
 
 To change the app icon: replace gsplusicon.png, run this script, rebuild.
 Requires Python 3 with Pillow (pip install pillow).
@@ -19,8 +19,7 @@ try:
 except ImportError:
     sys.exit("Pillow is required: pip install pillow")
 
-LIB_DIR = pathlib.Path(__file__).resolve().parent
-SRC_DIR = LIB_DIR.parent / "src"
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 
 HEADER_SIZE = 128
 
@@ -33,7 +32,7 @@ def write_header(img, out_path, source_name):
     small = scaled(img, HEADER_SIZE)
     data = small.tobytes()          # RGBA, row-major
     lines = [
-        f"/* Generated from lib/{source_name} by lib/make_icons -- do not",
+        f"/* Generated from {source_name} by make_icons -- do not",
         " * edit. IIGS-Emu window icon (RGBA) for SDL_SetWindowIcon. */",
         "#ifndef GSPLUS_ICON_H",
         "#define GSPLUS_ICON_H",
@@ -48,13 +47,13 @@ def write_header(img, out_path, source_name):
     lines[-1] = lines[-1].rstrip(",")
     lines += ["};", "", "#endif", ""]
     out_path.write_text("\n".join(lines))
-    print(f"wrote {out_path.relative_to(LIB_DIR.parent)} "
+    print(f"wrote {out_path.name} "
           f"({HEADER_SIZE}x{HEADER_SIZE})")
 
 
 def main():
     src = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 \
-        else LIB_DIR / "gsplusicon.png"
+        else SCRIPT_DIR / "gsplusicon.png"
     if not src.is_file():
         sys.exit(f"source image not found: {src}")
     img = Image.open(src).convert("RGBA")
@@ -63,7 +62,7 @@ def main():
     if img.width < 1024:
         print(f"warning: {src.name} is {img.width}px; 1024px recommended")
 
-    write_header(img, SRC_DIR / "gsplus_icon.h", src.name)
+    write_header(img, SCRIPT_DIR / "gsplus_icon.h", src.name)
 
 
 if __name__ == "__main__":

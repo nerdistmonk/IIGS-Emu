@@ -8,8 +8,7 @@ IIGS-Emu is a Linux Apple IIgs emulator based on GSplus, which derives from KEGS
 
 ## Repository Structure
 
-- `gsplus/src/` — Active source code and build files (this is where you build)
-- `gsplus/lib/` — Icons and the `make_icons` script that generates `gsplus/src/gsplus_icon.h`
+- `gsplus/src/` — Active source code and build files (this is where you build). Also holds `gsplusicon.png` and the `make_icons` script that generates `gsplus_icon.h`
 
 The `upstream` remote points at digarok/gsplus; `main` is the primary development branch.
 
