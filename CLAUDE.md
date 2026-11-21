@@ -8,7 +8,7 @@ IIGS-Emu is a Linux Apple IIgs emulator based on GSplus, which derives from KEGS
 
 ## Repository Structure
 
-- `gsplus/src/` — Active source code and build files (this is where you build). Also holds `gsplusicon.png` and the `make_icons` script that generates `gsplus_icon.h`
+- `src/` — Active source code and build files (this is where you build). Also holds `gsplusicon.png` and the `make_icons` script that generates `gsplus_icon.h`
 
 The `upstream` remote points at digarok/gsplus; `main` is the primary development branch.
 
@@ -16,7 +16,7 @@ The `upstream` remote points at digarok/gsplus; `main` is the primary developmen
 
 Linux is the only supported platform. From the repository root:
 ```bash
-cmake -G Ninja -B build -S gsplus/src
+cmake -G Ninja -B build -S src
 cmake --build build --target gsplus-sdl
 ```
 Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. See README.md for the apt package list.
@@ -77,7 +77,7 @@ The emulator core is platform-independent. Platform-specific code is isolated in
 
 ## Build System Details
 
-`gsplus/src/CMakeLists.txt` defines the build. The core sources are listed explicitly in `GSPLUS_CORE_SOURCES`. The `gsplus_core_sdl` library is compiled with `-DSDL_AUDIO -DSDL_INPUT`, which selects the SDL audio and gamepad backends.
+`src/CMakeLists.txt` defines the build. The core sources are listed explicitly in `GSPLUS_CORE_SOURCES`. The `gsplus_core_sdl` library is compiled with `-DSDL_AUDIO -DSDL_INPUT`, which selects the SDL audio and gamepad backends.
 
 ## Runtime Requirements
 

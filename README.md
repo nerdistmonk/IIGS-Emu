@@ -92,7 +92,7 @@ IIGS-Emu builds with CMake (Ninja generator). SDL3 is used if installed, otherwi
 built from source automatically. From the repository root:
 
 ```sh
-cmake -G Ninja -B build -S gsplus/src
+cmake -G Ninja -B build -S src
 cmake --build build --target gsplus-sdl
 ```
 

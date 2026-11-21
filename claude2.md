@@ -12,7 +12,7 @@ Working notes for future sessions on IIGS-Emu. Complements CLAUDE.md (architectu
 
 ## Build
 
-- Repo build (from CLAUDE.md): `cmake -G Ninja -B build -S gsplus/src && cmake --build build --target gsplus-sdl`.
+- Repo build (from CLAUDE.md): `cmake -G Ninja -B build -S src && cmake --build build --target gsplus-sdl`.
 - Debug build lives outside the repo at `/root/build-dbg` and is a CMake/Ninja tree. Rebuild with `cmake --build /root/build-dbg -j4`. Do not use `make`; there is no Makefile there.
 - Release binary: `/root/build-normal/iigs-emu`. Debug binary: `/root/build-dbg/iigs-emu`.
 - Emulator takes a config file with `-cfg <file>`. Config changes need an emulator restart.
@@ -39,7 +39,7 @@ Working notes for future sessions on IIGS-Emu. Complements CLAUDE.md (architectu
 
 ## AppleSingle Code
 
-File: `gsplus/src/applesingle.c`.
+File: `src/applesingle.c`.
 
 - Reader: `applesingle_from_unix`. Called from `dynapro_file_from_unix` (dynapro.c ~1940-1945) when the storage nibble is 0x50 (forked file).
 - Writer: `applesingle_map_from_prodos`. Called from `dynapro_map_file` (dynapro.c ~2157-2166) when the storage type is 5 (forked). It runs on a guest write via `dynapro_handle_write_file` (dynapro.c ~870-890), which remaps with `do_file_data=1`.

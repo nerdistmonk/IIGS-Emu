@@ -2,7 +2,7 @@
 
 # Build / runtime artifacts
 build/
-gsplus/src/build/
+src/build/
 .DS_Store
 config.kegs
 iigs-emu_screenshot_*.png
