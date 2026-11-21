@@ -823,6 +823,42 @@ joystick_update(dword64 dfcyc)
 	paddle_update_trigger_dcycs(dfcyc);
 }
 
+/* Load SDL's controller mapping database. Looks next to the binary first
+ *  (copied there at build time), then in ~/.config/iigs-emu/ as a fallback. */
+static void
+sdl_load_gamepad_mappings(void)
+{
+	const char *base, *xdg, *home;
+	char	path[1024];
+	int	count;
+
+	base = SDL_GetBasePath();
+	if(base) {
+		snprintf(path, sizeof(path), "%sgamecontrollerdb.txt", base);
+		count = SDL_AddGamepadMappingsFromFile(path);
+		if(count > 0) {
+			printf("Loaded %d gamepad mappings: %s\n", count, path);
+			return;
+		}
+	}
+	xdg = getenv("XDG_CONFIG_HOME");
+	if(xdg && xdg[0]) {
+		snprintf(path, sizeof(path), "%s/iigs-emu/gamecontrollerdb.txt",
+									xdg);
+	} else {
+		home = getenv("HOME");
+		if(!home) {
+			return;
+		}
+		snprintf(path, sizeof(path),
+				"%s/.config/iigs-emu/gamecontrollerdb.txt", home);
+	}
+	count = SDL_AddGamepadMappingsFromFile(path);
+	if(count > 0) {
+		printf("Loaded %d gamepad mappings: %s\n", count, path);
+	}
+}
+
 /* Called once from kegs_init() (before sdl_video_init's SDL_Init). */
 void
 joystick_init(void)
@@ -832,6 +868,7 @@ joystick_init(void)
 		printf("SDL_INIT_GAMEPAD failed: %s\n", SDL_GetError());
 		return;
 	}
+	sdl_load_gamepad_mappings();
 	sdl_open_first_gamepad();
 }
 
