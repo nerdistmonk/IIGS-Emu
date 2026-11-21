@@ -348,7 +348,7 @@ Cfg_menu g_cfg_modem_menu[] = {
 Cfg_menu g_cfg_video_menu[] = {
 { "Video Settings", g_cfg_video_menu, 0, 0, CFGTYPE_MENU },
 { "IIGS-Emu Display Effects (SDL)", g_cfg_sdl_video_menu, 0, 0, CFGTYPE_SUBMENU },
-{ "Enable VOC,0,Disabled,1,Enabled", KNMP(g_voc_enable), CFGTYPE_INT },
+{ "Enable Video Overlay Card,0,Disabled,1,Enabled", KNMP(g_voc_enable), CFGTYPE_INT },
 { "Default Main Window width", KNMP(g_mainwin_width), CFGTYPE_INT },
 { "Default Main Window height", KNMP(g_mainwin_height), CFGTYPE_INT },
 { "Main Window X position", KNMP(g_mainwin_xpos), CFGTYPE_INT },

@@ -55,6 +55,10 @@ Some features that are a part of the SDL3 build:
 - **xBRZ 2x filter** - `-xbrz 1` or the F4 Display Effects menu. Doubles the
   picture with a corner-smoothing filter and doubles the window size; CRT
   effects apply on top of it.
+  - **Tip: reduce vertical lines** - the IIgs' colour stripes on solid areas
+    like the desktop wallpaper can look like vertical lines. Set Horizontal
+    Blur to about 70 (`-hblur 70`, or F4 > Display Effects > Horizontal Blur)
+    to smooth them out. It is a little softer; lower values keep more detail.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 

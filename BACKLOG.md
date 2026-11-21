@@ -50,7 +50,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | **Integer / pixel-perfect scaling** toggle | Med | S | Crisp 1×/2×/3× vs. letterbox stretch; also stops scanline shimmer at non-integer scales. |
-| Linear-filter option | Low | S | Smooth-scaling alternative to nearest. |
 | Re-add **vsync** option properly | Low | M | Removed pre-1.38.0 (double-pacing caused half-speed + audio gaps). Right fix: when vsync is on, let it drive pacing and drop the sleep-based clock — one pacer, not two. |
 
 ## Runtime / system
