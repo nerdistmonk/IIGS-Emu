@@ -42,8 +42,8 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| Configurable **key remapping** | Low | M | Currently a fixed scancode→ADB table. |
-| **Gamepad button remapping** | Low | S | SDL_Gamepad's stable button names make a small remap table in the config menu cheap. |
+| Configurable **key remapping** | Low | M | Bindings live in `input.map`, so any host key can drive any ADB key. Config-panel UI still to do. |
+| **Gamepad button remapping** | Low | S | Bindings live in `input.map` (`pad:` and `axis:` sources). Config-panel UI still to do. |
 
 ## Display
 

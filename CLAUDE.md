@@ -53,9 +53,10 @@ rm -rf build
 - `unshk.c`, `undeflate.c`, `applesingle.c` — Archive/compression format support
 
 ### Input
-- `adb.c` — Apple Desktop Bus (keyboard, mouse)
+- `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes
+- `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`
+- `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
-- `paddles.c`, `joystick_driver.c` — Game input
 
 ### Configuration & Debug
 - `config.c` — Runtime configuration UI, disk mounting, settings persistence (`config.kegs`)
@@ -81,7 +82,7 @@ The emulator core is platform-independent. Platform-specific code is isolated in
 
 ## Runtime Requirements
 
-The emulator needs an Apple IIgs ROM file to run. Configuration is stored in `config.kegs`.
+The emulator needs an Apple IIgs ROM file to run. Configuration is stored in `config.kegs`. Input bindings are stored in `input.map` beside it, written with commented defaults on first run; `-map <file>` selects another file.
 
 ## No Test Suite
 

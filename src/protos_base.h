@@ -27,16 +27,13 @@ void scc_serial_unix_change_params(int port);
 void scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left);
 void scc_serial_unix_empty_writebuf(int port);
 
-/* special joystick_driver.c prototypes */
-void joystick_init(void);
-void joystick_update(dword64 dfcyc);
-void joystick_update_buttons(void);
+/* sdl_driver.c: gamepad bring-up, called once from sim65816.c */
+void sdl_input_init(void);
 
 /* END_HDR */
 
 /* adb.c */
 int adb_get_hide_warp_info(Kimage *kimage_ptr, int *warpptr);
-int adb_get_copy_requested(void);
 void adb_nonmain_check(void);
 void adb_init(void);
 void adb_reset(void);
@@ -63,7 +60,6 @@ int adb_read_c027(void);
 void adb_write_c027(int val);
 int read_adb_ram(word32 addr);
 void write_adb_ram(word32 addr, int val);
-int adb_get_keypad_xy(int get_y);
 int adb_update_mouse(Kimage *kimage_ptr, int x, int y, int button_states, int buttons_valid);
 int mouse_read_c024(dword64 dfcyc);
 void mouse_compress_fifo(dword64 dfcyc);
@@ -77,8 +73,7 @@ int adb_is_cmd_key_down(void);
 int adb_is_option_key_down(void);
 void adb_increment_speed(void);
 void adb_update_c025_mask(Kimage *kimage_ptr, word32 new_c025_val, word32 mask);
-int adb_ascii_to_a2code(int unicode_c, int a2code, int *shift_down_ptr);
-void adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c, int is_up);
+void adb_physical_key_update(Kimage *kimage_ptr, int a2code, int is_up);
 void adb_maybe_virtual_key_update(int a2code, int is_up);
 void adb_virtual_key_update(int a2code, int is_up);
 void adb_kbd_repeat_off(void);
@@ -134,8 +129,10 @@ void do_clock_data(void);
 int config_add_argv_override(const char *str1, const char *str2);
 void cfg_print_cli_flags(void);
 void config_set_config_kegs_name(const char *str1);
+void config_set_input_map_name(const char *str1);
 void config_init_menus(Cfg_menu *menuptr);
 void config_init(void);
+void config_load_input_map(void);
 void cfg_find_config_kegs_file(void);
 int config_setup_kegs_file(char *outname, int maxlen, const char **name_ptr);
 int config_expand_path(char *out_ptr, const char *in_ptr, int maxlen);
@@ -425,9 +422,6 @@ void dummy2(word32 psr);
 
 
 
-/* joystick_driver.c */
-void joystick_callback_init(int native_type);
-void joystick_callback_update(word32 buttons, int paddle_x, int paddle_y);
 
 
 
@@ -471,11 +465,7 @@ int read_vid_counters(int loc, dword64 dfcyc);
 
 /* paddles.c */
 void paddle_map_circle_to_square(int *xptr, int *yptr);
-int paddle_effective_joystick_type(void);
-void paddle_fixup_joystick_type(void);
 void paddle_trigger(dword64 dfcyc);
-void paddle_trigger_mouse(dword64 dfcyc);
-void paddle_trigger_keypad(dword64 dfcyc);
 void paddle_update_trigger_dcycs(dword64 dfcyc);
 int read_paddles(dword64 dfcyc, int paddle);
 void paddle_update_buttons(void);

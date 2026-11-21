@@ -20,9 +20,6 @@ extern int g_rom_version;
 extern int g_fast_disk_emul_en;
 extern int g_limit_speed;
 extern int g_irq_pending;
-extern int g_swap_paddles;
-extern int g_invert_paddles;
-extern int g_joystick_type;
 extern int g_config_control_panel;
 extern int g_status_enable;
 extern dword64 g_cur_dfcyc;
@@ -86,7 +83,6 @@ word32 g_adb_mode = 0;		/* mode set via set_modes, clear_modes */
 int g_warp_pointer = 0;
 int g_hide_pointer = 0;
 int g_unhide_pointer = 0;
-int	g_adb_copy_requested = 0;
 
 int g_mouse_a2_x = 0;
 int g_mouse_a2_y = 0;
@@ -113,11 +109,6 @@ int	g_adb_mouse_coord = 0;
 #define MAX_KBD_PASTE_BUF	32768
 
 int	g_adb_mainwin_has_focus = 1;
-#if defined(__linux__)
-int	g_adb_swap_command_option = 1;		// Default to swap on Linux
-#else
-int	g_adb_swap_command_option = 0;
-#endif
 int	g_key_down = 0;
 int	g_hard_key_down = 0;
 int	g_a2code_down = 0;
@@ -141,10 +132,6 @@ int	g_mouse_ctl_addr = 3;		/* ADB ucontroller's mouse addr*/
 
 word32	g_virtual_key_up[4];	/* bitmask of all possible 128 a2codes */
 				/* indicates which keys are up=1 by bit */
-int	g_rawa2_to_a2code[128];
-
-int	g_keypad_key_is_down[10] = { 0 };/* List from 0-9 of which keypad */
-					/*  keys are currently pressed */
 
 
 #define SHIFT_DOWN	( (g_c025_val & 0x01) )
@@ -320,16 +307,6 @@ adb_get_hide_warp_info(Kimage *kimage_ptr, int *warpptr)
 	return 0;
 }
 
-int
-adb_get_copy_requested()
-{
-	int	ret;
-
-	ret = g_adb_copy_requested;
-	g_adb_copy_requested = 0;
-	return ret;
-}
-
 void
 adb_nonmain_check()
 {
@@ -356,17 +333,12 @@ adb_init()
 				i, keycode);
 			my_exit(1);
 		}
-		g_rawa2_to_a2code[i] = -1;
 	}
 
 	g_c025_val = 0;
 
 	for(i = 0; i < 4; i++) {
 		g_virtual_key_up[i] = -1;
-	}
-
-	for(i = 0; i < 10; i++) {
-		g_keypad_key_is_down[i] = 0;
 	}
 }
 
@@ -1257,40 +1229,6 @@ write_adb_ram(word32 addr, int val)
 	}
 }
 
-int
-adb_get_keypad_xy(int get_y)
-{
-	int	x, y, key, num_keys;
-	int	i, j;
-
-	key = 1;
-	num_keys = 0;
-	x = 0;
-	y = 0;
-	for(i = 0; i < 3; i++) {
-		for(j = 0; j < 3; j++) {
-			if(g_keypad_key_is_down[key]) {
-				num_keys++;
-				x = x + (j - 1)*32768;
-				y = y + (1 - i)*32768;
-			}
-			key++;
-		}
-	}
-	if(num_keys == 0) {
-		num_keys = 1;
-	}
-
-	adb_printf("get_xy=%d, num_keys: %d, x:%d, y:%d\n", get_y,
-							num_keys, x, y);
-
-	if(get_y) {
-		return y / num_keys;
-	} else {
-		return x / num_keys;
-	}
-}
-
 // g_mouse_raw_x/y: Current position (in A2 coordinates) of mouse on host screen
 // g_mouse_fifo[0].x/y: Current position (in A2 coords) of where we "want"
 //		mouse on the A2 screen.
@@ -1394,17 +1332,6 @@ adb_update_mouse(Kimage *kimage_ptr, int x, int y, int button_states,
 
 	button1_changed = (buttons_valid & 1) &&
 			((button_states & 1) != (g_mouse_fifo[0].buttons & 1));
-
-	if((button_states & 4) && !(g_mouse_fifo[0].buttons & 4) &&
-							(buttons_valid & 4)) {
-		/* right button pressed */
-		adb_increment_speed();
-	}
-	if((button_states & 2) && !(g_mouse_fifo[0].buttons & 2) &&
-							(buttons_valid & 2)) {
-		/* middle button pressed */
-		halt2_printf("Middle button pressed\n");
-	}
 
 	pos = g_mouse_fifo_pos;
 	if((pos < (ADB_MOUSE_FIFO - 2)) && button1_changed) {
@@ -1887,156 +1814,19 @@ adb_update_c025_mask(Kimage *kimage_ptr, word32 new_c025_val, word32 mask)
 	}
 }
 
-int
-adb_ascii_to_a2code(int unicode_c, int a2code, int *shift_down_ptr)
-{
-	int	i;
-
-	switch(unicode_c) {
-	case 0x00a3:		// British pound
-		unicode_c = '#';
-		break;
-	case 0x00e0:		// a with left accent
-		unicode_c = '@';
-		break;
-	case 0x00b0:		// degrees (French)
-	case 0x00c4:		// A with umlaut (German, Swedish)
-	case 0x00a1:		// ! upside down (Spanish)
-	case 0x00c6:		// AE (Danish)
-		unicode_c = '[';
-		break;
-	case 0x00e7:		// c with tail (French/Italian)
-	case 0x00d1:		// N with ~ (Spanish)
-	case 0x00d6:		// O with umlaut (German, Swedish)
-	case 0x00d8:		// O with slash (Danish)
-		unicode_c = '\\';
-		break;
-	case 0x00a7:		// ss like thing (French)
-	case 0x00dc:		// U with umlaut
-	case 0x00bf:		// ? upside down (Spanish)
-	case 0x00c5:		// A with circle (Danish)
-	//case 0x00e9:		// e with right accent (Italian)
-		unicode_c = ']';
-		break;
-	//case 0x0000:		// u with left accent (Italian)
-	//	unicode_c = '`';
-	//	break;
-	case 0x00e4:		// a with umlaut (german)
-	case 0x00e9:		// e with accent (french)
-	case 0x0000:		// ae (Danish)
-		unicode_c = '{';
-		break;
-	case 0x00f6:		// o with umlaut (German/Swedish)
-	case 0x00f9:		// u with left accent (French)
-	case 0x00f8:		// o with slash (Danish)
-	case 0x00f1:		// n with ~ (Spanish)
-	case 0x00f2:		// o with ` (Italian)
-		unicode_c = '|';
-		break;
-	case 0x00e8:		// e with ` (French, Italian)
-	case 0x00fc:		// u with umlaut (German)
-	case 0x00e5:		// a with circle (Danish/Swedish)
-		unicode_c = '}';
-		break;
-	case 0x00a8:		// two high dots (French)
-	case 0x00ec:		// i with ` (Italian)
-	case 0x00df:		// german B thing (German)
-		unicode_c = '~';
-		break;
-	}
-
-	if(unicode_c > 0x7f) {
-		return a2code;			// Use a2code instead
-	}
-	if((g_a2_key_to_ascii[a2code][1] & 0xf000) == 0x1000) {	// Keypad
-		// Don't remap keypad keys, we need them for Keypad Joystick
-		if((unicode_c >= '0') && (unicode_c <= '9')) {
-			return a2code;
-		}
-	}
-
-	for(i = 0; i < 128; i++) {
-		if(g_a2_key_to_ascii[i][1] == unicode_c) {	// Not-shifted
-			*shift_down_ptr = 0;
-			return g_a2_key_to_ascii[i][0];
-		}
-		if(g_a2_key_to_ascii[i][2] == unicode_c) {	// Shifted
-			*shift_down_ptr = 1;
-			return g_a2_key_to_ascii[i][0];
-		}
-	}
-
-	return a2code;		// Not found, use default a2code
-}
-
 void
-adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c,
-		int is_up)
+adb_physical_key_update(Kimage *kimage_ptr, int a2code, int is_up)
 {
-	word32	restore_c025_val, restorek_c025_val;
-	int	special, ascii_and_type, ascii, new_shift, a2code, other_a2code;
-
-	/* this routine called by the display driver to pass raw codes--handle */
+	/* this routine called by input_map to pass IIgs keycodes--handle */
 	/*  ucontroller and ADB bus protocol issues here */
 	/* if autopoll on, pass it on through to c025,c000 regs */
 	/*  else only put it in kbd reg 3, and pull SRQ if needed */
 
-	adb_printf("adb_phys_key_update: %02x, %d\n", raw_a2code, is_up);
+	adb_printf("adb_phys_key_update: %02x, %d\n", a2code, is_up);
 
-	if((raw_a2code < 0) || (raw_a2code > 0x7f)) {
-		halt_printf("raw_a2code: %04x!\n", raw_a2code);
+	if((a2code < 0) || (a2code > 0x7f)) {
+		halt_printf("a2code: %04x!\n", a2code);
 		return;
-	}
-	a2code = raw_a2code;
-	restore_c025_val = 0;
-	restorek_c025_val = 0;
-	if(unicode_c > 0) {
-		// To enable international keyboards, ignore a2code, look up
-		//  what U.S. keycode would be and return that
-		new_shift = g_c025_val & 1;
-		a2code = adb_ascii_to_a2code(unicode_c, a2code, &new_shift);
-		if(a2code && ((g_c025_val & 1) != new_shift)) {
-			restore_c025_val = g_c025_val | 0x100;
-			restorek_c025_val = kimage_ptr->c025_val;
-			g_c025_val = (g_c025_val & -2) | new_shift;
-			kimage_ptr->c025_val = (kimage_ptr->c025_val & -2) |
-							new_shift;
-		}
-		if(!is_up) {
-			g_rawa2_to_a2code[raw_a2code & 0x7f] = a2code;
-		}
-	}
-
-	/* Remap 0x7b-0x7e to 0x3b-0x3e (arrow keys on new mac keyboards) */
-	if((a2code >= 0x7b) && (a2code <= 0x7e)) {
-		a2code = a2code - 0x40;
-	}
-	if(g_adb_swap_command_option) {
-		if(a2code == 0x37) {		// Command?
-			a2code = 0x3a;		//  -> Option
-		} else if(a2code == 0x3a) {	// Option?
-			a2code = 0x37;		//  -> Command
-		}
-	}
-
-	/* Now check for special keys (function keys, etc) */
-	ascii_and_type = g_a2_key_to_ascii[a2code][1];
-	special = 0;
-	if((ascii_and_type & 0xf000) == 0x8000) {
-		/* special function key */
-		special = ascii_and_type & 0xff;
-		switch(special) {
-		case 0x01: /* F1 - remap to cmd */
-			a2code = 0x37;
-			special = 0;
-			break;
-		case 0x0c: /* F12 - remap to reset */
-			a2code = 0x7f;
-			special = 0;
-			break;
-		default:
-			break;
-		}
 	}
 
 	/* Only process reset requests here */
@@ -2047,111 +1837,12 @@ adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c,
 		return;
 	}
 
-	if(special && !is_up) {
-		switch(special) {
-		case 0x02: /* F2 - nothing */
-			break;
-		case 0x03: /* F3 - nothing */
-			break;
-		case 0x04: /* F4 - Emulator config panel */
-			cfg_toggle_config_panel();
-			break;
-		case 0x05: /* F5 - Force Refresh */
-			g_status_enable = !g_status_enable;
-			// video_update() will call video_update_status_enable()
-			break;
-		case 0x06: /* F6 - emulator speed */
-			if(SHIFT_DOWN) {
-				halt2_printf("Shift-F6 pressed\n");
-			} else {
-				adb_increment_speed();
-			}
-			break;
-		case 0x07: /* F7 - toggle debugger, SHIFT:fast disk */
-			if(SHIFT_DOWN) {
-				g_fast_disk_emul_en = !g_fast_disk_emul_en;
-				iwm_update_fast_disk_emul(g_fast_disk_emul_en);
-				printf("g_fast_disk_emul_en is now %d\n",
-							g_fast_disk_emul_en);
-			} else if(g_halt_sim) {
-				do_go();
-			} else {
-				halt2_printf("F7 pressed\n");
-			}
-			break;
-		case 0x08: /* F8 - warp pointer */
-			g_warp_pointer = !g_warp_pointer;
-			g_hide_pointer = g_warp_pointer;
-			printf("New warp:%d, new hide:%d\n", g_warp_pointer,
-								g_hide_pointer);
-			break;
-		case 0x09: /* F9 - swap paddles */
-			if(CTRL_DOWN) {
-				g_adb_copy_requested = 1;
-			} else if(SHIFT_DOWN) {
-				g_swap_paddles = !g_swap_paddles;
-				printf("Swap paddles is now: %d\n",
-							g_swap_paddles);
-			} else {
-				g_invert_paddles = !g_invert_paddles;
-				printf("Invert paddles is now: %d\n",
-							g_invert_paddles);
-			}
-			break;
-		case 0x0a: /* F10 - nothing */
-			break;
-		case 0x0b: /* F11 - full screen */
-			break;
-		}
-
-		return;
-	}
-
 	if(kimage_ptr == &g_debugwin_kimage) {
 		debugger_key_event(kimage_ptr, a2code, is_up);
-		if(restore_c025_val) {
-			g_c025_val = restore_c025_val & 0xff;	// Restore shift
-			kimage_ptr->c025_val = restorek_c025_val;
-		}
 		return;
-	}
-
-	/* Handle Keypad Joystick here partly...if keypad key pressed */
-	/*  while in Keypad Joystick mode, do not pass it on as a key press */
-	if((ascii_and_type & 0xff00) == 0x1000) {
-		/* Keep track of keypad number keys being up or down even */
-		/*  if joystick mode isn't keypad.  This avoid funny cases */
-		/*  if joystick mode is changed while a key is pressed */
-		ascii = ascii_and_type & 0xff;
-		if(ascii > 0x30 && ascii <= 0x39) {
-			g_keypad_key_is_down[ascii - 0x30] = !is_up;
-		}
-		if(paddle_effective_joystick_type() == 0) {
-			/* If Joystick type is keypad, then do not let these */
-			/*  keypress pass on further, except for cmd/opt */
-			if(ascii == 0x30) {
-				/* remap '0' to cmd */
-				a2code = 0x37;
-			} else if(ascii == 0x2e || ascii == 0x2c) {
-				/* remap '.' and ',' to option */
-				a2code = 0x3a;
-			} else {
-				/* Just ignore it in this mode */
-				return;
-			}
-		}
 	}
 
 	adb_maybe_virtual_key_update(a2code, is_up);
-	other_a2code = g_rawa2_to_a2code[raw_a2code & 0x7f];
-	if((other_a2code >= 0) && is_up) {
-		adb_maybe_virtual_key_update(other_a2code, is_up);
-		g_rawa2_to_a2code[raw_a2code & 0x7f] = -1;
-	}
-
-	if(restore_c025_val) {
-		g_c025_val = restore_c025_val & 0xff;		// Restore shift
-	}
 }
 
 void

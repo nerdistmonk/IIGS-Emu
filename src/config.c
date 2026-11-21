@@ -14,6 +14,7 @@
 #include "defc.h"
 #include <stdarg.h>
 #include "config.h"
+#include "input_map.h"
 
 #include <dirent.h>
 
@@ -31,7 +32,6 @@ extern double g_cur_dcycs;
 extern int g_rom_version;
 
 extern word32 g_adb_repeat_vbl;
-extern int g_adb_swap_command_option;
 
 extern int g_limit_speed;
 extern int g_zip_speed_mhz;
@@ -50,14 +50,11 @@ extern word32 g_mem_size_base;
 extern word32 g_mem_size_exp;
 extern int g_video_line_update_interval;
 extern int g_user_halt_bad;
-extern int g_joystick_type;
 extern int g_joystick_square_range;
 extern int g_joystick_scale_factor_x;
 extern int g_joystick_scale_factor_y;
 extern int g_joystick_trim_amount_x;
 extern int g_joystick_trim_amount_y;
-extern int g_swap_paddles;
-extern int g_invert_paddles;
 extern int g_voc_enable;
 extern int g_status_enable;
 extern int g_video_center_a2;
@@ -243,9 +240,6 @@ Cfg_menu g_cfg_newslot7_menu[] = {
 
 Cfg_menu g_cfg_joystick_menu[] = {
 { "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU },
-{ "Joystick Emulation,4,Auto (Gamepad or Keypad),0,Keypad Joystick,"
-	"1,Mouse Joystick,2,Native Joystick 1,3,Native Joystick 2",
-	KNMP(g_joystick_type), CFGTYPE_INT },
 { "Gamepad Range,1,Square (Full Corners),0,Circular (Raw)",
 	KNMP(g_joystick_square_range), CFGTYPE_INT },
 { "Joystick Scale X,0x100,Standard,0x119,+10%,0x133,+20%,"
@@ -256,10 +250,6 @@ Cfg_menu g_cfg_joystick_menu[] = {
 		KNMP(g_joystick_scale_factor_y), CFGTYPE_INT },
 { "Joystick Trim X", KNMP(g_joystick_trim_amount_x), CFGTYPE_INT },
 { "Joystick Trim Y", KNMP(g_joystick_trim_amount_y), CFGTYPE_INT },
-{ "Swap Joystick X and Y,0,Normal operation,1,Paddle 1 and Paddle 0 swapped",
-		KNMP(g_swap_paddles), CFGTYPE_INT },
-{ "Invert Joystick,0,Normal operation,1,Left becomes right and up becomes down",
-		KNMP(g_invert_paddles), CFGTYPE_INT },
 { "", 0, 0, 0, 0 },
 { "Back to Main Config", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
 { 0, 0, 0, 0, 0 },
@@ -421,8 +411,6 @@ Cfg_menu g_cfg_main_menu[] = {
 { "Enable Text Page 2 Shadow,0,Disabled on ROM 01 (matches real hardware),"
 	"1,Enabled on ROM 01 and 03",
 		KNMP(g_user_page2_shadow), CFGTYPE_INT },
-{ "Swap Command/Option keys,0,Disabled,1,Swapped",
-				KNMP(g_adb_swap_command_option), CFGTYPE_INT },
 { "", 0, 0, 0, 0 },
 { "Save changes to config.kegs", (void *)config_write_config_kegs_file, 0, 0,
 		CFGTYPE_FUNC },
@@ -641,6 +629,49 @@ config_set_config_kegs_name(const char *str1)
 	cfg_strncpy(&g_config_kegs_name[0], str1, maxlen);
 }
 
+static char	g_input_map_cli_name[CFG_PATH_MAX] = { 0 };
+
+void
+config_set_input_map_name(const char *str1)
+{
+	// Resolve a relative path now: config_parse_config_kegs_file() chdirs
+	if((str1[0] != '/') && getcwd(&g_input_map_cli_name[0], CFG_PATH_MAX)) {
+		cfg_strlcat(&g_input_map_cli_name[0], "/", CFG_PATH_MAX);
+		cfg_strlcat(&g_input_map_cli_name[0], str1, CFG_PATH_MAX);
+	} else {
+		cfg_strncpy(&g_input_map_cli_name[0], str1, CFG_PATH_MAX);
+	}
+}
+
+// Runs after config_parse_config_kegs_file(), so cwd is the config directory
+void
+config_load_input_map(void)
+{
+	char	path[CFG_PATH_MAX];
+	int	is_default;
+
+	imap_init();
+	is_default = (g_input_map_cli_name[0] == 0);
+	if(is_default) {
+		cfg_strncpy(&path[0], &g_cfg_cwd_str[0], CFG_PATH_MAX);
+		cfg_strlcat(&path[0], "/input.map", CFG_PATH_MAX);
+	} else {
+		cfg_strncpy(&path[0], &g_input_map_cli_name[0], CFG_PATH_MAX);
+	}
+
+	if(imap_load_file(&path[0]) == 0) {
+		printf("Loaded input map %s\n", &path[0]);
+	} else if(!is_default) {
+		printf("Input map %s not found, using built-in bindings\n",
+								&path[0]);
+	} else if(imap_write_default_file(&path[0]) == 0) {
+		printf("Wrote default input map %s\n", &path[0]);
+	} else {
+		printf("Could not create %s, using built-in bindings\n",
+								&path[0]);
+	}
+}
+
 void
 config_init_menus(Cfg_menu *menuptr)
 {
@@ -715,6 +746,7 @@ config_init()
 	}
 
 	config_parse_config_kegs_file();
+	config_load_input_map();
 }
 
 void

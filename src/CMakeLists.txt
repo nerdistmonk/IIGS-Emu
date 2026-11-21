@@ -57,7 +57,7 @@ set(GSPLUS_CORE_SOURCES
     scc_socket_driver.c
     scc_unixdriver.c
     iwm.c
-    joystick_driver.c
+    input_map.c
     moremem.c
     paddles.c
     mockingboard.c
@@ -122,8 +122,8 @@ endif()
 # The emulator core. SDL_AUDIO routes sound through the SDL backend.
 add_library(gsplus_core_sdl STATIC ${GSPLUS_CORE_SOURCES})
 target_include_directories(gsplus_core_sdl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# SDL_INPUT compiles the native joystick backends out of joystick_driver.c so the
-# SDL_Gamepad backend in sdl_driver.c provides joystick_init/update instead.
+# SDL_INPUT marks the SDL build: sim65816.c drops the X11-only flags, and
+# gamepad input comes from sdl_driver.c (sdl_input_init).
 target_compile_definitions(gsplus_core_sdl PUBLIC SDL_AUDIO SDL_INPUT)
 target_compile_options(gsplus_core_sdl PRIVATE -Wall)
 

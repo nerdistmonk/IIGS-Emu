@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include "defc.h"
+#include "input_map.h"
 #include "protos_sdl.h"
 #include "xbrz.h"
 #include "gsplus_icon.h"	/* embedded RGBA window icon (see below) */
@@ -590,162 +591,75 @@ sdl_video_init(void)
 }
 
 /* --------------------------------------------------------------------------
- * Keyboard mapping: SDL3 physical scancode -> Apple IIgs ADB raw keycode.
- *
- * We key off SDL_Scancode (the physical key position, layout-independent and
- * stable across SDL versions) rather than the layout-dependent keycode. The
- * ADB codes are exactly those the core expects (the same table the original
- * X11 driver used); they feed adb_physical_key_update().
- *
- * Modifier keys appear twice (left/right) mapped to the same ADB code, matching
- * the IIgs which has a single code per modifier. GUI/⌘ -> Open-Apple (Command,
- * 0x37); Alt/Option -> Option (0x3a).
+ * Keyboard and mouse input.  Raw SDL events go to input_map.c, which decides
+ * what each one does.  Keys are identified by SDL physical scancode, so a
+ * binding follows the key's position rather than the layout's symbol.
  * ------------------------------------------------------------------------- */
-struct sdl_key_map {
-	SDL_Scancode	sc;
-	int		a2;
-};
-
-static const struct sdl_key_map g_sdl_key_map[] = {
-	{ SDL_SCANCODE_ESCAPE, 0x35 },
-	{ SDL_SCANCODE_F1, 0x7a }, { SDL_SCANCODE_F2, 0x78 },
-	{ SDL_SCANCODE_F3, 0x63 }, { SDL_SCANCODE_F4, 0x76 },
-	{ SDL_SCANCODE_F5, 0x60 }, { SDL_SCANCODE_F6, 0x61 },
-	{ SDL_SCANCODE_F7, 0x62 }, { SDL_SCANCODE_F8, 0x64 },
-	{ SDL_SCANCODE_F9, 0x65 }, { SDL_SCANCODE_F10, 0x6d },
-	{ SDL_SCANCODE_F11, 0x67 }, { SDL_SCANCODE_F12, 0x6f },
-	{ SDL_SCANCODE_F13, 0x69 }, { SDL_SCANCODE_F14, 0x6b },
-	{ SDL_SCANCODE_F15, 0x71 }, { SDL_SCANCODE_PAUSE, 0x7f },
-
-	{ SDL_SCANCODE_GRAVE, 0x32 },
-	{ SDL_SCANCODE_1, 0x12 }, { SDL_SCANCODE_2, 0x13 },
-	{ SDL_SCANCODE_3, 0x14 }, { SDL_SCANCODE_4, 0x15 },
-	{ SDL_SCANCODE_5, 0x17 }, { SDL_SCANCODE_6, 0x16 },
-	{ SDL_SCANCODE_7, 0x1a }, { SDL_SCANCODE_8, 0x1c },
-	{ SDL_SCANCODE_9, 0x19 }, { SDL_SCANCODE_0, 0x1d },
-	{ SDL_SCANCODE_MINUS, 0x1b }, { SDL_SCANCODE_EQUALS, 0x18 },
-	{ SDL_SCANCODE_BACKSPACE, 0x33 },
-
-	{ SDL_SCANCODE_INSERT, 0x72 }, { SDL_SCANCODE_HOME, 0x73 },
-	{ SDL_SCANCODE_PAGEUP, 0x74 },
-
-	{ SDL_SCANCODE_TAB, 0x30 },
-	{ SDL_SCANCODE_Q, 0x0c }, { SDL_SCANCODE_W, 0x0d },
-	{ SDL_SCANCODE_E, 0x0e }, { SDL_SCANCODE_R, 0x0f },
-	{ SDL_SCANCODE_T, 0x11 }, { SDL_SCANCODE_Y, 0x10 },
-	{ SDL_SCANCODE_U, 0x20 }, { SDL_SCANCODE_I, 0x22 },
-	{ SDL_SCANCODE_O, 0x1f }, { SDL_SCANCODE_P, 0x23 },
-	{ SDL_SCANCODE_LEFTBRACKET, 0x21 }, { SDL_SCANCODE_RIGHTBRACKET, 0x1e },
-	{ SDL_SCANCODE_BACKSLASH, 0x2a },
-	{ SDL_SCANCODE_DELETE, 0x75 }, { SDL_SCANCODE_END, 0x77 },
-	{ SDL_SCANCODE_PAGEDOWN, 0x79 },
-
-	{ SDL_SCANCODE_CAPSLOCK, 0x39 },
-	{ SDL_SCANCODE_A, 0x00 }, { SDL_SCANCODE_S, 0x01 },
-	{ SDL_SCANCODE_D, 0x02 }, { SDL_SCANCODE_F, 0x03 },
-	{ SDL_SCANCODE_G, 0x05 }, { SDL_SCANCODE_H, 0x04 },
-	{ SDL_SCANCODE_J, 0x26 }, { SDL_SCANCODE_K, 0x28 },
-	{ SDL_SCANCODE_L, 0x25 }, { SDL_SCANCODE_SEMICOLON, 0x29 },
-	{ SDL_SCANCODE_APOSTROPHE, 0x27 }, { SDL_SCANCODE_RETURN, 0x24 },
-
-	{ SDL_SCANCODE_LSHIFT, 0x38 }, { SDL_SCANCODE_RSHIFT, 0x38 },
-	{ SDL_SCANCODE_Z, 0x06 }, { SDL_SCANCODE_X, 0x07 },
-	{ SDL_SCANCODE_C, 0x08 }, { SDL_SCANCODE_V, 0x09 },
-	{ SDL_SCANCODE_B, 0x0b }, { SDL_SCANCODE_N, 0x2d },
-	{ SDL_SCANCODE_M, 0x2e }, { SDL_SCANCODE_COMMA, 0x2b },
-	{ SDL_SCANCODE_PERIOD, 0x2f }, { SDL_SCANCODE_SLASH, 0x2c },
-	{ SDL_SCANCODE_UP, 0x3e },
-
-	{ SDL_SCANCODE_LCTRL, 0x36 }, { SDL_SCANCODE_RCTRL, 0x36 },
-	{ SDL_SCANCODE_LALT, 0x3a }, { SDL_SCANCODE_RALT, 0x3a },  /* Option */
-	{ SDL_SCANCODE_LGUI, 0x37 }, { SDL_SCANCODE_RGUI, 0x37 },  /* Open-Apple */
-	{ SDL_SCANCODE_SPACE, 0x31 },
-	{ SDL_SCANCODE_LEFT, 0x3b }, { SDL_SCANCODE_DOWN, 0x3d },
-	{ SDL_SCANCODE_RIGHT, 0x3c },
-
-	/* Numeric keypad */
-	{ SDL_SCANCODE_NUMLOCKCLEAR, 0x47 }, { SDL_SCANCODE_KP_EQUALS, 0x51 },
-	{ SDL_SCANCODE_KP_DIVIDE, 0x4b }, { SDL_SCANCODE_KP_MULTIPLY, 0x43 },
-	{ SDL_SCANCODE_KP_7, 0x59 }, { SDL_SCANCODE_KP_8, 0x5b },
-	{ SDL_SCANCODE_KP_9, 0x5c }, { SDL_SCANCODE_KP_MINUS, 0x4e },
-	{ SDL_SCANCODE_KP_4, 0x56 }, { SDL_SCANCODE_KP_5, 0x57 },
-	{ SDL_SCANCODE_KP_6, 0x58 }, { SDL_SCANCODE_KP_PLUS, 0x45 },
-	{ SDL_SCANCODE_KP_1, 0x53 }, { SDL_SCANCODE_KP_2, 0x54 },
-	{ SDL_SCANCODE_KP_3, 0x55 }, { SDL_SCANCODE_KP_0, 0x52 },
-	{ SDL_SCANCODE_KP_PERIOD, 0x41 }, { SDL_SCANCODE_KP_ENTER, 0x4c },
-
-	{ SDL_SCANCODE_UNKNOWN, -1 }		/* terminator */
-};
-
 static int
-sdl_scancode_to_a2code(SDL_Scancode sc)
+sdl_mod_bits(SDL_Keymod mod)
 {
-	int	i;
+	int	bits = 0;
 
-	for(i = 0; g_sdl_key_map[i].a2 >= 0; i++) {
-		if(g_sdl_key_map[i].sc == sc) {
-			return g_sdl_key_map[i].a2;
-		}
+	if(mod & SDL_KMOD_SHIFT) {
+		bits |= IMAP_MOD_SHIFT;
 	}
-	return -1;
+	if(mod & SDL_KMOD_CTRL) {
+		bits |= IMAP_MOD_CTRL;
+	}
+	if(mod & SDL_KMOD_ALT) {
+		bits |= IMAP_MOD_ALT;
+	}
+	if(mod & SDL_KMOD_GUI) {
+		bits |= IMAP_MOD_GUI;
+	}
+	return bits;
 }
 
-/* Translate SDL's modifier state into the IIgs c025 modifier register
- * (bit0 = shift, bit1 = control, bit2 = caps lock), as x_update_modifier_state
- * does for X11. */
+/* Caps Lock has no key binding.  Instead the host's Caps Lock state is
+ * mirrored into the IIgs caps-lock bit of $C025. */
 static void
-sdl_update_modifiers(Window_info *win)
+sdl_sync_caps_lock(Window_info *win, SDL_Keymod mod)
 {
-	SDL_Keymod mod = SDL_GetModState();
-	word32	c025_val = 0;
-
-	if(mod & SDL_KMOD_SHIFT) { c025_val |= 1; }
-	if(mod & SDL_KMOD_CTRL)  { c025_val |= 2; }
-	if(mod & SDL_KMOD_CAPS)  { c025_val |= 4; }
-	adb_update_c025_mask(win->kimage_ptr, c025_val, 7);
+	adb_update_c025_mask(win->kimage_ptr,
+				(mod & SDL_KMOD_CAPS) ? 0x04 : 0, 0x04);
 }
 
 static void
-sdl_handle_key(Window_info *win, SDL_Scancode sc, int is_up, int repeat)
+sdl_handle_key(Window_info *win, const SDL_KeyboardEvent *key, int is_up)
 {
-	int	a2code;
-
-	if(repeat) {
+	if(key->repeat) {
 		return;		/* the IIgs ADB does its own key repeat */
 	}
-	sdl_update_modifiers(win);
-
-	a2code = sdl_scancode_to_a2code(sc);
-	if(a2code >= 0) {
-		adb_physical_key_update(win->kimage_ptr, a2code, 0, is_up);
-	}
+	sdl_sync_caps_lock(win, key->mod);
+	imap_key_event(win->kimage_ptr, key->scancode,
+				sdl_mod_bits(key->mod), is_up);
 }
 
-/* Mouse button index -> IIgs button mask. SDL buttons are 1=left, 2=middle,
- * 3=right; (1 << b) >> 1 gives left=1, middle=2, right=4. */static int
-sdl_button_mask(int sdl_button)
+static int
+sdl_mouse_index(int sdl_button)
 {
-	return (1 << sdl_button) >> 1;
+	switch(sdl_button) {
+	case SDL_BUTTON_LEFT:
+		return IMAP_MOUSE_LEFT;
+	case SDL_BUTTON_MIDDLE:
+		return IMAP_MOUSE_MIDDLE;
+	case SDL_BUTTON_RIGHT:
+		return IMAP_MOUSE_RIGHT;
+	default:
+		return -1;
+	}
 }
 
 /* ----------------------------------------------------------------------- */
-/* Game controller (joystick / paddle) support.                            */
-/*                                                                          */
-/* The IIgs sees a 2-axis, 2-button analog joystick on the paddle inputs.   */
-/* We drive it from SDL3's high-level Gamepad API, which gives a standard    */
-/* layout (left stick + A/B) and a built-in mapping database across         */
-/* XInput/DirectInput/HID/Bluetooth pads. The core polls us via             */
-/* joystick_update() whenever a program reads the paddle trigger ($C070);   */
-/* we just sample current state, which SDL keeps fresh because              */
-/* sdl_poll_events() pumps the event queue every frame (and handles         */
-/* hotplug). These three entry points replace the native IOKit/joydev/      */
-/* mmsystem backends in joystick_driver.c, which is compiled out for the    */
-/* SDL build (see SDL_INPUT in CMakeLists.txt). The user still picks        */
-/* "Native Joystick 1" in the config menu (F4) to route paddles here.       */
+/* Game controller input.                                                  */
+/*                                                                         */
+/* Pads are read through SDL3's Gamepad API, which gives a standard layout */
+/* and a mapping database covering XInput, DirectInput, HID and Bluetooth. */
+/* Buttons arrive as events.  Axes are sampled once per frame in           */
+/* sdl_poll_gamepad_axes(), so a pad's position is right on open and on    */
+/* reconnect.  input_map.c decides what each control drives.               */
 
-extern int g_joystick_native_type1;	/* paddles.c: -1 = no joystick present */
-extern int g_paddle_buttons;		/* paddles.c: bits 0,1 = buttons 0,1 */
-extern int g_paddle_val[4];		/* paddles.c: [0]=X [1]=Y, -32768..32767 */
+static void sdl_imap_host_action(int action);
 
 static SDL_Gamepad *g_sdl_gamepad = NULL;	/* the open controller, or NULL */
 
@@ -769,7 +683,6 @@ sdl_open_first_gamepad(void)
 		}
 		g_sdl_gamepad = SDL_OpenGamepad(ids[i]);
 		if(g_sdl_gamepad) {
-			g_joystick_native_type1 = 1;
 			const char *gname = SDL_GetGamepadName(g_sdl_gamepad);
 			printf("SDL gamepad opened: %s\n", gname ? gname : "unknown");
 			break;
@@ -778,49 +691,19 @@ sdl_open_first_gamepad(void)
 	SDL_free(ids);
 }
 
-/* Read the two face buttons into the low bits of g_paddle_buttons. */
-void
-joystick_update_buttons(void)
+/* Forward every stick and trigger position to input_map.c.  Axes are polled
+ * rather than read from events so the starting position is correct. */
+static void
+sdl_poll_gamepad_axes(void)
 {
-	int	buttons;
+	int	axis;
 
 	if(!g_sdl_gamepad) {
 		return;
 	}
-	buttons = 0;
-	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_SOUTH)) {
-		buttons |= 1;		/* button 0 (e.g. A) */
+	for(axis = 0; axis < IMAP_NUM_AXES; axis++) {
+		imap_pad_axis(axis, SDL_GetGamepadAxis(g_sdl_gamepad, axis));
 	}
-	if(SDL_GetGamepadButton(g_sdl_gamepad, SDL_GAMEPAD_BUTTON_EAST)) {
-		buttons |= 2;		/* button 1 (e.g. B) */
-	}
-	g_paddle_buttons = (g_paddle_buttons & ~3) | buttons;
-}
-
-/* Sample axes + buttons into the paddle globals. Called from paddles.c. */
-void
-joystick_update(dword64 dfcyc)
-{
-	int	i;
-
-	/* Default: centered, both buttons up. 0xc keeps the unused upper
-	 * paddle buttons high, matching the native backends. */
-	for(i = 0; i < 4; i++) {
-		g_paddle_val[i] = 32767;
-	}
-	g_paddle_buttons = 0xc;
-
-	if(!g_sdl_gamepad) {
-		return;
-	}
-	/* SDL gamepad axes are already Sint16 (-32768..32767), exactly the
-	 * paddle range the core expects. */
-	g_paddle_val[0] = SDL_GetGamepadAxis(g_sdl_gamepad,
-						SDL_GAMEPAD_AXIS_LEFTX);
-	g_paddle_val[1] = SDL_GetGamepadAxis(g_sdl_gamepad,
-						SDL_GAMEPAD_AXIS_LEFTY);
-	joystick_update_buttons();
-	paddle_update_trigger_dcycs(dfcyc);
 }
 
 /* Load SDL's controller mapping database. Looks next to the binary first
@@ -859,11 +742,13 @@ sdl_load_gamepad_mappings(void)
 	}
 }
 
-/* Called once from kegs_init() (before sdl_video_init's SDL_Init). */
+/* Called once from kegs_init() (before sdl_video_init's SDL_Init).  The host
+ * hook is registered first so input_map.c can reach the window from its
+ * first key event. */
 void
-joystick_init(void)
+sdl_input_init(void)
 {
-	g_joystick_native_type1 = -1;
+	imap_set_host_hook(sdl_imap_host_action);
 	if(!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
 		printf("SDL_INIT_GAMEPAD failed: %s\n", SDL_GetError());
 		return;
@@ -911,8 +796,8 @@ sdl_update_cursor_visibility(void)
 	}
 }
 
-/* Scroll Lock or a middle-click toggles pointer capture. The pointer stays
- * confined to the window so the IIgs mouse never loses track of it. */
+/* Toggles pointer capture (bound to F3 by default).  While captured, the
+ * pointer stays confined to the window so the IIgs mouse never loses it. */
 static void
 sdl_toggle_mouse_grab(Window_info *win)
 {
@@ -922,12 +807,48 @@ sdl_toggle_mouse_grab(Window_info *win)
 	printf("Mouse capture %s\n", grab ? "on" : "off");
 }
 
+/* Emulator-side actions that input_map.c hands back (see imap_action_is_host).
+ * Runs on key press only; key repeat never reaches input_map.c. */
+static void
+sdl_imap_host_action(int action)
+{
+	Window_info *win = &g_mainwin_info;
+
+	switch(action) {
+	case IMAP_ACT_MOUSE_GRAB:
+		sdl_toggle_mouse_grab(win);
+		break;
+	case IMAP_ACT_SCREENSHOT:
+		g_screenshot_requested = 1;
+		break;
+	case IMAP_ACT_FULLSCREEN:
+		/* Toggle the config var and apply it, so the key and the config
+		 * menu agree. */
+		g_fullscreen = !g_is_fullscreen;
+		sdl_sync_fullscreen(win);
+		break;
+	case IMAP_ACT_SCANLINES:
+		if(g_scanline_simulator > 0) {
+			g_scanline_saved = g_scanline_simulator;
+			g_scanline_simulator = 0;
+		} else {
+			g_scanline_simulator = g_scanline_saved;
+		}
+		break;
+	case IMAP_ACT_CRT:
+		g_crt = !g_crt;
+		break;
+	default:
+		break;
+	}
+}
+
 static void
 sdl_poll_events(void)
 {
 	SDL_Event ev;
 	Window_info *win = &g_mainwin_info;
-	int	mask, mx, my;
+	int	idx, mx, my;
 
 	/* Pick up fullscreen / hide-cursor changes made from the F4 config menu. */
 	sdl_sync_fullscreen(win);
@@ -956,9 +877,11 @@ sdl_poll_events(void)
 			break;
 		case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			adb_mainwin_focus(1);
+			sdl_sync_caps_lock(win, SDL_GetModState());
 			break;
 		case SDL_EVENT_WINDOW_FOCUS_LOST:
 			adb_mainwin_focus(0);
+			imap_release_all(win->kimage_ptr);
 			adb_kbd_repeat_off();
 			break;
 		case SDL_EVENT_WINDOW_MOUSE_ENTER:
@@ -978,59 +901,10 @@ sdl_poll_events(void)
 			}
 			break;
 		case SDL_EVENT_KEY_DOWN:
-			/* Scroll Lock toggles pointer capture. Not sent to the IIgs. */
-			if(ev.key.scancode == SDL_SCANCODE_SCROLLLOCK) {
-				if(!ev.key.repeat) {
-					sdl_toggle_mouse_grab(win);
-				}
-				break;
-			}
-			/* F10 saves a screenshot (gsplus convention). F10 and F11 are
-			 * the only function keys KEGS leaves unused, so they're safe to
-			 * claim without shadowing an emulator hotkey (notably F12 =
-			 * reset). Not sent to the IIgs. */
-			if(ev.key.scancode == SDL_SCANCODE_F10) {
-				if(!ev.key.repeat) {
-					g_screenshot_requested = 1;
-				}
-				break;
-			}
-			/* F11 toggles fullscreen; Shift+F11 toggles scanlines;
-			 * Ctrl+F11 toggles the curved CRT effect (gsplus
-			 * convention). None is sent to the IIgs. */
-			if(ev.key.scancode == SDL_SCANCODE_F11) {
-				if(!ev.key.repeat) {
-					if(SDL_GetModState() & SDL_KMOD_CTRL) {
-						g_crt = !g_crt;
-					} else if(SDL_GetModState() & SDL_KMOD_SHIFT) {
-						if(g_scanline_simulator > 0) {
-							g_scanline_saved = g_scanline_simulator;
-							g_scanline_simulator = 0;
-						} else {
-							g_scanline_simulator = g_scanline_saved;
-						}
-					} else {
-						/* Toggle the config var and apply it,
-						 * so F11 and the config menu agree. */
-						g_fullscreen = !g_is_fullscreen;
-						sdl_sync_fullscreen(win);
-					}
-				}
-				break;
-			}
-			sdl_handle_key(win, ev.key.scancode, 0, ev.key.repeat);
+			sdl_handle_key(win, &ev.key, 0);
 			break;
 		case SDL_EVENT_KEY_UP:
-			if(ev.key.scancode == SDL_SCANCODE_F11 ||
-					ev.key.scancode == SDL_SCANCODE_SCROLLLOCK) {
-				break;
-			}
-			/* Swallow the matching F10 release so the IIgs never sees a
-			 * stray F10 key-up from a screenshot press. */
-			if(ev.key.scancode == SDL_SCANCODE_F10) {
-				break;
-			}
-			sdl_handle_key(win, ev.key.scancode, 1, 0);
+			sdl_handle_key(win, &ev.key, 1);
 			break;
 		case SDL_EVENT_MOUSE_MOTION:
 			/* Map window coords through the renderer's logical
@@ -1048,35 +922,34 @@ sdl_poll_events(void)
 			break;
 		case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		case SDL_EVENT_MOUSE_BUTTON_UP:
-			/* Middle-click toggles pointer capture; the IIgs mouse has
-			 * only one button, so it is not forwarded. */
-			if(ev.button.button == SDL_BUTTON_MIDDLE) {
-				if(ev.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-					sdl_toggle_mouse_grab(win);
-				}
-				break;
+			idx = sdl_mouse_index(ev.button.button);
+			if(idx >= 0) {
+				imap_mouse_button(win->kimage_ptr, idx,
+					ev.type == SDL_EVENT_MOUSE_BUTTON_UP);
 			}
-			SDL_ConvertEventToRenderCoordinates(win->renderer, &ev);
-			mask = sdl_button_mask(ev.button.button);
-			mx = video_scale_mouse_x(win->kimage_ptr, (int)ev.button.x, 0);
-			my = video_scale_mouse_y(win->kimage_ptr, (int)ev.button.y, 0);
-			adb_update_mouse(win->kimage_ptr, mx, my,
-				(ev.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? mask : 0,
-				mask & 7);
 			break;
 		case SDL_EVENT_GAMEPAD_ADDED:
 			/* A controller was plugged in; adopt it if we have none. */
 			sdl_open_first_gamepad();
 			break;
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
+			if(g_sdl_gamepad &&
+					SDL_GetGamepadID(g_sdl_gamepad) ==
+							ev.gbutton.which) {
+				imap_pad_button(win->kimage_ptr, ev.gbutton.button,
+					ev.type == SDL_EVENT_GAMEPAD_BUTTON_UP);
+			}
+			break;
 		case SDL_EVENT_GAMEPAD_REMOVED:
-			/* If the pad we were using went away, drop it and try to
+			/* If the pad we were using went away, release its inputs and
 			 * fall back to any other still-connected controller. */
 			if(g_sdl_gamepad &&
 					SDL_GetGamepadID(g_sdl_gamepad) ==
 							ev.gdevice.which) {
+				imap_pad_release_all(win->kimage_ptr);
 				SDL_CloseGamepad(g_sdl_gamepad);
 				g_sdl_gamepad = NULL;
-				g_joystick_native_type1 = -1;
 				sdl_open_first_gamepad();
 			}
 			break;
@@ -1084,6 +957,7 @@ sdl_poll_events(void)
 			break;
 		}
 	}
+	sdl_poll_gamepad_axes();
 }
 
 /* Build "[<ssdir>/]gsplus_screenshot_YYYYMMDD_HHMMSS.png" into buf. With no

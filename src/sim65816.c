@@ -514,6 +514,8 @@ print_usage(const char *argv0)
 	printf("  -logpc           Force PC logging on at startup\n");
 	printf("  -cfg <file>      Use <file> as the config file "
 						"(created if absent)\n");
+	printf("  -map <file>      Use <file> as the input map "
+						"(default: input.map beside config.kegs)\n");
 	printf("\n");
 	printf("Display options (config variables, override with "
 						"-<name> <value>):\n");
@@ -667,6 +669,11 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 				config_set_config_kegs_name(argv[i+1]);
 			}
 			i++;
+		} else if(!strcmp("-map", argv[i])) {
+			if((i + 1) < argc) {
+				config_set_input_map_name(argv[i+1]);
+			}
+			i++;
 		} else if(argv[i][0] == '-') {
 			arg2_str = 0;
 			if((i + 1) < argc) {
@@ -712,7 +719,7 @@ kegs_init(int mdepth, int screen_width, int screen_height, int no_scale_window)
 	video_init(mdepth, screen_width, screen_height, no_scale_window);
 
 	sound_init();
-	joystick_init();
+	sdl_input_init();
 
 	if(g_rom_version >= 3) {
 		g_c036_val_speed |= 0x40;	/* set power-on bit */
