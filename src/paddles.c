@@ -223,7 +223,7 @@ paddle_update_trigger_dcycs(dword64 dfcyc)
 		/*  256=1.0, 128 = 0.5 */
 		val = val + 128 + trim;
 		if(val >= 255) {
-			val = 280;	/* increase range */
+			val = 255;	/* cap instead of 280 */
 		}
 		trig_dfcyc = dfcyc + (dword64)((val * (2816/255.0)) * 65536);
 		g_paddle_dfcyc[i] = trig_dfcyc;
