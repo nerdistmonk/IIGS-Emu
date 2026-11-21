@@ -1,0 +1,3 @@
+#!/bin/sh
+cmake -G Ninja -B build -S src
+cmake --build build --target gsplus-sdl
