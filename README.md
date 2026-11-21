@@ -35,10 +35,6 @@ Some features that are a part of the SDL3 build:
   fullscreen.
 - **Screenshot capture** - F10 writes the framebuffer to disk.
 - **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick.
-  The SDL controller database (`gamecontrollerdb.txt`, from
-  [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB)) is
-  loaded from beside the binary, then from `~/.config/iigs-emu/`. D-pads and
-  sticks both drive the joystick.
   A connected gamepad is used automatically (with hotplug); without one, the
   numeric keypad emulates the joystick. The stick's circular travel is remapped
   to the square range Apple joysticks have, so games can reach the corners.

@@ -141,13 +141,6 @@ target_link_libraries(gsplus-sdl PRIVATE gsplus_core_sdl SDL3::SDL3)
 # paddles.c uses sqrt(); glibc keeps it in libm
 target_link_libraries(gsplus-sdl PRIVATE m)
 
-# Copy SDL's controller mapping database next to the binary; sdl_driver.c loads
-# it at startup so non-XInput pads (e.g. SNES USB) are recognized as gamepads.
-add_custom_command(TARGET gsplus-sdl POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/../data/gamecontrollerdb.txt"
-        "$<TARGET_FILE_DIR:gsplus-sdl>/gamecontrollerdb.txt")
-
 # The binary is just "iigs-emu" (no -sdl). $ORIGIN lets it find a co-located
 # SDL3 shared library at runtime.
 set_target_properties(gsplus-sdl PROPERTIES
