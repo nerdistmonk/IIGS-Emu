@@ -64,7 +64,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **Recent disks/ROMs** menu | Med | M | |
 | Modern **overlay config menu** (vs. F4 text panel) | Low | L | Big polish, big effort. |
 
 ## Testing / infrastructure
