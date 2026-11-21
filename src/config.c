@@ -244,7 +244,7 @@ Cfg_menu g_cfg_newslot7_menu[] = {
 Cfg_menu g_cfg_joystick_menu[] = {
 { "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU },
 { "Joystick Emulation,4,Auto (Gamepad or Keypad),0,Keypad Joystick,"
-	"1,Mouse Joystick,2,Native Joystick 1,3,Native Joystick 2",
+	"1,Mouse Joystick,2,Native Joystick 1,3,Native Joystick 2,5,None",
 	KNMP(g_joystick_type), CFGTYPE_INT },
 { "Gamepad Range,1,Square (Full Corners),0,Circular (Raw)",
 	KNMP(g_joystick_square_range), CFGTYPE_INT },

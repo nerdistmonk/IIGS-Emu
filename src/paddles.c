@@ -126,6 +126,14 @@ paddle_trigger(dword64 dfcyc)
 	case 1:		/* Mouse Joystick */
 		paddle_trigger_mouse(dfcyc);
 		break;
+	case 5:		/* None: centered paddles, no buttons */
+		g_paddle_val[0] = 0;
+		g_paddle_val[1] = 0;
+		g_paddle_val[2] = 32767;
+		g_paddle_val[3] = 32767;
+		g_paddle_buttons &= ~3;
+		paddle_update_trigger_dcycs(dfcyc);
+		break;
 	default:
 		joystick_update(dfcyc);
 	}
@@ -251,8 +259,11 @@ read_paddles(dword64 dfcyc, int paddle)
 void
 paddle_update_buttons()
 {
+	int	type;
+
 	paddle_fixup_joystick_type();
-	if(paddle_effective_joystick_type() >= 2) {
+	type = paddle_effective_joystick_type();
+	if(type == 2 || type == 3) {
 		joystick_update_buttons();
 	} else {
 		/* In keypad/mouse modes a connected gamepad must not drive

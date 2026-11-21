@@ -1272,7 +1272,7 @@ adb_get_keypad_xy(int get_y)
 			if(g_keypad_key_is_down[key]) {
 				num_keys++;
 				x = x + (j - 1)*32768;
-				y = y + (1 - i)*32768;
+				y = y + (i - 1)*32768;
 			}
 			key++;
 		}
@@ -2126,17 +2126,16 @@ adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c,
 		if(ascii > 0x30 && ascii <= 0x39) {
 			g_keypad_key_is_down[ascii - 0x30] = !is_up;
 		}
-		if(paddle_effective_joystick_type() == 0) {
-			/* Keypad joystick uses 1-9 for movement, but keyboard-mode */
-			/*  games also read them as keys, so digits 1-9 pass through */
+		if(g_joystick_type == 0 || g_joystick_type == 4) {
+			/* Keypad joystick (or Auto) owns the digits for movement, */
+			/*  so only 0 and . , remap and everything else is dropped */
 			if(ascii == 0x30) {
 				/* remap '0' to cmd */
 				a2code = 0x37;
 			} else if(ascii == 0x2e || ascii == 0x2c) {
 				/* remap '.' and ',' to option */
 				a2code = 0x3a;
-			} else if(ascii < 0x31 || ascii > 0x39) {
-				/* Just ignore other keypad keys in this mode */
+			} else {
 				return;
 			}
 		}
