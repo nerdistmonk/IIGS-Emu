@@ -2127,16 +2127,16 @@ adb_physical_key_update(Kimage *kimage_ptr, int raw_a2code, word32 unicode_c,
 			g_keypad_key_is_down[ascii - 0x30] = !is_up;
 		}
 		if(paddle_effective_joystick_type() == 0) {
-			/* If Joystick type is keypad, then do not let these */
-			/*  keypress pass on further, except for cmd/opt */
+			/* Keypad joystick uses 1-9 for movement, but keyboard-mode */
+			/*  games also read them as keys, so digits 1-9 pass through */
 			if(ascii == 0x30) {
 				/* remap '0' to cmd */
 				a2code = 0x37;
 			} else if(ascii == 0x2e || ascii == 0x2c) {
 				/* remap '.' and ',' to option */
 				a2code = 0x3a;
-			} else {
-				/* Just ignore it in this mode */
+			} else if(ascii < 0x31 || ascii > 0x39) {
+				/* Just ignore other keypad keys in this mode */
 				return;
 			}
 		}
