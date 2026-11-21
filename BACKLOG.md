@@ -71,4 +71,3 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **CI smoke test** | High | M | Headless boot (SDL `dummy` video driver) for N emulated frames, checksum the framebuffer. Catches CPU/memory/video regressions on every PR — highest-leverage single test, especially for upstream GSplus merges. Needs a redistributable boot image or ROM-free path. |
