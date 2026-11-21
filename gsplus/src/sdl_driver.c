@@ -21,6 +21,7 @@
 
 #include "defc.h"
 #include "protos_sdl.h"
+#include "xbrz.h"
 #include "gsplus_icon.h"	/* embedded RGBA window icon (see below) */
 
 /* Each KEGS driver defines its own private "window info" wrapper around a core
@@ -53,6 +54,10 @@ typedef struct {
 	int		width_req;		/* current logical width  (pixels) */
 	int		main_height;		/* current logical height (pixels) */
 	int		pixels_per_line;	/* stride of data[]       (pixels) */
+	int		tex_scale;		/* texture size / guest size: 2 when the
+						 * xBRZ filter backs the texture, else 1 */
+	int		xbrz_for;		/* g_xbrz the texture was built for */
+	word32		*xbrz_buf;		/* 2x xBRZ output, xBRZ mode only */
 } Window_info;
 
 static Window_info g_mainwin_info;
@@ -68,6 +73,7 @@ extern int g_crt_mask;			/* CRT phosphor-mask strength, 0-100 */
 extern int g_crt_glow;			/* CRT glow/bloom strength, 0-100 */
 extern int g_crt_vignette;		/* CRT corner darkening, 0-100 */
 extern int g_hblur;			/* horizontal linear blur, 0-100 */
+extern int g_xbrz;			/* xBRZ 2x upscale filter on/off */
 extern int g_vblur;			/* vertical linear blur, 0-100 */
 extern int g_hide_mouse;		/* hide host cursor over window / in fullscreen */
 extern int g_mainwin_xpos, g_mainwin_ypos;	/* window position (KEGS config vars) */
@@ -108,7 +114,14 @@ static int g_quit_requested = 0;
 static void sdl_create_crt(Window_info *win, int w, int h);
 static void sdl_build_crt_mesh(Window_info *win, int w, int h);
 static void sdl_render_crt(Window_info *win);
-static void sdl_render_framebuffer(Window_info *win, int w, int h);
+static void sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale);
+
+/* Texture size as a multiple of the guest size: 2 when xBRZ backs the texture. */
+static int
+sdl_xbrz_scale(void)
+{
+	return g_xbrz ? 2 : 1;
+}
 
 /* (Re)create the streaming texture at the given size. ARGB8888 matches what
  * video_out_data() writes when mdepth == 32. */
@@ -119,12 +132,23 @@ sdl_create_texture(Window_info *win, int w, int h)
 		SDL_DestroyTexture(win->texture);
 		win->texture = NULL;
 	}
+	win->tex_scale = sdl_xbrz_scale();
+	win->xbrz_for = g_xbrz;
+	free(win->xbrz_buf);
+	win->xbrz_buf = NULL;
+	if(win->tex_scale == 2) {
+		win->xbrz_buf = calloc((size_t)w * 2 * h * 2, sizeof(word32));
+		if(!win->xbrz_buf) {
+			printf("cannot allocate the xBRZ frame buffer\n");
+			exit(1);
+		}
+	}
 	/* STATIC (not STREAMING) access: we update changed rectangles with
 	 * SDL_UpdateTexture and keep the rest of the frame intact. Static textures
 	 * are the documented target for SDL_UpdateTexture and preserve their
 	 * contents between frames; partial SDL_UpdateTexture on a streaming texture
 	 * is unreliable on some SDL render backends. */	win->texture = SDL_CreateTexture(win->renderer, SDL_PIXELFORMAT_ARGB8888,
-					SDL_TEXTUREACCESS_STATIC, w, h);
+					SDL_TEXTUREACCESS_STATIC, w * win->tex_scale, h * win->tex_scale);
 	if(!win->texture) {
 		printf("SDL_CreateTexture failed: %s\n", SDL_GetError());
 		return;
@@ -333,15 +357,15 @@ sdl_create_crt(Window_info *win, int w, int h)
 	 * softens like a real tube instead of showing hard pixel edges. */
 	win->crt_target = SDL_CreateTexture(win->renderer,
 				SDL_PIXELFORMAT_ARGB8888,
-				SDL_TEXTUREACCESS_TARGET, w, h);
+				SDL_TEXTUREACCESS_TARGET, w * win->tex_scale, h * win->tex_scale);
 	if(win->crt_target) {
 		SDL_SetTextureScaleMode(win->crt_target, SDL_SCALEMODE_LINEAR);
 	}
 
 	/* Glow target: a small copy of crt_target. Downsampling with LINEAR is a
 	 * cheap box blur; drawn back additively it becomes the bloom halo. */
-	gw = w / CRT_GLOW_DIV; if(gw < 1) { gw = 1; }
-	gh = h / CRT_GLOW_DIV; if(gh < 1) { gh = 1; }
+	gw = (w * win->tex_scale) / CRT_GLOW_DIV; if(gw < 1) { gw = 1; }
+	gh = (h * win->tex_scale) / CRT_GLOW_DIV; if(gh < 1) { gh = 1; }
 	win->glow_target = SDL_CreateTexture(win->renderer,
 				SDL_PIXELFORMAT_ARGB8888,
 				SDL_TEXTUREACCESS_TARGET, gw, gh);
@@ -444,6 +468,16 @@ sdl_render_overlays(Window_info *win)
 			   : SDL_LOGICAL_PRESENTATION_LETTERBOX);
 }
 
+/* Upscale the whole guest frame 2x with xBRZ and upload it to the 2x texture. */
+static void
+sdl_xbrz_upload(Window_info *win)
+{
+	xbrz_scale2x(win->data, win->pixels_per_line, win->xbrz_buf,
+				win->width_req, win->main_height);
+	SDL_UpdateTexture(win->texture, NULL, win->xbrz_buf,
+				win->width_req * 2 * (int)sizeof(word32));
+}
+
 static void
 sdl_video_init(void)
 {
@@ -498,7 +532,7 @@ sdl_video_init(void)
 	if(g_fullscreen) { flags |= SDL_WINDOW_FULLSCREEN; g_is_fullscreen = 1; }
 
 	g_mainwin_info.window = SDL_CreateWindow("IIGS-Emu",
-				w, h, flags);
+				w * sdl_xbrz_scale(), h * sdl_xbrz_scale(), flags);
 	if(!g_mainwin_info.window) {
 		printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
 		exit(1);
@@ -1147,9 +1181,11 @@ sdl_blur_kernel(int blur, float *weight)
  * taps are summed with additive blending and their weights sum to 1, so the
  * result is a weighted average -- which requires the target to already be cleared
  * to black (both call sites do). With both blurs == 0 this is just the normal
- * crisp 1:1 copy. */
+ * crisp 1:1 copy. dst_scale maps the w x h area and the blur shifts into the
+ * target's pixels: 1 for logical presentation, tex_scale for an offscreen
+ * target sized to the texture. */
 static void
-sdl_render_framebuffer(Window_info *win, int w, int h)
+sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale)
 {
 	SDL_Renderer	*r = win->renderer;
 	SDL_FRect	dst;
@@ -1186,8 +1222,8 @@ sdl_render_framebuffer(Window_info *win, int w, int h)
 			SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE,
 			SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(win->texture, add);
-	dst.w = (float)w;
-	dst.h = (float)h;
+	dst.w = (float)(w * dst_scale);
+	dst.h = (float)(h * dst_scale);
 
 	/* Separable 2D tent done in a single accumulation step: each (kx,ky) tap gets
 	 * weight hweight[kx]*vweight[ky]. Whichever axis is off has half==0 and one
@@ -1195,12 +1231,12 @@ sdl_render_framebuffer(Window_info *win, int w, int h)
 	 * and enabling both gives the outer product of the two 1D kernels. */
 	for(ky = -vhalf; ky <= vhalf; ky++) {
 		float vw = vweight[ky + vhalf];
-		dst.y = (float)ky;
+		dst.y = (float)(ky * dst_scale);
 		for(kx = -hhalf; kx <= hhalf; kx++) {
 			mod = (int)(hweight[kx + hhalf] * vw * 255.0f + 0.5f);
 			SDL_SetTextureColorMod(win->texture, (Uint8)mod, (Uint8)mod,
 						(Uint8)mod);
-			dst.x = (float)kx;
+			dst.x = (float)(kx * dst_scale);
 			SDL_RenderTexture(r, win->texture, NULL, &dst);
 		}
 	}
@@ -1245,7 +1281,7 @@ sdl_render_crt(Window_info *win)
 	 * pass adds source RGB directly, independent of alpha (see below). */
 	SDL_SetRenderDrawColor(r, 0, 0, 0, 0);
 	SDL_RenderClear(r);
-	sdl_render_framebuffer(win, w, h);
+	sdl_render_framebuffer(win, w, h, win->tex_scale);
 
 	/* --- Pass 2: downscale crt_target -> glow_target (LINEAR = blur).
 	 * Skipped entirely at glow 0 (as is the additive draw below). --- */
@@ -1299,12 +1335,22 @@ sdl_update_display(Window_info *win)
 	int	i, w, h;
 	word32	*src;
 	SDL_Rect r;
+	int	xbrz_dirty = 0;
 
 	if(!win->renderer) {
 		return;
 	}
 	if(!video_get_active(win->kimage_ptr)) {
 		return;
+	}
+
+	/* xBRZ was switched in the config menu: rebuild the texture at the new
+	 * scale, resize the window to match, and re-emit the whole screen. */
+	if(win->xbrz_for != g_xbrz) {
+		sdl_create_texture(win, win->width_req, win->main_height);
+		SDL_SetWindowSize(win->window, win->width_req * sdl_xbrz_scale(),
+				win->main_height * sdl_xbrz_scale());
+		video_set_x_refresh_needed(win->kimage_ptr, 1);
 	}
 
 	/* If the IIgs changed video mode, the logical size changes: resize the
@@ -1317,7 +1363,8 @@ sdl_update_display(Window_info *win)
 		win->main_height = h;
 		win->pixels_per_line = w;
 		video_update_scale(win->kimage_ptr, w, h, 1);
-		SDL_SetWindowSize(win->window, w, h);
+		SDL_SetWindowSize(win->window, w * sdl_xbrz_scale(),
+				h * sdl_xbrz_scale());
 		/* Honor -noaspect here too, matching init and the CRT path; otherwise
 		 * a stretched view reverts to letterbox after the first mode change. */
 		SDL_SetRenderLogicalPresentation(win->renderer, w, h,
@@ -1341,8 +1388,17 @@ sdl_update_display(Window_info *win)
 		r.w = rect.width;
 		r.h = rect.height;
 		src = win->data + (size_t)rect.y * win->pixels_per_line + rect.x;
-		SDL_UpdateTexture(win->texture, &r, src,
+		if(win->tex_scale == 1) {
+			SDL_UpdateTexture(win->texture, &r, src,
 				win->pixels_per_line * (int)sizeof(word32));
+		} else {
+			/* xBRZ needs neighbours, so the frame is re-upscaled whole
+			 * below rather than uploaded rect by rect. */
+			xbrz_dirty = 1;
+		}
+	}
+	if((win->tex_scale == 2) && xbrz_dirty) {
+		sdl_xbrz_upload(win);
 	}
 
 	if(g_crt && win->crt_target && win->glow_target && win->crt_verts) {
@@ -1354,7 +1410,7 @@ sdl_update_display(Window_info *win)
 		 * black explicitly since the blur path accumulates additively. */
 		SDL_SetRenderDrawColor(win->renderer, 0, 0, 0, 255);
 		SDL_RenderClear(win->renderer);
-		sdl_render_framebuffer(win, win->width_req, win->main_height);
+		sdl_render_framebuffer(win, win->width_req, win->main_height, 1);
 		sdl_render_overlays(win);
 	}
 

@@ -27,6 +27,8 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 - **Screenshots**: F10 captures the framebuffer (`-ssdir` sets the output
   directory).
 - **Mouse capture**: Scroll Lock or middle-click confines the pointer to the window.
+- **xBRZ 2x filter**: `-xbrz 1` or the F4 Display Effects menu. Ported from
+  ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
 
 ---
 

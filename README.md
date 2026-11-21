@@ -52,6 +52,9 @@ Some features that are a part of the SDL3 build:
 - **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
   / `-crtvignette`, Ctrl+F11 to toggle. Screen curvature, RGB phosphor mask,
   bloom, and vignette; composes with the scanline simulator.
+- **xBRZ 2x filter** - `-xbrz 1` or the F4 Display Effects menu. Doubles the
+  picture with a corner-smoothing filter and doubles the window size; CRT
+  effects apply on top of it.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 

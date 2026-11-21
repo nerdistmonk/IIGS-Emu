@@ -163,6 +163,7 @@ int	g_crt_curve = 2;	/* CRT screen curvature amount, 0-100 (0=flat) */
 int	g_crt_mask = 2;	/* CRT phosphor-mask strength, 0-100 (0=off, subtle) */
 int	g_crt_glow = 8;	/* CRT glow/bloom strength, 0-100 (0=off) */
 int	g_crt_vignette = 5;	/* CRT corner darkening, 0-100 (0=off, flat brightness) */
+int	g_xbrz = 0;		/* xBRZ 2x upscale filter (0=off, 1=on) */
 int	g_hblur = 0;		/* horizontal linear blur, 0-100 (0=off, sharp) */
 int	g_vblur = 0;		/* vertical linear blur, 0-100 (0=off, sharp) */
 int	g_hide_mouse = 1;	/* hide host cursor over the window / in fullscreen */
@@ -384,6 +385,7 @@ Cfg_menu g_cfg_sdl_video_menu[] = {
 { "CRT Glow 0-100", &g_crt_glow, "crtglow", 0, CFGTYPE_INT },
 { "CRT Vignette 0-100", &g_crt_vignette, "crtvignette", 0, CFGTYPE_INT },
 { "Horizontal Blur 0-100", &g_hblur, "hblur", 0, CFGTYPE_INT },
+{ "xBRZ 2x Filter,0,Off,1,On", &g_xbrz, "xbrz", 0, CFGTYPE_INT },
 { "Vertical Blur 0-100", &g_vblur, "vblur", 0, CFGTYPE_INT },
 { "Hide Mouse Cursor,0,No,1,Yes", &g_hide_mouse, "hidemouse", 0, CFGTYPE_INT },
 { "Screenshot Directory", &g_cfg_ssdir, "ssdir", 0, CFGTYPE_STR },
