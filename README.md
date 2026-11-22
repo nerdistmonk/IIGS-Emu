@@ -82,6 +82,10 @@ keys: **Open Apple** is **Command** (either side, the "clover" key), and
 **Closed Apple** is **Option** (either side). The Remap Controls menu lists them
 as Command and Option.
 
+F1–F15 and the six navigation keys (Help/Insert, Home, Page Up, Forward Delete,
+End, Page Down) reach the IIgs as extended keyboard keys. They type no character
+and do not hold Open Apple.
+
 Other emulator actions (status line, emulation speed, debugger, fast disk,
 screenshot, fullscreen, CRT effects, and scanlines) have no default key. Bind them
 under **Joystick Configuration > Remap Controls > Mouse and Actions**.
