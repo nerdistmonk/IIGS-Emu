@@ -12,6 +12,8 @@ Patches:
   status2 0x80 is masked out of the serious-error test (AND #$D902 -> #$5902)
   the Ready-bit test's BNE becomes BRA, so status1 bit 0x01 is never treated as
   "Ready light off"
+  the R rectangle frame is sent as 9 bytes (length 0A->09), as in BII and the
+  reference, instead of 10 with a trailing 00
   the white 1-byte G template gets a 00 terminator (length 04->05), and the black
   template's length is zeroed so its frames become no-ops. Black pixels are
   dropped in this build.
@@ -35,6 +37,7 @@ import sys
 SRC_SHA = '61e9b40627f2345ce61efebf98dc986b5aa0cb7935020e2bec7dcb6d65794f2e'
 PATCH_OFF = 0x474D
 READY_OFF = 0x4768  # BNE over the "Ready light off" alert; image 0x4690 + 0xD8
+RECT_TMPL_OFF = 0x3C08  # R frame template length byte (0x0A); image 0x3B30 + 0xD8
 WHITE_TMPL_OFF = 0x3C13  # 1-byte white G frame template; image 0x3B3B + 0xD8
 BLACK_TMPL_OFF = 0x3C18  # 1-byte black G frame template; image 0x3B40 + 0xD8
 # Setup-record routine body; image 0x39DF + 0xD8. Original order is I, then A/M,
@@ -43,9 +46,14 @@ SETUP_OFF = 0x3AB7
 SETUP_ORIG = bytes.fromhex('ae fa 3d f0 05 a9 0a 3a 80 03 a9 08 3a 20 72 45'
                            '9c 1a 3e'
                            'ae fc 3d f0 05 a9 0c 3a 80 03 a9 0f 3a 20 72 45')
-SETUP_NEW = bytes.fromhex('ae fc 3d f0 05 a9 0c 3a 80 03 a9 0f 3a 20 72 45'
+SETUP_NEW = bytes.fromhex('ae fc 3d f0 05 a9 0c 3a 80 03 a9 0c 3a 20 72 45'
                           '9c 1a 3e'
                           'ae fa 3d f0 05 a9 0a 3a 80 03 a9 08 3a 20 72 45')
+# nu (0x3A0C) and d< (0x3A0F) records; both branches now point at 0x3A0C.
+# Image 0x3A0C + 0xD8. The new 5-byte record h u d D overwrites both old slots.
+II_REC_OFF = 0x3AE4
+II_REC_ORIG = bytes.fromhex('02 6e 75 02 64 3c')
+II_REC_NEW = bytes.fromhex('04 68 75 64 44')
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 TOTAL_BLOCKS = 1600
@@ -158,6 +166,9 @@ def main():
     if patched[READY_OFF:READY_OFF + 2] != bytes([0xD0, 0x05]):
         raise SystemExit('expected BNE +5 at Ready-bit test site')
     patched[READY_OFF] = 0x80
+    if patched[RECT_TMPL_OFF:RECT_TMPL_OFF + 2] != bytes([0x0A, 0x52]):
+        raise SystemExit('expected 10-byte R frame template at patch site')
+    patched[RECT_TMPL_OFF] = 0x09
     if (patched[WHITE_TMPL_OFF:WHITE_TMPL_OFF + 5] != bytes([0x04, 0x47, 0x01, 0x00, 0x80])
             or patched[BLACK_TMPL_OFF:BLACK_TMPL_OFF + 5] != bytes([0x04, 0x47, 0x01, 0x00, 0xC0])):
         raise SystemExit('expected 1-byte white/black G frame templates at patch site')
@@ -166,6 +177,9 @@ def main():
     if patched[SETUP_OFF:SETUP_OFF + len(SETUP_ORIG)] != SETUP_ORIG:
         raise SystemExit('expected setup-record routine at patch site')
     patched[SETUP_OFF:SETUP_OFF + len(SETUP_NEW)] = SETUP_NEW
+    if patched[II_REC_OFF:II_REC_OFF + len(II_REC_ORIG)] != II_REC_ORIG:
+        raise SystemExit('expected nu/d< setup records at patch site')
+    patched[II_REC_OFF:II_REC_OFF + len(II_REC_NEW)] = II_REC_NEW
 
     sys_entry = find_entry(raw, SRC_VOL, 'SYSTEM')
     drv_entry = find_entry(raw, SRC_SYSTEM, 'DRIVERS')
