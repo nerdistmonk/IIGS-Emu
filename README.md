@@ -75,7 +75,7 @@ reserves only these host keys:
 |---|---|
 | **Ctrl + F1** | Open or close the configuration menu (mount disks, pick a ROM, settings) |
 | **Ctrl + F2** or **middle-click** | Grab / release the mouse (confines the pointer to the window) |
-| **Ctrl + Menu** | Reset the IIgs (Ctrl holds the IIgs Control key; Menu is the IIgs Reset key) |
+| **Ctrl + F12** | Reset the IIgs |
 
 The IIgs keys are named by their Apple II-era names, which map to the modern
 keys: **Open Apple** is **Command** (either side, the "clover" key), and

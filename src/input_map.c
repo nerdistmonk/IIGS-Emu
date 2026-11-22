@@ -273,6 +273,7 @@ static const char *const g_default_map[] = {
 	"mouse:MIDDLE = action:mouse_grab",
 	"ctrl+key:F1 = action:config_panel",
 	"ctrl+key:F2 = action:mouse_grab",
+	"ctrl+key:F12 = action:reset",
 	"key:F1 = adb:0x7a",
 	"key:F2 = adb:0x78",
 	"key:F3 = adb:0x63",
@@ -287,8 +288,7 @@ static const char *const g_default_map[] = {
 	"key:F12 = adb:0x6f",
 	"key:PRINTSCREEN = adb:0x69",
 	"key:SCROLLLOCK = adb:0x6b",
-	"key:PAUSE = adb:0x71",
-	"key:APPLICATION = adb:0x7f"
+	"key:PAUSE = adb:0x71"
 };
 
 /* D-pad directions, indexed by g_dpad_held */
