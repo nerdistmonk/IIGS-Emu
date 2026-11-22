@@ -238,6 +238,12 @@ Cfg_menu g_cfg_newslot7_menu[] = {
 { 0, 0, 0, 0, 0 },
 };
 
+/* Remap Controls menus.  Their str and ptr are filled in by
+ * cfg_remap_menus_init() before config_init_menus() runs.
+ */
+Cfg_menu g_cfg_remap_menu[IMAP_RG_COUNT + 6];
+Cfg_menu g_cfg_remap_groups[IMAP_RG_COUNT][IMAP_REMAP_MAX_GROUP + 4];
+
 Cfg_menu g_cfg_joystick_menu[] = {
 { "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU },
 { "Gamepad Range,1,Square (Full Corners),0,Circular (Raw)",
@@ -250,6 +256,7 @@ Cfg_menu g_cfg_joystick_menu[] = {
 		KNMP(g_joystick_scale_factor_y), CFGTYPE_INT },
 { "Joystick Trim X", KNMP(g_joystick_trim_amount_x), CFGTYPE_INT },
 { "Joystick Trim Y", KNMP(g_joystick_trim_amount_y), CFGTYPE_INT },
+{ "Remap Controls", g_cfg_remap_menu, 0, 0, CFGTYPE_SUBMENU },
 { "", 0, 0, 0, 0 },
 { "Back to Main Config", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
 { 0, 0, 0, 0, 0 },
@@ -659,6 +666,7 @@ config_load_input_map(void)
 		cfg_strncpy(&path[0], &g_input_map_cli_name[0], CFG_PATH_MAX);
 	}
 
+	imap_set_map_path(&path[0]);
 	if(imap_load_file(&path[0]) == 0) {
 		printf("Loaded input map %s\n", &path[0]);
 	} else if(!is_default) {
@@ -735,9 +743,79 @@ config_init_menus(Cfg_menu *menuptr)
 	}
 }
 
+// Called with 1 to draw the entry, so only arg 0 (Return) resets
+static char *
+cfg_remap_reset(int action)
+{
+	if(action == 0) {
+		imap_remap_reset(video_get_kimage(0));
+	}
+	return NULL;
+}
+
+static int
+cfg_is_remap_menu(const Cfg_menu *menuptr)
+{
+	int	group;
+
+	if(menuptr == g_cfg_remap_menu) {
+		return 1;
+	}
+	for(group = 0; group < IMAP_RG_COUNT; group++) {
+		if(menuptr == g_cfg_remap_groups[group]) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static void
+cfg_remap_menus_init()
+{
+	Cfg_menu *menu;
+	struct imap_remap_item *item;
+	int	group, idx, count;
+
+	menu = g_cfg_remap_menu;
+	menu[0] = (Cfg_menu){ "Remap Controls", g_cfg_remap_menu, 0, 0,
+						CFGTYPE_MENU };
+	for(group = 0; group < IMAP_RG_COUNT; group++) {
+		menu[group + 1] = (Cfg_menu){ imap_remap_group_name(group),
+				g_cfg_remap_groups[group], 0, 0, CFGTYPE_SUBMENU };
+	}
+	menu[IMAP_RG_COUNT + 1] = (Cfg_menu){ "", 0, 0, 0, 0 };
+	menu[IMAP_RG_COUNT + 2] = (Cfg_menu){ "Reset all remaps to defaults",
+				(void *)cfg_remap_reset, 0, 0, CFGTYPE_FUNC };
+	menu[IMAP_RG_COUNT + 3] = (Cfg_menu){ "", 0, 0, 0, 0 };
+	menu[IMAP_RG_COUNT + 4] = (Cfg_menu){ "Back to Joystick Configuration",
+				g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU };
+
+	for(group = 0; group < IMAP_RG_COUNT; group++) {
+		menu = g_cfg_remap_groups[group];
+		count = imap_remap_group_count(group);
+		if(count > IMAP_REMAP_MAX_GROUP) {
+			fatal_printf("Remap group %d has %d items\n", group,
+								count);
+			my_exit(5);
+			return;
+		}
+		menu[0] = (Cfg_menu){ imap_remap_group_name(group), menu,
+						0, 0, CFGTYPE_MENU };
+		for(idx = 0; idx < count; idx++) {
+			item = imap_remap_group_item(group, idx);
+			menu[idx + 1] = (Cfg_menu){ imap_remap_item_name(item),
+						item, 0, 0, CFGTYPE_REMAP };
+		}
+		menu[count + 1] = (Cfg_menu){ "", 0, 0, 0, 0 };
+		menu[count + 2] = (Cfg_menu){ "Back to Remap Controls",
+				g_cfg_remap_menu, 0, 0, CFGTYPE_MENU };
+	}
+}
+
 void
 config_init()
 {
+	cfg_remap_menus_init();
 	config_init_menus(g_cfg_main_menu);
 
 	// Find the config.kegs file
@@ -985,7 +1063,7 @@ cfg_set_config_panel(int panel)
 		g_cfg_select_partition = -1;
 	} else {
 		// Leave config panel, go back to A2 emulation
-
+		imap_remap_cancel();
 		video_force_reparse();
 	}
 	g_full_refresh_needed = -1;
@@ -3134,9 +3212,8 @@ cfg_parse_menu(Cfg_menu *menuptr, int menu_pos, int highlight_pos, int change)
 	void	*edit_ptr;
 	int	val, num_opts, opt_num, bufpos, outpos, curval, defval, type;
 	int	type_ext, opt_get_str, separator, len, c, locked;
-	int	i;
+	int	i, width;
 
-	// For this menu_pos line, create output in g_cfg_opt_buf[] string
 	//  Highlight it if menu_pos==highlight_pos
 	// Allow arrows to modify the currently selected item of a list using
 	//  change: -1 moves to a previous item, +1 moves to the next
@@ -3358,6 +3435,23 @@ cfg_parse_menu(Cfg_menu *menuptr, int menu_pos, int highlight_pos, int change)
 			str = cfg_shorten_filename(str, 68);
 		} else if ((type == CFGTYPE_FILE) || (type == CFGTYPE_STR)) {
 			str = cfg_shorten_filename(curstr, 68);
+		} else if(type == CFGTYPE_REMAP) {
+			g_cfg_opt_buf[bufpos++] = ' ';
+			g_cfg_opt_buf[bufpos++] = ':';
+			g_cfg_opt_buf[bufpos++] = ' ';
+			g_cfg_opt_buf[bufpos] = 0;
+			imap_remap_sources(menuptr->ptr, &valbuf[0],
+							sizeof(valbuf));
+			// Keep the line within 80 columns: the name starts at
+			//  column 18 and " : " takes 3 more
+			width = 58 - (int)strlen(menustr);
+			if(width < 12) {
+				width = 12;
+			}
+			if((int)strlen(valbuf) > width) {
+				strcpy(&valbuf[width - 3], "...");
+			}
+			str = &valbuf[0];
 		} else if(type == CFGTYPE_FUNC) {
 			fn_ptr = (char *(*)(int))menuptr->ptr;
 			str = "";
@@ -4603,12 +4697,39 @@ cfg_file_handle_key(int key)
 #endif
 }
 
+/* Shows a remap message on row 22, or on rows 21-22 when it is too long
+ * for one 78-column line.
+ */
+static void
+cfg_remap_print_status(const char *msg)
+{
+	size_t	cut = strlen(msg);
+
+	if(cut <= 78) {
+		cfg_htab_vtab(0, 22);
+		cfg_printf("%s", msg);
+		return;
+	}
+	cut = 78;
+	while((cut > 0) && (msg[cut] != ' ')) {
+		cut--;
+	}
+	if(cut == 0) {
+		cut = 78;
+	}
+	cfg_htab_vtab(0, 21);
+	cfg_printf("%.*s", (int)cut, msg);
+	cfg_htab_vtab(0, 22);
+	cfg_printf("%.78s", msg + cut + ((msg[cut] == ' ') ? 1 : 0));
+}
+
 void
 cfg_draw_menu()
 {
-	const char *str;
+	const char *str, *msg;
 	Cfg_menu *menuptr;
 	int	print_eject_help, line, type, match_found, menu_line, max_line;
+
 
 	g_menu_redraw_needed = 0;
 
@@ -4676,8 +4797,18 @@ cfg_draw_menu()
 		cfg_printf("\bYOU MUST SELECT A VALID ROM FILE\b\n");
 	}
 
+	if(cfg_is_remap_menu(menuptr)) {
+		msg = imap_remap_status();
+		if(msg) {
+			cfg_remap_print_status(msg);
+		}
+	}
+
 	cfg_htab_vtab(0, 23);
 	cfg_printf("Move: \tJ\t \tK\t Change: \tH\t \tU\t \tM\t");
+	if((menuptr != g_cfg_remap_menu) && cfg_is_remap_menu(menuptr)) {
+		cfg_printf("  Bind: Return  Unbind: X");
+	}
 	if(print_eject_help) {
 		cfg_printf("  Eject: ");
 		if((g_cfg_slotdrive & 0xfff) > 0) {
@@ -4800,6 +4931,10 @@ cfg_control_panel_update1()
 	int	*iptr;
 	int	type, key;
 
+	// A capture may finish in imap_key_event(), outside this loop
+	if(imap_remap_take_dirty()) {
+		g_menu_redraw_needed = 1;
+	}
 	while(g_config_control_panel) {
 		if(g_menu_redraw_needed) {
 			cfg_draw_menu();
@@ -4860,6 +4995,9 @@ cfg_control_panel_update1()
 			case CFGTYPE_FUNC:
 				fn_ptr = (char * (*)(int))ptr;
 				(void)(*fn_ptr)(0);
+				break;
+			case CFGTYPE_REMAP:
+				imap_remap_begin(video_get_kimage(0), ptr);
 				break;
 			case CFGTYPE_FILE:
 				g_cfg_slotdrive = 0xfff;
@@ -4926,6 +5064,14 @@ cfg_control_panel_update1()
 			type = g_menuptr[g_menu_line].cfgtype;
 			if((type & 0xf) == CFGTYPE_DISK) {
 				cfg_validate_image(type >> 4);
+			}
+			break;
+		case 'x':
+		case 'X':
+			type = g_menuptr[g_menu_line].cfgtype;
+			if((type & 0xf) == CFGTYPE_REMAP) {
+				imap_remap_unbind(video_get_kimage(0),
+					g_menuptr[g_menu_line].ptr);
 			}
 			break;
 		default:

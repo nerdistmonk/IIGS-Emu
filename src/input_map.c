@@ -102,6 +102,13 @@ struct imap_name {
 	int		value;
 };
 
+struct imap_remap_item {
+	const char	*name;
+	int		group;
+	int		tgt_kind;
+	int		tgt;
+};
+
 /* SDL_SCANCODE_* values; see SDL_scancode.h */
 static const struct imap_name g_key_names[] = {
 	{ "RETURN", 40 }, { "ESCAPE", 41 }, { "BACKSPACE", 42 },
@@ -248,6 +255,7 @@ static const char *const g_default_map[] = {
 	"key:KP_PERIOD = adb:0x41",
 	"key:KP_ENTER = adb:0x4c",
 	"mouse:LEFT = mouse:1",
+	"mouse:MIDDLE = action:mouse_grab",
 	"key:F3 = action:mouse_grab",
 	"key:F4 = action:config_panel",
 	"key:F5 = action:status",
@@ -278,6 +286,27 @@ static int	g_butn_level[IMAP_NUM_BUTN];
 /* Held digital sources per pdl channel: [0] drives up, [1] drives down */
 static int	g_pdl_level[IMAP_NUM_PDL][2];
 static void	(*g_host_hook)(int action) = NULL;
+
+static struct imap_binding	g_default_bindings[IMAP_MAX_BINDINGS];
+static int	g_num_default_bindings = 0;
+
+#define IMAP_SC_ESCAPE		41	/* SDL_SCANCODE_ESCAPE; cancels a capture */
+#define IMAP_REMAP_REST		8000	/* stick must rest inside this to arm */
+#define IMAP_REMAP_PUSH		16384	/* deflection that captures an axis */
+#define IMAP_PATH_MAX		1024
+#define IMAP_REMAP_TEXT		160
+
+static struct imap_remap_item	*g_remap_pending = NULL;
+static Kimage	*g_remap_km = NULL;
+static int	g_remap_axis_armed[IMAP_NUM_AXES];
+static char	g_remap_prompt[IMAP_REMAP_TEXT];
+static char	g_remap_msg[IMAP_REMAP_TEXT];
+static int	g_remap_dirty = 0;
+static char	g_map_path[IMAP_PATH_MAX] = "";
+
+static int	imap_remap_capture(int kind, int src);
+static void	imap_remap_axis(int axis, int value);
+static void	imap_write_body(FILE *f);
 
 extern int g_halt_sim;
 extern int g_status_enable;
@@ -596,6 +625,8 @@ imap_init(void)
 		snprintf(line, sizeof(line), "%s", g_default_map[i]);
 		imap_parse_line(line, "built-in default", i + 1);
 	}
+	memcpy(g_default_bindings, g_bindings, sizeof(g_bindings));
+	g_num_default_bindings = g_num_bindings;
 }
 
 int
@@ -626,9 +657,8 @@ imap_load_file(const char *path)
 	return 0;
 }
 
-/* Header of the map file written on first run.  The bindings after it are
- * the built-in defaults, commented out, so the file documents them without
- * overriding them.
+/* Header of the map file.  The bindings after it are the built-in defaults,
+ * commented out, so the file documents them without overriding them.
  */
 static const char *const g_map_file_header[] = {
 	"# GSplus input map.  One binding per line: source = target [invert]",
@@ -636,7 +666,7 @@ static const char *const g_map_file_header[] = {
 	"#          (keys take shift+ ctrl+ alt+ gui+ prefixes)",
 	"# Targets: adb:0xNN mouse:1 pdl:N [invert] butn:N action:NAME none",
 	"# A line replaces the built-in binding for its source.  \"= none\" unbinds it.",
-	"# The bindings below are the built-in defaults, commented out.",
+	"# Remap Controls rewrites this file on each change; hand-written comments are dropped.",
 	""
 };
 
@@ -647,7 +677,7 @@ int
 imap_write_default_file(const char *path)
 {
 	FILE	*f;
-	int	fd, i;
+	int	fd;
 
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0644);
 	if(fd < 0) {
@@ -658,12 +688,7 @@ imap_write_default_file(const char *path)
 		close(fd);
 		return -1;
 	}
-	for(i = 0; i < IMAP_COUNT(g_map_file_header); i++) {
-		fprintf(f, "%s\n", g_map_file_header[i]);
-	}
-	for(i = 0; i < IMAP_COUNT(g_default_map); i++) {
-		fprintf(f, "# %s\n", g_default_map[i]);
-	}
+	imap_write_body(f);
 	return (fclose(f) == 0) ? 0 : -1;
 }
 
@@ -849,6 +874,9 @@ imap_key_event(Kimage *km, int scancode, int mods, int is_up)
 	if((scancode < 0) || (scancode >= IMAP_NUM_SCANCODES)) {
 		return;
 	}
+	if(!is_up && imap_remap_capture(IMAP_SRC_KEY, scancode)) {
+		return;
+	}
 	imap_source_event(km, &g_key_active[scancode], IMAP_SRC_KEY, scancode,
 								mods, is_up);
 }
@@ -859,6 +887,9 @@ imap_mouse_button(Kimage *km, int button, int is_up)
 	if((button < 0) || (button >= IMAP_NUM_MOUSE)) {
 		return;
 	}
+	if(!is_up && imap_remap_capture(IMAP_SRC_MOUSE, button)) {
+		return;
+	}
 	imap_source_event(km, &g_mouse_active[button], IMAP_SRC_MOUSE, button,
 								0, is_up);
 }
@@ -867,6 +898,9 @@ void
 imap_pad_button(Kimage *km, int button, int is_up)
 {
 	if(!km || (button < 0) || (button >= IMAP_NUM_PAD_BUTTONS)) {
+		return;
+	}
+	if(!is_up && imap_remap_capture(IMAP_SRC_PAD, button)) {
 		return;
 	}
 	imap_source_event(km, &g_pad_active[button], IMAP_SRC_PAD, button, 0,
@@ -880,6 +914,9 @@ imap_pad_axis(int axis, int value)
 		return;
 	}
 	g_axis_val[axis] = value;
+	if(g_remap_pending && (g_remap_pending->tgt_kind == IMAP_TGT_PDL)) {
+		imap_remap_axis(axis, value);
+	}
 }
 
 static void
@@ -1005,4 +1042,721 @@ imap_butn_pressed(int n)
 		return 0;
 	}
 	return g_butn_level[n] > 0;
+}
+
+/* Remap Controls items, in menu order.  Names must not contain commas,
+ * because cfg_parse_menu uses a comma as a separator.
+ */
+static struct imap_remap_item	g_remap_items[] = {
+	{ "A", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x00 },
+	{ "B", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x0b },
+	{ "C", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x08 },
+	{ "D", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x02 },
+	{ "E", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x0e },
+	{ "F", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x03 },
+	{ "G", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x05 },
+	{ "H", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x04 },
+	{ "I", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x22 },
+	{ "J", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x26 },
+	{ "K", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x28 },
+	{ "L", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x25 },
+	{ "M", IMAP_RG_LETTERS_AM, IMAP_TGT_ADB, 0x2e },
+	{ "N", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x2d },
+	{ "O", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x1f },
+	{ "P", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x23 },
+	{ "Q", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x0c },
+	{ "R", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x0f },
+	{ "S", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x01 },
+	{ "T", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x11 },
+	{ "U", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x20 },
+	{ "V", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x09 },
+	{ "W", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x0d },
+	{ "X", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x07 },
+	{ "Y", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x10 },
+	{ "Z", IMAP_RG_LETTERS_NZ, IMAP_TGT_ADB, 0x06 },
+	{ "1", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x12 },
+	{ "2", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x13 },
+	{ "3", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x14 },
+	{ "4", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x15 },
+	{ "5", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x17 },
+	{ "6", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x16 },
+	{ "7", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x1a },
+	{ "8", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x1c },
+	{ "9", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x19 },
+	{ "0", IMAP_RG_NUMBERS, IMAP_TGT_ADB, 0x1d },
+	{ "Minus", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x1b },
+	{ "Equals", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x18 },
+	{ "Left Bracket", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x21 },
+	{ "Right Bracket", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x1e },
+	{ "Backslash", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x2a },
+	{ "Semicolon", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x29 },
+	{ "Quote", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x27 },
+	{ "Tilde", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x32 },
+	{ "Comma", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x2b },
+	{ "Period", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x2f },
+	{ "Slash", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x2c },
+	{ "Space", IMAP_RG_PUNCT, IMAP_TGT_ADB, 0x31 },
+	{ "Return", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x24 },
+	{ "Tab", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x30 },
+	{ "Delete", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x33 },
+	{ "Escape", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x35 },
+	{ "Help", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x72 },
+	{ "Home", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x73 },
+	{ "Page Up", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x74 },
+	{ "Forward Delete", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x75 },
+	{ "End", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x77 },
+	{ "Page Down", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x79 },
+	{ "Left", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x3b },
+	{ "Right", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x3c },
+	{ "Down", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x3d },
+	{ "Up", IMAP_RG_EDITING, IMAP_TGT_ADB, 0x3e },
+	{ "Control", IMAP_RG_MODIFIERS, IMAP_TGT_ADB, 0x36 },
+	{ "Command", IMAP_RG_MODIFIERS, IMAP_TGT_ADB, 0x37 },
+	{ "Shift", IMAP_RG_MODIFIERS, IMAP_TGT_ADB, 0x38 },
+	{ "Caps Lock", IMAP_RG_MODIFIERS, IMAP_TGT_ADB, 0x39 },
+	{ "Option", IMAP_RG_MODIFIERS, IMAP_TGT_ADB, 0x3a },
+	{ "F1", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x7a },
+	{ "F2", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x78 },
+	{ "F3", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x63 },
+	{ "F4", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x76 },
+	{ "F5", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x60 },
+	{ "F6", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x61 },
+	{ "F7", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x62 },
+	{ "F8", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x64 },
+	{ "F9", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x65 },
+	{ "F10", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x6d },
+	{ "F11", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x67 },
+	{ "F12", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x6f },
+	{ "F13", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x69 },
+	{ "F14", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x6b },
+	{ "F15", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x71 },
+	{ "Power", IMAP_RG_FUNCTION, IMAP_TGT_ADB, 0x7f },
+	{ "Keypad 0", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x52 },
+	{ "Keypad 1", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x53 },
+	{ "Keypad 2", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x54 },
+	{ "Keypad 3", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x55 },
+	{ "Keypad 4", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x56 },
+	{ "Keypad 5", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x57 },
+	{ "Keypad 6", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x58 },
+	{ "Keypad 7", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x59 },
+	{ "Keypad 8", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x5b },
+	{ "Keypad 9", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x5c },
+	{ "Keypad Period", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x41 },
+	{ "Keypad Plus", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x45 },
+	{ "Keypad Minus", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x4e },
+	{ "Keypad Multiply", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x43 },
+	{ "Keypad Divide", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x4b },
+	{ "Keypad Equals", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x51 },
+	{ "Keypad Enter", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x4c },
+	{ "Keypad Clear", IMAP_RG_KEYPAD, IMAP_TGT_ADB, 0x47 },
+	{ "Mouse button 1", IMAP_RG_MOUSE, IMAP_TGT_MOUSE1, 0 },
+	{ "Mouse capture", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_MOUSE_GRAB },
+	{ "Config Panel", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_CONFIG_PANEL },
+	{ "Status display", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_STATUS },
+	{ "Speed", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_SPEED },
+	{ "Debugger go", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_DEBUG_GO },
+	{ "Fast disk", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_FAST_DISK },
+	{ "Warp pointer", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_WARP_POINTER },
+	{ "Screenshot", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_SCREENSHOT },
+	{ "Fullscreen", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_FULLSCREEN },
+	{ "Scanlines", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_SCANLINES },
+	{ "CRT effect", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_CRT },
+	{ "Reset machine", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_RESET },
+	{ "Button 0", IMAP_RG_GAMEPAD, IMAP_TGT_BUTN, 0 },
+	{ "Button 1", IMAP_RG_GAMEPAD, IMAP_TGT_BUTN, 1 },
+	{ "Button 2", IMAP_RG_GAMEPAD, IMAP_TGT_BUTN, 2 },
+	{ "Button 3", IMAP_RG_GAMEPAD, IMAP_TGT_BUTN, 3 },
+	{ "Paddle 0 (Joy 1 X)", IMAP_RG_GAMEPAD, IMAP_TGT_PDL, 0 },
+	{ "Paddle 1 (Joy 1 Y)", IMAP_RG_GAMEPAD, IMAP_TGT_PDL, 1 },
+	{ "Paddle 2 (Joy 2 X)", IMAP_RG_GAMEPAD, IMAP_TGT_PDL, 2 },
+	{ "Paddle 3 (Joy 2 Y)", IMAP_RG_GAMEPAD, IMAP_TGT_PDL, 3 }
+};
+
+static const char *const g_remap_group_names[IMAP_RG_COUNT] = {
+	"Letters A-M", "Letters N-Z", "Numbers", "Punctuation and Space",
+	"Editing and Arrows", "Modifiers", "Function Keys", "Keypad",
+	"Mouse and Actions", "Gamepad"
+};
+
+static const char *
+imap_name_of(const struct imap_name *tab, int count, int value)
+{
+	int	i;
+
+	for(i = 0; i < count; i++) {
+		if(tab[i].value == value) {
+			return tab[i].name;
+		}
+	}
+	return NULL;
+}
+
+static void
+imap_addf(char *buf, size_t len, const char *fmt, ...)
+{
+	size_t	used = strlen(buf);
+	va_list	ap;
+
+	if(used >= len) {
+		return;
+	}
+	va_start(ap, fmt);
+	vsnprintf(buf + used, len - used, fmt, ap);
+	va_end(ap);
+}
+
+/* Inverse of imap_key_lookup(), so the name can be written to the map file */
+static void
+imap_key_name(int sc, char *buf, size_t len)
+{
+	const char	*name;
+
+	if((sc >= 4) && (sc <= 29)) {
+		snprintf(buf, len, "%c", 'A' + (sc - 4));
+	} else if((sc >= 30) && (sc <= 38)) {
+		snprintf(buf, len, "%c", '1' + (sc - 30));
+	} else if(sc == 39) {
+		snprintf(buf, len, "0");
+	} else if((sc >= 58) && (sc <= 69)) {
+		snprintf(buf, len, "F%d", sc - 57);
+	} else if((sc >= 104) && (sc <= 115)) {
+		snprintf(buf, len, "F%d", sc - 91);
+	} else if((name = imap_name_of(g_key_names, IMAP_COUNT(g_key_names),
+								sc)) != NULL) {
+		snprintf(buf, len, "%s", name);
+	} else {
+		snprintf(buf, len, "0x%02X", sc);
+	}
+}
+
+static const char *
+imap_src_name(int kind, int src, char *key, size_t len)
+{
+	const char	*name;
+
+	switch(kind) {
+	case IMAP_SRC_KEY:
+		imap_key_name(src, key, len);
+		return key;
+	case IMAP_SRC_MOUSE:
+		name = imap_name_of(g_mouse_names, IMAP_COUNT(g_mouse_names),
+									src);
+		break;
+	case IMAP_SRC_PAD:
+		name = imap_name_of(g_pad_names, IMAP_COUNT(g_pad_names), src);
+		break;
+	default:
+		name = imap_name_of(g_axis_names, IMAP_COUNT(g_axis_names),
+									src);
+		break;
+	}
+	return name ? name : "?";
+}
+
+/* File form (display == 0) is read back by imap_parse_source().  Display
+ * form is for menus and messages.
+ */
+static void
+imap_source_text(const struct imap_binding *b, int display, char *buf,
+								size_t len)
+{
+	static const char *const	mod_file[] = {
+		"shift+", "ctrl+", "alt+", "gui+"
+	};
+	static const char *const	mod_show[] = {
+		"Shift+", "Ctrl+", "Alt+", "GUI+"
+	};
+	static const char *const	kind_file[] = {
+		"key:", "mouse:", "pad:", "axis:"
+	};
+	static const char *const	kind_show[] = {
+		"", "Mouse ", "Pad ", "Axis "
+	};
+	char	key[16];
+	int	i;
+
+	buf[0] = '\0';
+	for(i = 0; i < IMAP_COUNT(mod_file); i++) {
+		if(b->mods & (1 << i)) {
+			imap_addf(buf, len, "%s",
+					display ? mod_show[i] : mod_file[i]);
+		}
+	}
+	if(display) {
+		imap_addf(buf, len, "%s%s", kind_show[b->src_kind],
+				imap_src_name(b->src_kind, b->src, key,
+								sizeof(key)));
+		if(b->invert) {
+			imap_addf(buf, len, " (inverted)");
+		}
+	} else {
+		imap_addf(buf, len, "%s%s", kind_file[b->src_kind],
+				imap_src_name(b->src_kind, b->src, key,
+								sizeof(key)));
+	}
+}
+
+static void
+imap_target_text(int kind, int tgt, int invert, char *buf, size_t len)
+{
+	const char	*name;
+
+	switch(kind) {
+	case IMAP_TGT_ADB:
+		snprintf(buf, len, "adb:0x%02X", tgt);
+		break;
+	case IMAP_TGT_MOUSE1:
+		snprintf(buf, len, "mouse:1");
+		break;
+	case IMAP_TGT_PDL:
+		snprintf(buf, len, "pdl:%d%s", tgt, invert ? " invert" : "");
+		break;
+	case IMAP_TGT_BUTN:
+		snprintf(buf, len, "butn:%d", tgt);
+		break;
+	case IMAP_TGT_ACTION:
+		name = imap_name_of(g_action_names, IMAP_COUNT(g_action_names),
+									tgt);
+		snprintf(buf, len, "action:%s", name ? name : "?");
+		break;
+	default:
+		snprintf(buf, len, "none");
+		break;
+	}
+}
+
+static const struct imap_remap_item *
+imap_item_for(int kind, int tgt)
+{
+	int	i;
+
+	for(i = 0; i < IMAP_COUNT(g_remap_items); i++) {
+		if((g_remap_items[i].tgt_kind == kind) &&
+						(g_remap_items[i].tgt == tgt)) {
+			return &g_remap_items[i];
+		}
+	}
+	return NULL;
+}
+
+static void
+imap_target_label(int kind, int tgt, int invert, char *buf, size_t len)
+{
+	const struct imap_remap_item	*item = imap_item_for(kind, tgt);
+
+	if(item) {
+		snprintf(buf, len, "%s", item->name);
+	} else {
+		imap_target_text(kind, tgt, invert, buf, len);
+	}
+}
+
+static const struct imap_binding *
+imap_default_for(const struct imap_binding *b)
+{
+	int	i;
+
+	for(i = 0; i < g_num_default_bindings; i++) {
+		const struct imap_binding *d = &g_default_bindings[i];
+
+		if((d->src_kind == b->src_kind) && (d->src == b->src) &&
+						(d->mods == b->mods)) {
+			return d;
+		}
+	}
+	return NULL;
+}
+
+/* NONE equals only NONE, so an explicit unbind differs from any target */
+static int
+imap_same_target(const struct imap_binding *a, const struct imap_binding *b)
+{
+	if((a->tgt_kind == IMAP_TGT_NONE) || (b->tgt_kind == IMAP_TGT_NONE)) {
+		return a->tgt_kind == b->tgt_kind;
+	}
+	return (a->tgt_kind == b->tgt_kind) && (a->tgt == b->tgt) &&
+						(a->invert == b->invert);
+}
+
+/* Writes the header, the bindings that differ from the built-in defaults,
+ * and the defaults as comments.
+ */
+static void
+imap_write_body(FILE *f)
+{
+	char	src[64], tgt[64];
+	int	i, changed = 0;
+
+	for(i = 0; i < IMAP_COUNT(g_map_file_header); i++) {
+		fprintf(f, "%s\n", g_map_file_header[i]);
+	}
+	for(i = 0; i < g_num_bindings; i++) {
+		const struct imap_binding	*b = &g_bindings[i];
+		const struct imap_binding	*def = imap_default_for(b);
+
+		/* An unbound combo with no default must still be written, or it
+		 * stops shadowing the plain key on the next load.
+		 */
+		if(def ? imap_same_target(b, def) :
+				((b->tgt_kind == IMAP_TGT_NONE) && (b->mods == 0))) {
+			continue;
+		}
+		imap_source_text(b, 0, src, sizeof(src));
+		imap_target_text(b->tgt_kind, b->tgt, b->invert, tgt,
+								sizeof(tgt));
+		fprintf(f, "%s = %s\n", src, tgt);
+		changed = 1;
+	}
+	if(!changed) {
+		fprintf(f, "# (none; the built-in defaults apply)\n");
+	}
+	fprintf(f, "\n# The bindings below are the built-in defaults, "
+						"commented out.\n");
+	for(i = 0; i < IMAP_COUNT(g_default_map); i++) {
+		fprintf(f, "# %s\n", g_default_map[i]);
+	}
+}
+
+void
+imap_set_map_path(const char *path)
+{
+	if(strlen(path) >= sizeof(g_map_path)) {
+		printf("Input map path too long, changes will not be saved: "
+							"%s\n", path);
+		g_map_path[0] = '\0';
+		return;
+	}
+	snprintf(g_map_path, sizeof(g_map_path), "%s", path);
+}
+
+/* Writes through a temp file, so a failed write leaves the old map intact.
+ * Appends the outcome to g_remap_msg, which the caller has already set.
+ */
+static void
+imap_remap_save(void)
+{
+	char	tmp[IMAP_PATH_MAX + 8];
+	FILE	*f;
+	int	err = 0;
+
+	if(g_map_path[0] == '\0') {
+		imap_addf(g_remap_msg, sizeof(g_remap_msg),
+				" Changed for this session only; no map file.");
+		return;
+	}
+	snprintf(tmp, sizeof(tmp), "%s.tmp", g_map_path);
+	f = fopen(tmp, "w");
+	if(!f) {
+		err = errno;
+	} else {
+		imap_write_body(f);
+		if(ferror(f)) {
+			err = EIO;
+		}
+		if((fclose(f) != 0) && (err == 0)) {
+			err = errno;
+		}
+	}
+	if((err == 0) && (rename(tmp, g_map_path) != 0)) {
+		err = errno;
+	}
+	if(err) {
+		unlink(tmp);
+		imap_addf(g_remap_msg, sizeof(g_remap_msg),
+				" Not saved to input map: %s.", strerror(err));
+	}
+}
+
+/* Binds the pending item to a source and removes that item's other
+ * sources.  Every change is saved at once.
+ */
+static void
+imap_remap_bind(int kind, int src)
+{
+	struct imap_remap_item	*item = g_remap_pending;
+	struct imap_binding	nb, old;
+	char	text[64], label[64], list[IMAP_REMAP_TEXT];
+	int	i, owner = -1, removed = 0, panels = 0;
+	int	is_panel = (item->tgt_kind == IMAP_TGT_ACTION) &&
+					(item->tgt == IMAP_ACT_CONFIG_PANEL);
+
+	memset(&old, 0, sizeof(old));
+	for(i = 0; i < g_num_bindings; i++) {
+		const struct imap_binding *b = &g_bindings[i];
+
+		if((b->src_kind == kind) && (b->src == src) && (b->mods == 0)) {
+			owner = i;
+			old = *b;
+		}
+		if((b->tgt_kind == IMAP_TGT_ACTION) &&
+					(b->tgt == IMAP_ACT_CONFIG_PANEL)) {
+			panels++;
+		}
+	}
+	g_remap_pending = NULL;
+	g_remap_dirty = 1;
+
+	if((owner >= 0) && (old.tgt_kind == IMAP_TGT_ACTION) &&
+			(old.tgt == IMAP_ACT_CONFIG_PANEL) && (panels == 1) &&
+			!is_panel) {
+		snprintf(g_remap_msg, sizeof(g_remap_msg),
+			"Config Panel needs a key. Bind another key to it first.");
+		return;
+	}
+	if((owner < 0) && (g_num_bindings >= IMAP_MAX_BINDINGS)) {
+		snprintf(g_remap_msg, sizeof(g_remap_msg), "Too many bindings.");
+		return;
+	}
+
+	imap_release_all(g_remap_km);
+	list[0] = '\0';
+	for(i = 0; i < g_num_bindings; i++) {
+		struct imap_binding *b = &g_bindings[i];
+
+		if((i == owner) || (b->tgt_kind == IMAP_TGT_NONE) ||
+				(b->tgt_kind != item->tgt_kind) ||
+				(b->tgt != item->tgt)) {
+			continue;
+		}
+		imap_source_text(b, 1, text, sizeof(text));
+		imap_addf(list, sizeof(list), "%s%s", removed ? ", " : "",
+								text);
+		removed++;
+		b->tgt_kind = IMAP_TGT_NONE;
+		b->tgt = 0;
+		b->invert = 0;
+	}
+
+	nb.src_kind = kind;
+	nb.src = src;
+	nb.mods = 0;
+	nb.tgt_kind = item->tgt_kind;
+	nb.tgt = item->tgt;
+	nb.invert = 0;
+	imap_store(&nb);
+
+	imap_source_text(&nb, 1, text, sizeof(text));
+	snprintf(g_remap_msg, sizeof(g_remap_msg), "Bound \"%s\" to %s.",
+							item->name, text);
+	if(removed) {
+		imap_addf(g_remap_msg, sizeof(g_remap_msg),
+				" Unbound old key for \"%s\": %s.",
+				item->name, list);
+	}
+	if((owner >= 0) && (old.tgt_kind != IMAP_TGT_NONE) &&
+			((old.tgt_kind != item->tgt_kind) ||
+			(old.tgt != item->tgt))) {
+		imap_target_label(old.tgt_kind, old.tgt, old.invert, label,
+								sizeof(label));
+		imap_addf(g_remap_msg, sizeof(g_remap_msg),
+				" %s no longer triggers %s.", text, label);
+	}
+	imap_remap_save();
+}
+
+static int
+imap_remap_capture(int kind, int src)
+{
+	if(!g_remap_pending) {
+		return 0;
+	}
+	if((kind == IMAP_SRC_KEY) && (src == IMAP_SC_ESCAPE)) {
+		g_remap_pending = NULL;
+		snprintf(g_remap_msg, sizeof(g_remap_msg), "Capture cancelled.");
+		g_remap_dirty = 1;
+		return 1;
+	}
+	imap_remap_bind(kind, src);
+	return 1;
+}
+
+/* A stick arms by resting near center, then captures on a firm push.  The
+ * capture is never inverted; reversing a stick needs a hand edit.
+ */
+static void
+imap_remap_axis(int axis, int value)
+{
+	if(abs(value) < IMAP_REMAP_REST) {
+		g_remap_axis_armed[axis] = 1;
+		return;
+	}
+	if(g_remap_axis_armed[axis] && (abs(value) > IMAP_REMAP_PUSH)) {
+		g_remap_axis_armed[axis] = 0;
+		imap_remap_bind(IMAP_SRC_AXIS, axis);
+	}
+}
+
+const char *
+imap_remap_group_name(int group)
+{
+	if((group < 0) || (group >= IMAP_RG_COUNT)) {
+		return "";
+	}
+	return g_remap_group_names[group];
+}
+
+int
+imap_remap_group_count(int group)
+{
+	int	i, n = 0;
+
+	for(i = 0; i < IMAP_COUNT(g_remap_items); i++) {
+		if(g_remap_items[i].group == group) {
+			n++;
+		}
+	}
+	return n;
+}
+
+struct imap_remap_item *
+imap_remap_group_item(int group, int idx)
+{
+	int	i;
+
+	for(i = 0; i < IMAP_COUNT(g_remap_items); i++) {
+		if(g_remap_items[i].group != group) {
+			continue;
+		}
+		if(idx == 0) {
+			return &g_remap_items[i];
+		}
+		idx--;
+	}
+	return NULL;
+}
+
+const char *
+imap_remap_item_name(const struct imap_remap_item *item)
+{
+	return item->name;
+}
+
+void
+imap_remap_sources(const struct imap_remap_item *item, char *buf, size_t len)
+{
+	char	text[64];
+	int	i, n = 0;
+
+	buf[0] = '\0';
+	for(i = 0; i < g_num_bindings; i++) {
+		const struct imap_binding *b = &g_bindings[i];
+
+		if((b->tgt_kind == IMAP_TGT_NONE) ||
+				(b->tgt_kind != item->tgt_kind) ||
+				(b->tgt != item->tgt)) {
+			continue;
+		}
+		imap_source_text(b, 1, text, sizeof(text));
+		imap_addf(buf, len, "%s%s", n ? ", " : "", text);
+		n++;
+	}
+	if(n == 0) {
+		snprintf(buf, len, "(unbound)");
+	}
+}
+
+void
+imap_remap_begin(Kimage *km, struct imap_remap_item *item)
+{
+	int	i;
+
+	if(!km || !item) {
+		return;
+	}
+	g_remap_km = km;
+	g_remap_pending = item;
+	for(i = 0; i < IMAP_NUM_AXES; i++) {
+		g_remap_axis_armed[i] = (abs(g_axis_val[i]) < IMAP_REMAP_REST);
+	}
+	g_remap_msg[0] = '\0';
+	snprintf(g_remap_prompt, sizeof(g_remap_prompt),
+			"Press a %s for \"%s\" (Esc cancels)",
+			(item->tgt_kind == IMAP_TGT_PDL) ?
+				"key, button or stick" : "key or button",
+			item->name);
+	g_remap_dirty = 1;
+}
+
+void
+imap_remap_unbind(Kimage *km, struct imap_remap_item *item)
+{
+	int	i, n = 0;
+
+	if(!item) {
+		return;
+	}
+	g_remap_dirty = 1;
+	if((item->tgt_kind == IMAP_TGT_ACTION) &&
+				(item->tgt == IMAP_ACT_CONFIG_PANEL)) {
+		snprintf(g_remap_msg, sizeof(g_remap_msg),
+			"Config Panel must keep a key, so it cannot be unbound.");
+		return;
+	}
+	for(i = 0; i < g_num_bindings; i++) {
+		if((g_bindings[i].tgt_kind == item->tgt_kind) &&
+						(g_bindings[i].tgt == item->tgt)) {
+			n++;
+		}
+	}
+	if(n == 0) {
+		snprintf(g_remap_msg, sizeof(g_remap_msg), "\"%s\" has no sources.",
+							item->name);
+		return;
+	}
+	imap_release_all(km);
+	for(i = 0; i < g_num_bindings; i++) {
+		struct imap_binding *b = &g_bindings[i];
+
+		if((b->tgt_kind == item->tgt_kind) && (b->tgt == item->tgt)) {
+			b->tgt_kind = IMAP_TGT_NONE;
+			b->tgt = 0;
+			b->invert = 0;
+		}
+	}
+	snprintf(g_remap_msg, sizeof(g_remap_msg), "Unbound \"%s\".", item->name);
+	imap_remap_save();
+}
+
+void
+imap_remap_reset(Kimage *km)
+{
+	imap_release_all(km);
+	g_remap_pending = NULL;
+	memcpy(g_bindings, g_default_bindings, sizeof(g_bindings));
+	g_num_bindings = g_num_default_bindings;
+	snprintf(g_remap_msg, sizeof(g_remap_msg),
+				"Restored the built-in defaults.");
+	imap_remap_save();
+	g_remap_dirty = 1;
+}
+
+void
+imap_remap_cancel(void)
+{
+	if(g_remap_pending || g_remap_msg[0]) {
+		g_remap_dirty = 1;
+	}
+	g_remap_pending = NULL;
+	g_remap_msg[0] = '\0';
+}
+
+const char *
+imap_remap_status(void)
+{
+	if(g_remap_pending) {
+		return g_remap_prompt;
+	}
+	if(g_remap_msg[0]) {
+		return g_remap_msg;
+	}
+	return NULL;
+}
+
+int
+imap_remap_take_dirty(void)
+{
+	int	d = g_remap_dirty;
+
+	g_remap_dirty = 0;
+	return d;
 }

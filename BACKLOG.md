@@ -26,9 +26,13 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
   menu to route paddles to it.
 - **Screenshots**: F10 captures the framebuffer (`-ssdir` sets the output
   directory).
-- **Mouse capture**: Scroll Lock or middle-click confines the pointer to the window.
+- **Mouse capture**: F3 or middle-click confines the pointer to the window.
 - **xBRZ 2x filter**: `-xbrz 1` or the F4 Display Effects menu. Ported from
   ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
+- **Input remapping**: SDL-free host-to-IIgs mapping in `input.map` (keys, mouse,
+  gamepad buttons and sticks). Joystick Configuration > Remap Controls in the F4
+  menu rebinds keys with press-to-bind, Esc to cancel, and reset to defaults.
+  Gamepad remapping is untested on hardware.
 
 ---
 
@@ -37,13 +41,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | **Clipboard** copy/paste | Med | M | Wire SDL clipboard to the core's copy/paste hooks **(core)**. |
-
-## Input
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| Configurable **key remapping** | Low | M | Bindings live in `input.map`, so any host key can drive any ADB key. Config-panel UI still to do. |
-| **Gamepad button remapping** | Low | S | Bindings live in `input.map` (`pad:` and `axis:` sources). Config-panel UI still to do. |
 
 ## Display
 

@@ -26,6 +26,7 @@
 #define CFGTYPE_FILE		5
 #define CFGTYPE_STR		6
 #define CFGTYPE_SUBMENU		7	/* like MENU, but descends into a sub-menu */
+#define CFGTYPE_REMAP		8	/* input_map.h item: Return binds, X unbinds */
 /* CFGTYPE limited to just 4 bits: 0-15 */
 
 /* Cfg_menu, Cfg_dirent and Cfg_listhdr are defined in defc.h */

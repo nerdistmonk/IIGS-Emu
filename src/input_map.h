@@ -61,4 +61,39 @@ int imap_pdl_bound(int ch);
 int imap_pdl_stick_pair(int p);
 int imap_butn_pressed(int n);
 
+/* Remap Controls.  Items are grouped for the menu.  Each change is written
+ * to the map file at once.  Captures take the next key, button or stick.
+ */
+enum imap_remap_group {
+	IMAP_RG_LETTERS_AM,
+	IMAP_RG_LETTERS_NZ,
+	IMAP_RG_NUMBERS,
+	IMAP_RG_PUNCT,
+	IMAP_RG_EDITING,
+	IMAP_RG_MODIFIERS,
+	IMAP_RG_FUNCTION,
+	IMAP_RG_KEYPAD,
+	IMAP_RG_MOUSE,
+	IMAP_RG_GAMEPAD,
+	IMAP_RG_COUNT
+};
+
+#define IMAP_REMAP_MAX_GROUP	18	/* items in the largest group */
+
+struct imap_remap_item;
+
+void imap_set_map_path(const char *path);
+const char *imap_remap_group_name(int group);
+int imap_remap_group_count(int group);
+struct imap_remap_item *imap_remap_group_item(int group, int idx);
+const char *imap_remap_item_name(const struct imap_remap_item *item);
+void imap_remap_sources(const struct imap_remap_item *item, char *buf,
+								size_t len);
+void imap_remap_begin(Kimage *km, struct imap_remap_item *item);
+void imap_remap_unbind(Kimage *km, struct imap_remap_item *item);
+void imap_remap_reset(Kimage *km);
+void imap_remap_cancel(void);
+const char *imap_remap_status(void);
+int imap_remap_take_dirty(void);
+
 #endif	/* INPUT_MAP_H */
