@@ -18,13 +18,13 @@ Read this first in a new session. It captures the working state, conventions, an
 - Every build applies these patches:
   1. Status2 0x80 is masked out of the serious-error test (`AND #$D902` → `#$5902`, file 0x474D).
   2. The Ready-light alert branch is BNE → BRA (file 0x4768), so it never fires.
-  3. The R rectangle frame is 9 bytes, not 10 (template 0x3C08). Uncommitted.
+  3. The R rectangle frame is 9 bytes, not 10 (template 0x3C08). Committed in `7249718`.
   4. The white 1-byte G frame gets a 00 terminator (0x3C13, length 04 → 05). Black frames are zeroed (0x3C18), so black pixels are dropped.
   5. Setup letters are `I`, then `nu`/`d<`, then `A`/`M`, so A goes last (`SETUP_OFF` 0x3AB7).
-  6. The setup record is `h u d D`, replacing both `nu`/`d<` records (`II_REC_OFF` 0x3AE4). Uncommitted. This was the last test, and it failed.
-- Committed builder commits (pushed to `debug/serial-trace`): `483ee16`, `78feb07`, `3050cc8`, `21e43d7`, `e5bf75d`, `b9dd75e`.
-- Uncommitted: patches 3 and 6 in `SWII-Driver/build_swii_hdv.py`. The docstring does not describe patch 6 yet. Commit only on request.
-- Latest build `SWII-Driver/SWII-Driver.hdv` (sha `80ff2863…`) matches the uncommitted script. Stale hdv files: `SWII-Driver-white-term.hdv` and `SWII-Driver-ready-check.hdv`. Delete only with the user's approval. All `.hdv` files are gitignored.
+  6. The setup record is `h u d D`, replacing both `nu`/`d<` records (`II_REC_OFF` 0x3AE4). Committed in `7249718`. This was the last test, and it failed.
+- Committed builder commits (pushed to `debug/serial-trace`): `483ee16`, `78feb07`, `3050cc8`, `21e43d7`, `e5bf75d`, `b9dd75e`, `7249718`, `8a929b7` (docstring).
+- The builder is clean. Nothing is uncommitted in `SWII-Driver/`.
+- Latest build `SWII-Driver/SWII-Driver.hdv` (sha `80ff2863…`) matches the committed script. Stale hdv files: `SWII-Driver-white-term.hdv` and `SWII-Driver-ready-check.hdv`. Delete only with the user's approval. All `.hdv` files are gitignored.
 
 ### Test history (user's hardware)
 Traces are in `/root/.copilot/uploads/2026-11-22-ff1456d0/`. The mapping of the `upload-…` names to build numbers is inferred from upload time.
@@ -48,7 +48,7 @@ Traces are in `/root/.copilot/uploads/2026-11-22-ff1456d0/`. The mapping of the 
 
 ### Next steps (need the user's decision)
 1. Stop the driver line, or try one lead. Any emulator-side change (host baud, SCC timing) needs approval first.
-2. Commit or drop the uncommitted builder change (patches 3 and 6, plus the docstring).
+2. Decide the printer line: stop, or try one open lead (needs approval first).
 3. Remove stale hdv files and the debug commits before any merge.
 
 ### Scratch files (not in the repo, lost if `/tmp` is cleared)
