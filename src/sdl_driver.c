@@ -615,22 +615,12 @@ sdl_mod_bits(SDL_Keymod mod)
 	return bits;
 }
 
-/* Caps Lock has no key binding.  Instead the host's Caps Lock state is
- * mirrored into the IIgs caps-lock bit of $C025. */
-static void
-sdl_sync_caps_lock(Window_info *win, SDL_Keymod mod)
-{
-	adb_update_c025_mask(win->kimage_ptr,
-				(mod & SDL_KMOD_CAPS) ? 0x04 : 0, 0x04);
-}
-
 static void
 sdl_handle_key(Window_info *win, const SDL_KeyboardEvent *key, int is_up)
 {
 	if(key->repeat) {
 		return;		/* the IIgs ADB does its own key repeat */
 	}
-	sdl_sync_caps_lock(win, key->mod);
 	imap_key_event(win->kimage_ptr, key->scancode,
 				sdl_mod_bits(key->mod), is_up);
 }
@@ -880,7 +870,6 @@ sdl_poll_events(void)
 			break;
 		case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			adb_mainwin_focus(1);
-			sdl_sync_caps_lock(win, SDL_GetModState());
 			break;
 		case SDL_EVENT_WINDOW_FOCUS_LOST:
 			adb_mainwin_focus(0);

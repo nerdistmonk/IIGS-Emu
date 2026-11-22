@@ -1279,6 +1279,13 @@ adb_update_mouse(Kimage *kimage_ptr, int x, int y, int button_states,
 		}
 	}
 
+	if(g_config_control_panel && (buttons_valid == 0)) {
+		/* Motion is held until the panel closes.  Button updates still
+		 * pass so a button held before the panel opened can release.
+		 */
+		return 0;
+	}
+
 	g_unhide_pointer = unhide && !g_warp_pointer;
 
 	if(kimage_ptr != &g_mainwin_kimage) {
@@ -1716,7 +1723,9 @@ adb_read_c000()
 		}
 	} else {
 		vbl_count = g_vbl_count;
-		if(g_key_down && (vbl_count >= g_adb_repeat_vbl)) {
+		/* The config panel repeats its own keys, see adb_panel_read_key */
+		if(g_key_down && !g_config_control_panel &&
+					(vbl_count >= g_adb_repeat_vbl)) {
 			/* repeat the g_key_down */
 			g_c025_val |= 0x8;
 			adb_key_event(g_a2code_down, 0);
@@ -1752,6 +1761,86 @@ adb_access_c010()
 	g_c025_val = g_c025_val & (~ (0x08));
 
 	return tmp;
+}
+
+/* Config panel keys go to the menu's own queue, so keys pressed while the
+ * panel is open never change the IIgs key registers, strobe, or autorepeat.
+ */
+#define MAX_PANEL_KEYS	8
+
+static int	g_panel_keys[MAX_PANEL_KEYS];
+static int	g_panel_nkeys = 0;
+static int	g_panel_held_a2 = -1;
+static int	g_panel_held_ascii = 0;
+static word32	g_panel_repeat_vbl = 0;
+
+void
+adb_panel_reset()
+{
+	g_panel_nkeys = 0;
+	g_panel_held_a2 = -1;
+}
+
+void
+adb_panel_key_event(int a2code, int shift, int is_up)
+{
+	int	ascii, base, pos;
+
+	if(is_up) {
+		if(a2code == g_panel_held_a2) {
+			g_panel_held_a2 = -1;
+		}
+		return;
+	}
+	if((a2code < 0) || (a2code > 0x7f)) {
+		return;
+	}
+	base = g_a2_key_to_ascii[a2code][1];
+	if(base & 0xef00) {
+		/* Not a character key, the menu has nothing to read */
+		return;
+	}
+
+	pos = shift ? 2 : 1;
+	if(CAPS_LOCK_DOWN && (base >= 'a') && (base <= 'z')) {
+		pos = (shift && (g_adb_mode & 0x40)) ? 1 : 2;
+	}
+	ascii = g_a2_key_to_ascii[a2code][pos];
+	if(ascii < 0) {
+		return;
+	}
+	ascii &= 0x7f;
+
+	if(g_panel_nkeys < MAX_PANEL_KEYS) {
+		g_panel_keys[g_panel_nkeys++] = ascii;
+	}
+	/* A repeat delay of 0 means the user turned key repeat off */
+	g_panel_held_a2 = (g_adb_repeat_delay != 0) ? a2code : -1;
+	g_panel_held_ascii = ascii;
+	g_panel_repeat_vbl = g_vbl_count + g_adb_repeat_delay;
+}
+
+/* Returns the next panel key as 7-bit ASCII, or -1 when none is waiting */
+int
+adb_panel_read_key()
+{
+	int	i, key;
+
+	if((g_panel_held_a2 >= 0) && (g_vbl_count >= g_panel_repeat_vbl)) {
+		if(g_panel_nkeys < MAX_PANEL_KEYS) {
+			g_panel_keys[g_panel_nkeys++] = g_panel_held_ascii;
+		}
+		g_panel_repeat_vbl = g_vbl_count + g_adb_repeat_rate;
+	}
+	if(g_panel_nkeys == 0) {
+		return -1;
+	}
+	key = g_panel_keys[0];
+	g_panel_nkeys--;
+	for(i = 0; i < g_panel_nkeys; i++) {
+		g_panel_keys[i] = g_panel_keys[i + 1];
+	}
+	return key;
 }
 
 word32
@@ -1798,20 +1887,6 @@ adb_increment_speed()
 		break;
 	}
 	printf("Toggling g_limit_speed to %d%s\n", g_limit_speed, str);
-}
-
-void
-adb_update_c025_mask(Kimage *kimage_ptr, word32 new_c025_val, word32 mask)
-{
-	// Called by *driver.c host drivers to handle focus changes and
-	//  capslock state (so if capslock is on, we leave the window, release
-	//  capslock, then reenter the window, we update things properly).
-	if(kimage_ptr == &g_mainwin_kimage) {
-		g_c025_val = (g_c025_val & (~mask)) | new_c025_val;
-	} else {
-		kimage_ptr->c025_val = (kimage_ptr->c025_val & (~mask)) |
-								new_c025_val;
-	}
 }
 
 void

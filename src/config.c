@@ -1039,6 +1039,7 @@ cfg_set_config_panel(int panel)
 	int	i;
 
 	g_config_control_panel = panel;
+	adb_panel_reset();
 	if(panel) {
 		// Entering configuration panel
 		video_force_reparse();
@@ -4942,11 +4943,8 @@ cfg_control_panel_update1()
 		if(g_menu_redraw_needed) {
 			cfg_draw_menu();
 		}
-		key = adb_read_c000();
-		if(key & 0x80) {
-			key = key & 0x7f;
-			(void)adb_access_c010();
-		} else {
+		key = adb_panel_read_key();
+		if(key < 0) {
 			return 0;		// No keys
 		}
 		g_menu_redraw_needed = 1;

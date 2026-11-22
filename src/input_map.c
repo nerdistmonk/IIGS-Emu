@@ -317,6 +317,7 @@ static int	g_axis_val[IMAP_NUM_AXES];
 static int	g_dpad_held[IMAP_NUM_DIRS];
 
 static int	g_adb_level[128];
+static int	g_caps_latch = 0;
 static int	g_mouse1_level;
 static int	g_butn_level[IMAP_NUM_BUTN];
 /* Held digital sources per pdl channel: [0] drives up, [1] drives down */
@@ -335,6 +336,7 @@ static int	g_num_default_bindings = 0;
 #define IMAP_AXIS_RIGHT_TRIGGER	5	/* SDL_GAMEPAD_AXIS_RIGHT_TRIGGER */
 #define IMAP_TRIGGER_PRESS	16384	/* trigger presses past half travel */
 #define IMAP_PATH_MAX		1024
+#define IMAP_ADB_CAPS		0x39	/* ADB Caps Lock; latches */
 #define IMAP_REMAP_TEXT		160
 
 static struct imap_remap_item	*g_remap_pending = NULL;
@@ -834,11 +836,53 @@ imap_set_mouse1(Kimage *km, int down)
 	adb_update_mouse(km, g_mouse_raw_x, g_mouse_raw_y, down ? 1 : 0, 1);
 }
 
+/* Caps Lock latches like the real key: each press toggles it, and the IIgs
+ * only sees ADB 0x39 down and up.  Host Caps Lock state is never read.
+ */
+static void
+imap_caps_press(Kimage *km)
+{
+	g_caps_latch = !g_caps_latch;
+	adb_physical_key_update(km, IMAP_ADB_CAPS, g_caps_latch ? 0 : 1);
+}
+
+static int
+imap_caps_bound(void)
+{
+	int	i;
+
+	for(i = 0; i < g_num_bindings; i++) {
+		if((g_bindings[i].tgt_kind == IMAP_TGT_ADB) &&
+					(g_bindings[i].tgt == IMAP_ADB_CAPS)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Releases the latch once no source drives Caps Lock, so the IIgs caps
+ * bit cannot stay stuck on.
+ */
+static void
+imap_caps_sync(Kimage *km)
+{
+	if(g_caps_latch && !imap_caps_bound()) {
+		g_caps_latch = 0;
+		adb_physical_key_update(km, IMAP_ADB_CAPS, 1);
+	}
+}
+
 static void
 imap_binding_event(Kimage *km, const struct imap_binding *b, int is_up)
 {
 	switch(b->tgt_kind) {
 	case IMAP_TGT_ADB:
+		if(b->tgt == IMAP_ADB_CAPS) {
+			if(!is_up) {
+				imap_caps_press(km);
+			}
+			break;
+		}
 		if(imap_hold(&g_adb_level[b->tgt], is_up)) {
 			adb_physical_key_update(km, b->tgt, is_up);
 		}
@@ -861,6 +905,17 @@ imap_binding_event(Kimage *km, const struct imap_binding *b, int is_up)
 		break;
 	default:
 		break;
+	}
+}
+
+/* While the config panel is open, only ADB keys reach the menu.  Mouse,
+ * button, and paddle sources are ignored, so the IIgs never sees them.
+ */
+static void
+imap_panel_event(const struct imap_binding *b, int mods, int is_up)
+{
+	if(b->tgt_kind == IMAP_TGT_ADB) {
+		adb_panel_key_event(b->tgt, mods & IMAP_MOD_SHIFT, is_up);
 	}
 }
 
@@ -905,18 +960,26 @@ imap_find(int kind, int src, int mods)
 
 /* Presses and releases one source.  *active remembers which binding the
  * press matched, so the release undoes exactly that binding even if the
- * modifiers changed while the key was held. */
+ * modifiers changed while the key was held.  A positive value means the
+ * IIgs saw the press.  A negative value means the press went to the config
+ * panel, so its release must not change IIgs state.
+ */
 static void
 imap_source_event(Kimage *km, int *active, int kind, int src, int mods,
 								int is_up)
 {
-	int	idx;
+	int	idx, to_panel;
 
 	if(is_up) {
 		if(*active) {
-			idx = *active - 1;
+			to_panel = (*active < 0);
+			idx = (to_panel ? -*active : *active) - 1;
 			*active = 0;
-			imap_binding_event(km, &g_bindings[idx], 1);
+			if(to_panel) {
+				imap_panel_event(&g_bindings[idx], mods, 1);
+			} else {
+				imap_binding_event(km, &g_bindings[idx], 1);
+			}
 		}
 		return;
 	}
@@ -925,6 +988,13 @@ imap_source_event(Kimage *km, int *active, int kind, int src, int mods,
 	}
 	idx = imap_find(kind, src, mods);
 	if(idx < 0) {
+		return;
+	}
+	/* Actions stay live so Ctrl+F1 can close the panel */
+	if(g_config_control_panel &&
+				(g_bindings[idx].tgt_kind != IMAP_TGT_ACTION)) {
+		*active = -(idx + 1);
+		imap_panel_event(&g_bindings[idx], mods, 0);
 		return;
 	}
 	*active = idx + 1;
@@ -1722,6 +1792,7 @@ imap_remap_bind(int kind, int src, int mods)
 	nb.tgt = item->tgt;
 	nb.invert = 0;
 	imap_store(&nb);
+	imap_caps_sync(g_remap_km);
 
 	imap_source_text(&nb, 1, text, sizeof(text));
 	snprintf(g_remap_msg, sizeof(g_remap_msg), "Bound \"%s\" to %s.",
@@ -1903,6 +1974,7 @@ imap_remap_unbind(Kimage *km, struct imap_remap_item *item)
 			b->invert = 0;
 		}
 	}
+	imap_caps_sync(km);
 	snprintf(g_remap_msg, sizeof(g_remap_msg), "Unbound \"%s\".", item->name);
 	imap_remap_save();
 }
@@ -1914,6 +1986,7 @@ imap_remap_reset(Kimage *km)
 	g_remap_pending = NULL;
 	memcpy(g_bindings, g_default_bindings, sizeof(g_bindings));
 	g_num_bindings = g_num_default_bindings;
+	imap_caps_sync(km);
 	snprintf(g_remap_msg, sizeof(g_remap_msg),
 				"Restored the built-in defaults.");
 	imap_remap_save();
