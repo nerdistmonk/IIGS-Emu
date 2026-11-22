@@ -702,7 +702,8 @@ sdl_poll_gamepad_axes(void)
 		return;
 	}
 	for(axis = 0; axis < IMAP_NUM_SDL_AXES; axis++) {
-		imap_pad_axis(axis, SDL_GetGamepadAxis(g_sdl_gamepad, axis));
+		imap_pad_axis(g_mainwin_info.kimage_ptr, axis,
+				SDL_GetGamepadAxis(g_sdl_gamepad, axis));
 	}
 }
 
@@ -1348,9 +1349,10 @@ sdl_update_display(Window_info *win)
  *
  * A reader thread blocks on stdin so the SDL main loop never stalls; complete
  * lines land in a small queue that sdl_debugger_poll() drains while the CPU is
- * halted (middle-click break, or the F7 toggle). Launched with no terminal
- * (for example from a file manager), stdin hits EOF and the thread simply
- * exits -- the emulator runs normally, just without an interactive debugger.
+ * halted (the debug_go action halts or resumes the CPU).  Launched with no
+ * terminal (for example from a file manager), stdin hits EOF and the thread
+ * simply exits -- the emulator runs normally, just without an interactive
+ * debugger.
  * ------------------------------------------------------------------------- */
 
 #define DBG_LINE_MAX	256

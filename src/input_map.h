@@ -55,7 +55,7 @@ void imap_set_host_hook(void (*hook)(int action));
 void imap_key_event(Kimage *km, int scancode, int mods, int is_up);
 void imap_mouse_button(Kimage *km, int button, int is_up);
 void imap_pad_button(Kimage *km, int button, int is_up);
-void imap_pad_axis(int axis, int value);
+void imap_pad_axis(Kimage *km, int axis, int value);
 void imap_pad_release_all(Kimage *km);
 void imap_release_all(Kimage *km);
 

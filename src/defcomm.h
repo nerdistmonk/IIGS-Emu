@@ -19,11 +19,6 @@ const char rcsdif_defcomm_h[] = "@(#)$KmKId: defcomm.h,v 1.109 2023-11-12 15:29:
 
 #define MAXNUM_HEX_PER_LINE	32
 
-/* Different Joystick defines */
-#define JOYSTICK_MOUSE		1
-#define JOYSTICK_LINUX		2
-#define JOYSTICK_KEYPAD		3
-
 #define MAX_BREAK_POINTS	0x20
 
 #define MAX_BP_INDEX		0x100

@@ -50,7 +50,9 @@
  *                     fullscreen scanlines crt reset
  *     none            unbound; overrides a built-in binding
  *
- * "invert" after a pdl:N target reverses that source's direction.
+ * "invert" after a pdl:N target reverses that source's direction.  Triggers
+ * press past half travel and may drive any target; sticks and the d-pad
+ * drive only pdl:N.
  *
  * Matching rules:
  * - A key binding matches when all of its modifiers are held.  The binding
@@ -309,6 +311,8 @@ static int	g_num_bindings = 0;
 static int	g_key_active[IMAP_NUM_SCANCODES];	/* binding index + 1, 0 = none */
 static int	g_mouse_active[IMAP_NUM_MOUSE];
 static int	g_pad_active[IMAP_NUM_PAD_BUTTONS];
+static int	g_axis_active[IMAP_NUM_AXES];		/* binding index + 1 */
+static int	g_trigger_swallow[IMAP_NUM_AXES];	/* until released */
 static int	g_axis_val[IMAP_NUM_AXES];
 static int	g_dpad_held[IMAP_NUM_DIRS];
 
@@ -325,6 +329,9 @@ static int	g_num_default_bindings = 0;
 #define IMAP_SC_ESCAPE		41	/* SDL_SCANCODE_ESCAPE; cancels a capture */
 #define IMAP_REMAP_REST		8000	/* stick must rest inside this to arm */
 #define IMAP_REMAP_PUSH		16384	/* deflection that captures an axis */
+#define IMAP_AXIS_LEFT_TRIGGER	4	/* SDL_GAMEPAD_AXIS_LEFT_TRIGGER */
+#define IMAP_AXIS_RIGHT_TRIGGER	5	/* SDL_GAMEPAD_AXIS_RIGHT_TRIGGER */
+#define IMAP_TRIGGER_PRESS	16384	/* trigger presses past half travel */
 #define IMAP_PATH_MAX		1024
 #define IMAP_REMAP_TEXT		160
 
@@ -556,14 +563,22 @@ imap_parse_target(const char *s, struct imap_binding *b)
 	return NULL;
 }
 
+static int
+imap_is_trigger(int axis)
+{
+	return (axis == IMAP_AXIS_LEFT_TRIGGER) ||
+				(axis == IMAP_AXIS_RIGHT_TRIGGER);
+}
+
 static const char *
 imap_check(const struct imap_binding *b)
 {
 	int	is_axis = (b->src_kind == IMAP_SRC_AXIS);
 	int	is_pdl = (b->tgt_kind == IMAP_TGT_PDL);
 
-	if(is_axis && !is_pdl && (b->tgt_kind != IMAP_TGT_NONE)) {
-		return "axis sources map only to pdl:N";
+	if(is_axis && !is_pdl && (b->tgt_kind != IMAP_TGT_NONE) &&
+						!imap_is_trigger(b->src)) {
+		return "axis sources map only to pdl:N, except triggers";
 	}
 	if(b->invert && !is_pdl) {
 		return "'invert' applies only to pdl:N targets";
@@ -637,6 +652,8 @@ imap_reset_state(void)
 	memset(g_key_active, 0, sizeof(g_key_active));
 	memset(g_mouse_active, 0, sizeof(g_mouse_active));
 	memset(g_pad_active, 0, sizeof(g_pad_active));
+	memset(g_axis_active, 0, sizeof(g_axis_active));
+	memset(g_trigger_swallow, 0, sizeof(g_trigger_swallow));
 	memset(g_axis_val, 0, sizeof(g_axis_val));
 	memset(g_dpad_held, 0, sizeof(g_dpad_held));
 	memset(g_adb_level, 0, sizeof(g_adb_level));
@@ -769,7 +786,7 @@ imap_run_action(int action)
 		if(g_halt_sim) {
 			do_go();
 		} else {
-			halt2_printf("F7 pressed\n");
+			halt2_printf("Debugger halt requested\n");
 		}
 		break;
 	case IMAP_ACT_FAST_DISK:
@@ -864,6 +881,10 @@ imap_find(int kind, int src, int mods)
 						(b->mods & ~mods)) {
 			continue;
 		}
+		/* pdl:N reads axes as analog values, see imap_pdl_value */
+		if((kind == IMAP_SRC_AXIS) && (b->tgt_kind == IMAP_TGT_PDL)) {
+			continue;
+		}
 		bits = imap_count_bits(b->mods);
 		if(bits > best_bits) {
 			best = i;
@@ -928,9 +949,13 @@ imap_mouse_button(Kimage *km, int button, int is_up)
 }
 
 static int
-imap_remap_wants_axis(void)
+imap_remap_wants_axis(int axis)
 {
-	return g_remap_pending && (g_remap_pending->tgt_kind == IMAP_TGT_PDL);
+	if(!g_remap_pending) {
+		return 0;
+	}
+	return (g_remap_pending->tgt_kind == IMAP_TGT_PDL) ||
+						imap_is_trigger(axis);
 }
 
 static int
@@ -961,10 +986,10 @@ imap_dpad_update(void)
 
 	g_axis_val[IMAP_AXIS_DPAD_X] = x * 32767;
 	g_axis_val[IMAP_AXIS_DPAD_Y] = y * 32767;
-	if(imap_remap_wants_axis()) {
+	if(imap_remap_wants_axis(IMAP_AXIS_DPAD_X)) {
 		imap_remap_axis(IMAP_AXIS_DPAD_X, g_axis_val[IMAP_AXIS_DPAD_X]);
 	}
-	if(imap_remap_wants_axis()) {
+	if(imap_remap_wants_axis(IMAP_AXIS_DPAD_Y)) {
 		imap_remap_axis(IMAP_AXIS_DPAD_Y, g_axis_val[IMAP_AXIS_DPAD_Y]);
 	}
 }
@@ -979,7 +1004,8 @@ imap_pad_button(Kimage *km, int button, int is_up)
 	}
 	dir = imap_dpad_dir(button);
 	if(dir >= 0) {
-		int	pdl_capture = !is_up && imap_remap_wants_axis();
+		int	pdl_capture = !is_up &&
+					imap_remap_wants_axis(IMAP_AXIS_DPAD_X);
 
 		g_dpad_held[dir] = !is_up;
 		imap_dpad_update();
@@ -995,15 +1021,38 @@ imap_pad_button(Kimage *km, int button, int is_up)
 }
 
 void
-imap_pad_axis(int axis, int value)
+imap_pad_axis(Kimage *km, int axis, int value)
 {
+	int	pressed;
+
 	if((axis < 0) || (axis >= IMAP_NUM_AXES)) {
 		return;
 	}
 	g_axis_val[axis] = value;
-	if(imap_remap_wants_axis()) {
-		imap_remap_axis(axis, value);
+	if(!imap_is_trigger(axis)) {
+		if(imap_remap_wants_axis(axis)) {
+			imap_remap_axis(axis, value);
+		}
+		return;
 	}
+	/* A press that starts during a capture, or that is still held from
+	 * one, is swallowed.  Releases always reach the binding so a key or
+	 * button it was holding is never left down.
+	 */
+	pressed = (value > IMAP_TRIGGER_PRESS);
+	if(g_remap_pending) {
+		imap_remap_axis(axis, value);
+		g_trigger_swallow[axis] = pressed;
+		if(pressed) {
+			return;
+		}
+	} else if(!pressed) {
+		g_trigger_swallow[axis] = 0;
+	} else if(g_trigger_swallow[axis]) {
+		return;
+	}
+	imap_source_event(km, &g_axis_active[axis], IMAP_SRC_AXIS, axis, 0,
+								!pressed);
 }
 
 static void
@@ -1013,6 +1062,10 @@ imap_pad_release_buttons(Kimage *km)
 
 	for(i = 0; i < IMAP_NUM_PAD_BUTTONS; i++) {
 		imap_source_event(km, &g_pad_active[i], IMAP_SRC_PAD, i, 0, 1);
+	}
+	for(i = IMAP_AXIS_LEFT_TRIGGER; i <= IMAP_AXIS_RIGHT_TRIGGER; i++) {
+		imap_source_event(km, &g_axis_active[i], IMAP_SRC_AXIS, i,
+								0, 1);
 	}
 	memset(g_dpad_held, 0, sizeof(g_dpad_held));
 	imap_dpad_update();
@@ -1044,6 +1097,12 @@ imap_release_all(Kimage *km)
 									1);
 	}
 	imap_pad_release_buttons(km);
+	/* Triggers are polled every frame, so one still held would press
+	 * again at once.  Swallow it until it is released.
+	 */
+	for(i = IMAP_AXIS_LEFT_TRIGGER; i <= IMAP_AXIS_RIGHT_TRIGGER; i++) {
+		g_trigger_swallow[i] = (g_axis_val[i] > IMAP_TRIGGER_PRESS);
+	}
 }
 
 static const struct imap_binding *
@@ -1761,7 +1820,8 @@ imap_remap_begin(Kimage *km, struct imap_remap_item *item)
 	snprintf(g_remap_prompt, sizeof(g_remap_prompt),
 			"Press a %s for \"%s\" (Esc cancels)",
 			(item->tgt_kind == IMAP_TGT_PDL) ?
-				"key, button or stick" : "key or button",
+				"key, button or stick" :
+				"key, button or trigger",
 			item->name);
 	g_remap_dirty = 1;
 }
