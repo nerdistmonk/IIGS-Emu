@@ -186,6 +186,11 @@ scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left)
 	ret = read(fd, tmp_buf, space_left);
 
 	if(ret > 0) {
+		printf("DBGTRACE RX p%d n%d:", port, ret);
+		for(i = 0; i < ret; i++) {
+			printf(" %02x", tmp_buf[i]);
+		}
+		printf("\n");
 		for(i = 0; i < ret; i++) {
 			scc_add_to_readbuf(dfcyc, port, tmp_buf[i]);
 		}
@@ -210,7 +215,7 @@ void
 scc_serial_unix_empty_writebuf(int port)
 {
 	Scc	*scc_ptr;
-	int	fd, rdptr, wrptr, done, ret, len;
+	int	fd, rdptr, wrptr, done, ret, len, i;
 
 	scc_ptr = &(g_scc[port]);
 
@@ -242,6 +247,13 @@ scc_serial_unix_empty_writebuf(int port)
 		}
 		ret = write(fd, &(scc_ptr->out_buf[rdptr]), len);
 
+		if(ret > 0) {
+			printf("DBGTRACE TX p%d n%d:", port, ret);
+			for(i = 0; i < ret; i++) {
+				printf(" %02x", scc_ptr->out_buf[rdptr + i]);
+			}
+			printf("\n");
+		}
 		if(ret <= 0) {
 			done = 1;
 			break;
