@@ -986,6 +986,7 @@ scc_write_data(dword64 dfcyc, int port, word32 val)
 	Scc	*scc_ptr;
 
 	scc_printf("SCC write %04x: %02x\n", 0xc03b-port, val);
+	printf("DBGTRACE GUEST p%d: %02x\n", port, val & 0xff);
 	dbg_log_info(dfcyc, val, 0, 0x1c03b - port);
 
 	scc_ptr = &(g_scc[port]);
