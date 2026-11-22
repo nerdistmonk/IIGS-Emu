@@ -327,6 +327,8 @@ static struct imap_binding	g_default_bindings[IMAP_MAX_BINDINGS];
 static int	g_num_default_bindings = 0;
 
 #define IMAP_SC_ESCAPE		41	/* SDL_SCANCODE_ESCAPE; cancels a capture */
+#define IMAP_SC_LCTRL		224	/* SDL_SCANCODE_LCTRL; first modifier */
+#define IMAP_SC_RGUI		231	/* SDL_SCANCODE_RGUI */
 #define IMAP_REMAP_REST		8000	/* stick must rest inside this to arm */
 #define IMAP_REMAP_PUSH		16384	/* deflection that captures an axis */
 #define IMAP_AXIS_LEFT_TRIGGER	4	/* SDL_GAMEPAD_AXIS_LEFT_TRIGGER */
@@ -336,6 +338,8 @@ static int	g_num_default_bindings = 0;
 #define IMAP_REMAP_TEXT		160
 
 static struct imap_remap_item	*g_remap_pending = NULL;
+/* Modifier pressed during a capture; it binds when released.  0 is unused. */
+static int	g_remap_lone_mod = 0;
 static Kimage	*g_remap_km = NULL;
 static int	g_remap_axis_armed[IMAP_NUM_AXES];
 static char	g_remap_prompt[IMAP_REMAP_TEXT];
@@ -343,11 +347,12 @@ static char	g_remap_msg[IMAP_REMAP_TEXT];
 static int	g_remap_dirty = 0;
 static char	g_map_path[IMAP_PATH_MAX] = "";
 
-static int	imap_remap_capture(int kind, int src);
+static int	imap_remap_capture(int kind, int src, int mods);
 static void	imap_remap_axis(int axis, int value);
 static void	imap_write_body(FILE *f);
 
 extern int g_halt_sim;
+extern int g_config_control_panel;
 extern int g_status_enable;
 extern int g_fast_disk_emul_en;
 extern int g_warp_pointer;
@@ -766,6 +771,10 @@ imap_action_is_host(int action)
 static void
 imap_run_action(int action)
 {
+	/* The config_panel action stays live so Ctrl+F1 can close the panel */
+	if(g_config_control_panel && (action != IMAP_ACT_CONFIG_PANEL)) {
+		return;
+	}
 	if(imap_action_is_host(action)) {
 		if(g_host_hook) {
 			g_host_hook(action);
@@ -922,13 +931,43 @@ imap_source_event(Kimage *km, int *active, int kind, int src, int mods,
 	imap_binding_event(km, &g_bindings[idx], 0);
 }
 
+/* Modifier keys bind on release, so a modifier pressed alone binds itself.
+ * Any other key binds on press with the modifiers held, so Ctrl+F1 is one
+ * capture.  Returns 1 when the event was consumed by the capture.
+ */
+static int
+imap_remap_key_event(int scancode, int mods, int is_up)
+{
+	int	is_mod = (scancode >= IMAP_SC_LCTRL) &&
+					(scancode <= IMAP_SC_RGUI);
+
+	if(!g_remap_pending) {
+		return 0;
+	}
+	if(!is_mod) {
+		if(is_up) {
+			return 0;
+		}
+		return imap_remap_capture(IMAP_SRC_KEY, scancode, mods);
+	}
+	if(!is_up) {
+		g_remap_lone_mod = scancode;
+		return 1;
+	}
+	if(scancode != g_remap_lone_mod) {
+		return 0;
+	}
+	g_remap_lone_mod = 0;
+	return imap_remap_capture(IMAP_SRC_KEY, scancode, 0);
+}
+
 void
 imap_key_event(Kimage *km, int scancode, int mods, int is_up)
 {
 	if((scancode < 0) || (scancode >= IMAP_NUM_SCANCODES)) {
 		return;
 	}
-	if(!is_up && imap_remap_capture(IMAP_SRC_KEY, scancode)) {
+	if(imap_remap_key_event(scancode, mods, is_up)) {
 		return;
 	}
 	imap_source_event(km, &g_key_active[scancode], IMAP_SRC_KEY, scancode,
@@ -941,7 +980,7 @@ imap_mouse_button(Kimage *km, int button, int is_up)
 	if((button < 0) || (button >= IMAP_NUM_MOUSE)) {
 		return;
 	}
-	if(!is_up && imap_remap_capture(IMAP_SRC_MOUSE, button)) {
+	if(!is_up && imap_remap_capture(IMAP_SRC_MOUSE, button, 0)) {
 		return;
 	}
 	imap_source_event(km, &g_mouse_active[button], IMAP_SRC_MOUSE, button,
@@ -1013,7 +1052,7 @@ imap_pad_button(Kimage *km, int button, int is_up)
 			return;
 		}
 	}
-	if(!is_up && imap_remap_capture(IMAP_SRC_PAD, button)) {
+	if(!is_up && imap_remap_capture(IMAP_SRC_PAD, button, 0)) {
 		return;
 	}
 	imap_source_event(km, &g_pad_active[button], IMAP_SRC_PAD, button, 0,
@@ -1619,7 +1658,7 @@ imap_remap_save(void)
  * sources.  Every change is saved at once.
  */
 static void
-imap_remap_bind(int kind, int src)
+imap_remap_bind(int kind, int src, int mods)
 {
 	struct imap_remap_item	*item = g_remap_pending;
 	struct imap_binding	nb, old;
@@ -1632,7 +1671,8 @@ imap_remap_bind(int kind, int src)
 	for(i = 0; i < g_num_bindings; i++) {
 		const struct imap_binding *b = &g_bindings[i];
 
-		if((b->src_kind == kind) && (b->src == src) && (b->mods == 0)) {
+		if((b->src_kind == kind) && (b->src == src) &&
+						(b->mods == mods)) {
 			owner = i;
 			old = *b;
 		}
@@ -1677,7 +1717,7 @@ imap_remap_bind(int kind, int src)
 
 	nb.src_kind = kind;
 	nb.src = src;
-	nb.mods = 0;
+	nb.mods = mods;
 	nb.tgt_kind = item->tgt_kind;
 	nb.tgt = item->tgt;
 	nb.invert = 0;
@@ -1703,7 +1743,7 @@ imap_remap_bind(int kind, int src)
 }
 
 static int
-imap_remap_capture(int kind, int src)
+imap_remap_capture(int kind, int src, int mods)
 {
 	if(!g_remap_pending) {
 		return 0;
@@ -1714,7 +1754,7 @@ imap_remap_capture(int kind, int src)
 		g_remap_dirty = 1;
 		return 1;
 	}
-	imap_remap_bind(kind, src);
+	imap_remap_bind(kind, src, mods);
 	return 1;
 }
 
@@ -1730,7 +1770,7 @@ imap_remap_axis(int axis, int value)
 	}
 	if(g_remap_axis_armed[axis] && (abs(value) > IMAP_REMAP_PUSH)) {
 		g_remap_axis_armed[axis] = 0;
-		imap_remap_bind(IMAP_SRC_AXIS, axis);
+		imap_remap_bind(IMAP_SRC_AXIS, axis, 0);
 	}
 }
 
@@ -1813,6 +1853,7 @@ imap_remap_begin(Kimage *km, struct imap_remap_item *item)
 	}
 	g_remap_km = km;
 	g_remap_pending = item;
+	g_remap_lone_mod = 0;
 	for(i = 0; i < IMAP_NUM_AXES; i++) {
 		g_remap_axis_armed[i] = (abs(g_axis_val[i]) < IMAP_REMAP_REST);
 	}
