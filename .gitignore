@@ -7,6 +7,9 @@ src/build/
 config.kegs
 iigs-emu_screenshot_*.png
 
+# Disk images built from Apple's copyrighted software
+SWII-Driver/*.hdv
+
 # Local Claude Code tooling
 .agents/
 skills-lock.json
