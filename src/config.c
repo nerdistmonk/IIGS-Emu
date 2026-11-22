@@ -415,16 +415,24 @@ Cfg_menu g_cfg_main_menu[] = {
 	"0x400000,4MB,0x600000,6MB,0x800000,8MB,0xa00000,10MB,0xc00000,12MB,"
 	"0xe00000,14MB", KNMP(g_mem_size_exp), CFGTYPE_INT },
 { "Show Status lines,0,Disabled,1,Enabled", KNMP(g_status_enable), CFGTYPE_INT},
-{ "Code Red Halts,0,Do not stop on bad accesses,1,Enter debugger on bad "
+{ "Fatal System Errors,0,Do not stop on bad accesses,1,Enter debugger on bad "
 		"accesses", KNMP(g_user_halt_bad), CFGTYPE_INT },
-{ "Enable Text Page 2 Shadow,0,Disabled on ROM 01 (matches real hardware),"
-	"1,Enabled on ROM 01 and 03",
-		KNMP(g_user_page2_shadow), CFGTYPE_INT },
 { "", 0, 0, 0, 0 },
 { "Save changes to config.kegs", (void *)config_write_config_kegs_file, 0, 0,
 		CFGTYPE_FUNC },
 { "", 0, 0, 0, 0 },
 { "Exit Config (or press Ctrl+F1)", (void *)cfg_exit, 0, 0, CFGTYPE_FUNC },
+{ 0, 0, 0, 0, 0 },
+};
+
+/* Not reachable from any menu, so the config panel never shows these. They
+ * are still registered in config_init() so config.kegs reads and writes them.
+ */
+Cfg_menu g_cfg_hidden_menu[] = {
+{ "Hidden settings", g_cfg_hidden_menu, 0, 0, CFGTYPE_MENU },
+{ "Enable Text Page 2 Shadow,0,Disabled on ROM 01 (matches real hardware),"
+	"1,Enabled on ROM 01 and 03",
+		KNMP(g_user_page2_shadow), CFGTYPE_INT },
 { 0, 0, 0, 0, 0 },
 };
 
@@ -819,6 +827,7 @@ config_init()
 {
 	cfg_remap_menus_init();
 	config_init_menus(g_cfg_main_menu);
+	config_init_menus(g_cfg_hidden_menu);
 
 	// Find the config.kegs file
 	if(g_config_kegs_name[0] == 0) {
