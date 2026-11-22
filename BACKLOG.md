@@ -54,7 +54,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **Fast-forward / turbo** hotkey | High | S | Hold to uncap speed. |
+| **Fast-forward / turbo** hotkey | High | S | `action:speed` already cycles 1.024 MHz → 2.8 MHz → 8.0 MHz → uncapped (unbound by default). Open: a default key and hold-to-uncap. |
 | **Pause/resume** hotkey | Med | S | |
 | **Save states / snapshots** | Med | L | Full IIgs machine state; KEGS has none. Stretch. |
 
