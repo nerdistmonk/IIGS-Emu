@@ -1026,7 +1026,7 @@ double	g_dtime_in_run_16ms = 0;
 double	g_dtime_outside_run_16ms = 0;
 double	g_dtime_end_16ms = 0;
 int	g_limit_speed = 3;
-int	g_zip_speed_mhz = 16;		// 16MHz default
+int	g_zip_speed_mhz = 8;		// 8MHz default
 double	sim_time[60];
 double	g_sim_sum = 0.0;
 

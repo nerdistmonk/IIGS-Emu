@@ -63,7 +63,7 @@ Some features that are a part of the SDL3 build:
   config.kegs. Both keys are rebindable under Remap Controls > Mouse and Actions.
 - **Speed control** - Ctrl+F3 cycles Unlimited, 1.024 MHz, 2.8 MHz, and ZipGS
   Accelerator (the default). ZipGS Accelerator runs at the clock set by **ZipGS
-  Speed** (8–128 MHz, default 16) in the main Ctrl+F1 menu, but only while software
+  Speed** (8–128 MHz, default 8) in the main Ctrl+F1 menu, but only while software
   has enabled the ZipGS card. Otherwise that clock is not used.
 - **On-screen display** - a short message in the top-right corner when a hotkey
   changes something (zoom, speed, fast disk, scanlines, CRT, mouse capture,
