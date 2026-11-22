@@ -35,16 +35,15 @@ Some features that are a part of the SDL3 build:
   default key; bind one under Remap Controls.
 - **Screenshot capture** - writes the framebuffer to disk. No default key; bind
   one under Remap Controls.
-- **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick.
-  The SDL controller database (`gamecontrollerdb.txt`, from
+- **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick, with hotplug.
+  Buttons and sticks can be rebound under Remap Controls, and any key can be
+  bound to a joystick button or paddle there. The SDL controller
+  database (`gamecontrollerdb.txt`, from
   [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB)) is
   loaded from beside the binary, then from `~/.config/iigs-emu/`. D-pads and
-  sticks both drive the joystick.
-  A connected gamepad is used automatically (with hotplug); without one, the
-  numeric keypad emulates the joystick. The stick's circular travel is remapped
-  to the square range Apple joysticks have, so games can reach the corners.
-  Override either behavior in the config menu (Ctrl+F1) under Joystick
-  Configuration.
+  sticks both drive the joystick. The stick's circular travel is remapped to
+  the square range Apple joysticks have, so games can reach the corners; turn
+  this off with Gamepad Range under Joystick Configuration (Ctrl+F1).
 - **Terminal debugger** - a REPL for the built-in 65816 debugger from the
   controlling terminal.
 - **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
@@ -81,6 +80,10 @@ reserves only these host keys:
 Other emulator actions (status line, emulation speed, debugger, fast disk,
 screenshot, fullscreen, CRT effects, and scanlines) have no default key. Bind them
 under **Joystick Configuration > Remap Controls > Mouse and Actions**.
+
+While the config menu is open, the IIgs receives no keyboard or mouse input.
+By default, Caps Lock latches the IIgs Caps Lock key; the host Caps Lock light
+does not show that state.
 
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are

@@ -22,8 +22,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
   crt action (unbound by default). Curvature (RenderGeometry mesh) + RGB phosphor mask + bloom +
   vignette, composes with `-scanline`. All on the 2D renderer, no extra libraries.
 - **Gamepad/controller support**: SDL3 high-level Gamepad API → IIgs
-  joystick/paddles, with hotplug. Select "Native Joystick 1" in the Ctrl+F1 config
-  menu to route paddles to it.
+  joystick, with hotplug. Buttons and sticks are bound through Remap Controls.
 - **Screenshots**: the screenshot action captures the framebuffer (unbound by default;
   `-ssdir` sets the output
   directory).
@@ -32,8 +31,9 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
   ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
 - **Input remapping**: SDL-free host-to-IIgs mapping in `input.map` (keys, mouse,
   gamepad buttons and sticks). Joystick Configuration > Remap Controls in the Ctrl+F1
-  menu rebinds keys with press-to-bind, Esc to cancel, and reset to defaults.
-  Gamepad remapping is untested on hardware.
+  menu rebinds keys with press-to-bind (a chord binds as one combo; a lone modifier
+  binds on release), Esc to cancel, and reset to defaults. Gamepad remapping is
+  tested only with uinput fake pads, not real hardware.
 
 ---
 
