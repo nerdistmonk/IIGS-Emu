@@ -48,7 +48,6 @@ int g_serial_modem_init_telnet = 1;		// 1 for BBS'es
 
 extern word32 g_mem_size_base;
 extern word32 g_mem_size_exp;
-extern int g_video_line_update_interval;
 extern int g_user_halt_bad;
 extern int g_joystick_square_range;
 extern int g_joystick_scale_factor_x;
@@ -352,9 +351,6 @@ Cfg_menu g_cfg_video_menu[] = {
 { "Default Main Window height", KNMP(g_mainwin_height), CFGTYPE_INT },
 { "Main Window X position", KNMP(g_mainwin_xpos), CFGTYPE_INT },
 { "Main Window Y position", KNMP(g_mainwin_ypos), CFGTYPE_INT },
-{ "3200 Color Enable,0,Auto (Full if fast enough),1,Full (Update every line),"
-	"8,Off (Update video every 8 lines)",
-		KNMP(g_video_line_update_interval), CFGTYPE_INT },
 { "Dump text screen to file", (void *)cfg_text_screen_dump, 0, 0, CFGTYPE_FUNC},
 { "", 0, 0, 0, 0 },
 { "", 0, 0, 0, 0 },

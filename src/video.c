@@ -32,8 +32,6 @@ extern int g_fatal_log;
 
 extern dword64 g_cur_dfcyc;
 
-extern int g_line_ref_amt;
-
 extern word32 g_c034_val;
 extern int g_config_control_panel;
 extern char *g_cfg_menu_fg;
@@ -1781,7 +1779,7 @@ video_update_event_line(int line)
 
 	video_update_through_line(line);
 
-	new_line = line + g_line_ref_amt;
+	new_line = line + 1;
 	if(new_line < 200) {
 		if(!g_config_control_panel && !g_halt_sim) {
 			add_event_vid_upd(new_line);

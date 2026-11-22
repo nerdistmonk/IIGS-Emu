@@ -1034,8 +1034,6 @@ double	g_cur_sim_dtime = 0.0;
 double	g_projected_pmhz = 1.0;
 double	g_zip_pmhz = 8.0;
 double	g_sim_mhz = 100.0;
-int	g_line_ref_amt = 1;
-int	g_video_line_update_interval = 0;
 dword64	g_video_pixel_dcount = 0;
 
 Fplus	g_recip_projected_pmhz_slow;
@@ -1526,17 +1524,6 @@ update_60hz(dword64 dfcyc, double dtime_now)
 			(double)(dfcyc >> 20)/65536.0, sim_mhz_ptr,
 			total_mhz_ptr, dtime_diff_1sec, g_doc_vol, sp_str);
 		video_update_status_line(0, status_buf);
-
-		if(g_video_line_update_interval == 0) {
-			if(g_sim_mhz > 12.0) {
-				/* just set video line_ref_amt to 1 */
-				g_line_ref_amt = 1;
-			} else if(g_line_ref_amt == 1 && g_sim_mhz < 4.0) {
-				g_line_ref_amt = 8;
-			}
-		} else {
-			g_line_ref_amt = g_video_line_update_interval;
-		}
 
 		dnatcycs_1sec = g_dnatcycs_1sec;
 		if(g_dnatcycs_1sec < (1000.0*1000.0)) {
