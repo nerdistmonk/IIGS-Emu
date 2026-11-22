@@ -26,6 +26,7 @@ void scc_serial_unix_close(int port);
 void scc_serial_unix_change_params(int port);
 void scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left);
 void scc_serial_unix_empty_writebuf(int port);
+void scc_serial_unix_set_modem_lines(int port);
 
 /* sdl_driver.c: gamepad bring-up, called once from sim65816.c */
 void sdl_input_init(void);

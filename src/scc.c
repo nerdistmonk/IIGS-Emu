@@ -119,6 +119,7 @@ scc_reset()
 		scc_ptr->out_rdptr = 0;
 		scc_ptr->out_wrptr = 0;
 		scc_ptr->dcd = 1 - i;		// 1 for slot 1, 0 for slot 2
+		scc_ptr->cts = 1;
 		scc_ptr->wantint_rx = 0;
 		scc_ptr->wantint_tx = 0;
 		scc_ptr->wantint_zerocnt = 0;
@@ -634,6 +635,9 @@ scc_read_reg(dword64 dfcyc, int port)
 		if(scc_ptr->dcd) {
 			ret |= 0x08;
 		}
+		if((scc_ptr->reg[3] & 0x20) && !scc_ptr->cts) {
+			ret &= ~0x20;	/* auto-CTS on and host CTS low */
+		}
 		//ret |= 0x8;	/* HACK HACK */
 		if(scc_ptr->rx_queue_depth) {
 			ret |= 0x01;
@@ -799,6 +803,9 @@ scc_write_reg(dword64 dfcyc, int port, word32 val)
 			halt_printf("Wr c03%x to wr3 of %02x!\n", 8+port, val);
 		}
 		scc_ptr->reg[regnum] = val;
+		if(changed_bits & 0x20) {	// auto-CTS changed
+			scc_regen_clocks(port);
+		}
 		return;
 	case 4: /* wr4 */
 		if((val & 0x30) != 0x00 || (val & 0x0c) == 0) {
@@ -816,6 +823,9 @@ scc_write_reg(dword64 dfcyc, int port, word32 val)
 		scc_ptr->reg[regnum] = val;
 		if(changed_bits & 0x60) {
 			scc_regen_clocks(port);
+		}
+		if(changed_bits & 0x82) {	// DTR or RTS
+			scc_serial_unix_set_modem_lines(port);
 		}
 		if(changed_bits & 0x80) {
 			scc_printf("SCC port %d DTR:%d\n", port, val & 0x80);

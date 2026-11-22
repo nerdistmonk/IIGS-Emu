@@ -41,6 +41,7 @@ STRUCT(Scc) {
 	int	write_called_this_vbl;
 
 	byte	dcd;
+	byte	cts;
 	byte	reg_ptr;
 	byte	br_is_zero;
 	byte	tx_buf_empty;

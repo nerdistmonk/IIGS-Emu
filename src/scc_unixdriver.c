@@ -39,6 +39,7 @@ scc_serial_unix_open(int port)
 	}
 
 	scc_serial_unix_change_params(port);
+	scc_serial_unix_set_modem_lines(port);
 
 	scc_ptr->cur_state = 0;		// Actual Serial device
 }
@@ -113,13 +114,16 @@ scc_serial_unix_change_params(int port)
 		break;
 	}
 
-	/* always enabled DTR and RTS control */
+	/* Hardware flow control only when GS/OS requests auto-CTS (WR3 bit 5),
+	 * as Basilisk II does. Forcing it on stalls output if CTS is low. */
+	if(scc_ptr->reg[3] & 0x20) {
 #ifdef CRTSCTS
-	termios_buf.c_cflag |= CRTSCTS;			// Linux: CTS/RTS
+		termios_buf.c_cflag |= CRTSCTS;			// Linux: CTS/RTS
 #endif
 #ifdef CRTS_IFLOW
-	termios_buf.c_cflag |= CDTR_IFLOW | CRTS_IFLOW;		// CTS/RTS
+		termios_buf.c_cflag |= CDTR_IFLOW | CRTS_IFLOW;		// BSD: CTS/RTS
 #endif
+	}
 
 	printf("fd: %d, baudrate: %d, iflag:%x, oflag:%x, cflag:%x, lflag:%x\n",
 		fd, (int)termios_buf.c_ispeed, (int)termios_buf.c_iflag,
@@ -129,6 +133,34 @@ scc_serial_unix_change_params(int port)
 	if(ret != 0) {
 		printf("tcsetattr ret: %d\n", ret);
 	}
+}
+
+/* Drive host DTR (WR5 bit 7) and RTS (WR5 bit 1) to match the SCC */
+void
+scc_serial_unix_set_modem_lines(int port)
+{
+	Scc	*scc_ptr;
+	int	fd, bits_on, bits_off;
+
+	scc_ptr = &(g_scc[port]);
+
+	fd = scc_ptr->unix_dev_fd;
+	if(fd <= 0) {
+		return;
+	}
+
+#if defined(TIOCMBIS) && defined(TIOCMBIC) && defined(TIOCM_DTR) && defined(TIOCM_RTS)
+	bits_on = 0;
+	if(scc_ptr->reg[5] & 0x80) {
+		bits_on |= TIOCM_DTR;
+	}
+	if(scc_ptr->reg[5] & 0x02) {
+		bits_on |= TIOCM_RTS;
+	}
+	bits_off = (TIOCM_DTR | TIOCM_RTS) & ~bits_on;
+	ioctl(fd, TIOCMBIS, &bits_on);
+	ioctl(fd, TIOCMBIC, &bits_off);
+#endif
 }
 
 void
@@ -158,7 +190,7 @@ scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left)
 	flags = 0;
 	dcd = 0;
 
-#if defined(TIOCMGET) && defined(TIOCM_CAR)
+#if defined(TIOCMGET) && defined(TIOCM_CAR) && defined(TIOCM_CTS)
 	ret = ioctl(fd, TIOCMGET, &flags);
 	if(ret == 0) {
 		dcd = 0;
@@ -166,6 +198,7 @@ scc_serial_unix_fill_readbuf(dword64 dfcyc, int port, int space_left)
 			dcd = 1;
 		}
 		scc_ptr->dcd = dcd;
+		scc_ptr->cts = (flags & TIOCM_CTS) ? 1 : 0;
 	}
 #endif
 }
