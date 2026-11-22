@@ -24,7 +24,10 @@
 #define IMAP_NUM_MOUSE		3
 
 #define IMAP_NUM_PAD_BUTTONS	26	/* SDL_GAMEPAD_BUTTON_COUNT */
-#define IMAP_NUM_AXES		6	/* SDL_GAMEPAD_AXIS_COUNT */
+#define IMAP_NUM_SDL_AXES	6	/* SDL_GAMEPAD_AXIS_COUNT */
+#define IMAP_AXIS_DPAD_X	6	/* D-pad as an axis, see input_map.c */
+#define IMAP_AXIS_DPAD_Y	7
+#define IMAP_NUM_AXES		8
 #define IMAP_NUM_PDL		4
 #define IMAP_NUM_BUTN		4
 

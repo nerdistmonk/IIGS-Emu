@@ -37,6 +37,8 @@
  *                     RIGHT_PADDLE2 LEFT_PADDLE2 TOUCHPAD MISC2..MISC6
  *     axis:NAME       gamepad axis: LEFTX LEFTY RIGHTX RIGHTY
  *                     LEFT_TRIGGER RIGHT_TRIGGER
+ *                     DPAD_X DPAD_Y: the D-pad as whole axes, full
+ *                     deflection to either side while a direction is held
  *
  * Targets:
  *     adb:0xNN        IIgs keycode, 0x00-0x7f
@@ -152,7 +154,8 @@ static const struct imap_name g_pad_names[] = {
 /* SDL_GAMEPAD_AXIS_* values; see SDL_gamepad.h */
 static const struct imap_name g_axis_names[] = {
 	{ "LEFTX", 0 }, { "LEFTY", 1 }, { "RIGHTX", 2 }, { "RIGHTY", 3 },
-	{ "LEFT_TRIGGER", 4 }, { "RIGHT_TRIGGER", 5 }
+	{ "LEFT_TRIGGER", 4 }, { "RIGHT_TRIGGER", 5 },
+	{ "DPAD_X", IMAP_AXIS_DPAD_X }, { "DPAD_Y", IMAP_AXIS_DPAD_Y }
 };
 
 static const struct imap_name g_action_names[] = {
@@ -272,6 +275,20 @@ static const char *const g_default_map[] = {
 	"key:F12 = action:reset"
 };
 
+/* D-pad directions, indexed by g_dpad_held */
+enum {
+	IMAP_DIR_UP,
+	IMAP_DIR_DOWN,
+	IMAP_DIR_LEFT,
+	IMAP_DIR_RIGHT,
+	IMAP_NUM_DIRS
+};
+
+#define IMAP_PAD_DPAD_UP	11	/* SDL_GAMEPAD_BUTTON_DPAD_UP */
+#define IMAP_PAD_DPAD_DOWN	12
+#define IMAP_PAD_DPAD_LEFT	13
+#define IMAP_PAD_DPAD_RIGHT	14
+
 static struct imap_binding	g_bindings[IMAP_MAX_BINDINGS];
 static int	g_num_bindings = 0;
 
@@ -279,6 +296,7 @@ static int	g_key_active[IMAP_NUM_SCANCODES];	/* binding index + 1, 0 = none */
 static int	g_mouse_active[IMAP_NUM_MOUSE];
 static int	g_pad_active[IMAP_NUM_PAD_BUTTONS];
 static int	g_axis_val[IMAP_NUM_AXES];
+static int	g_dpad_held[IMAP_NUM_DIRS];
 
 static int	g_adb_level[128];
 static int	g_mouse1_level;
@@ -606,6 +624,7 @@ imap_reset_state(void)
 	memset(g_mouse_active, 0, sizeof(g_mouse_active));
 	memset(g_pad_active, 0, sizeof(g_pad_active));
 	memset(g_axis_val, 0, sizeof(g_axis_val));
+	memset(g_dpad_held, 0, sizeof(g_dpad_held));
 	memset(g_adb_level, 0, sizeof(g_adb_level));
 	memset(g_butn_level, 0, sizeof(g_butn_level));
 	memset(g_pdl_level, 0, sizeof(g_pdl_level));
@@ -894,11 +913,65 @@ imap_mouse_button(Kimage *km, int button, int is_up)
 								0, is_up);
 }
 
+static int
+imap_remap_wants_axis(void)
+{
+	return g_remap_pending && (g_remap_pending->tgt_kind == IMAP_TGT_PDL);
+}
+
+static int
+imap_dpad_dir(int button)
+{
+	switch(button) {
+	case IMAP_PAD_DPAD_UP:
+		return IMAP_DIR_UP;
+	case IMAP_PAD_DPAD_DOWN:
+		return IMAP_DIR_DOWN;
+	case IMAP_PAD_DPAD_LEFT:
+		return IMAP_DIR_LEFT;
+	case IMAP_PAD_DPAD_RIGHT:
+		return IMAP_DIR_RIGHT;
+	default:
+		return -1;
+	}
+}
+
+/* Sets DPAD_X and DPAD_Y from the held directions.  Both values are stored
+ * before any capture, because a capture releases the held directions.
+ */
+static void
+imap_dpad_update(void)
+{
+	int	x = g_dpad_held[IMAP_DIR_RIGHT] - g_dpad_held[IMAP_DIR_LEFT];
+	int	y = g_dpad_held[IMAP_DIR_DOWN] - g_dpad_held[IMAP_DIR_UP];
+
+	g_axis_val[IMAP_AXIS_DPAD_X] = x * 32767;
+	g_axis_val[IMAP_AXIS_DPAD_Y] = y * 32767;
+	if(imap_remap_wants_axis()) {
+		imap_remap_axis(IMAP_AXIS_DPAD_X, g_axis_val[IMAP_AXIS_DPAD_X]);
+	}
+	if(imap_remap_wants_axis()) {
+		imap_remap_axis(IMAP_AXIS_DPAD_Y, g_axis_val[IMAP_AXIS_DPAD_Y]);
+	}
+}
+
 void
 imap_pad_button(Kimage *km, int button, int is_up)
 {
+	int	dir;
+
 	if(!km || (button < 0) || (button >= IMAP_NUM_PAD_BUTTONS)) {
 		return;
+	}
+	dir = imap_dpad_dir(button);
+	if(dir >= 0) {
+		int	pdl_capture = !is_up && imap_remap_wants_axis();
+
+		g_dpad_held[dir] = !is_up;
+		imap_dpad_update();
+		if(pdl_capture) {
+			return;
+		}
 	}
 	if(!is_up && imap_remap_capture(IMAP_SRC_PAD, button)) {
 		return;
@@ -914,7 +987,7 @@ imap_pad_axis(int axis, int value)
 		return;
 	}
 	g_axis_val[axis] = value;
-	if(g_remap_pending && (g_remap_pending->tgt_kind == IMAP_TGT_PDL)) {
+	if(imap_remap_wants_axis()) {
 		imap_remap_axis(axis, value);
 	}
 }
@@ -927,6 +1000,8 @@ imap_pad_release_buttons(Kimage *km)
 	for(i = 0; i < IMAP_NUM_PAD_BUTTONS; i++) {
 		imap_source_event(km, &g_pad_active[i], IMAP_SRC_PAD, i, 0, 1);
 	}
+	memset(g_dpad_held, 0, sizeof(g_dpad_held));
+	imap_dpad_update();
 }
 
 /* For a gamepad that was unplugged: buttons released, sticks centered */

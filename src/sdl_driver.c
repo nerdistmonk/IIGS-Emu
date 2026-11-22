@@ -701,7 +701,7 @@ sdl_poll_gamepad_axes(void)
 	if(!g_sdl_gamepad) {
 		return;
 	}
-	for(axis = 0; axis < IMAP_NUM_AXES; axis++) {
+	for(axis = 0; axis < IMAP_NUM_SDL_AXES; axis++) {
 		imap_pad_axis(axis, SDL_GetGamepadAxis(g_sdl_gamepad, axis));
 	}
 }
