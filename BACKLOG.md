@@ -13,24 +13,25 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 - Foundation: SDL3 driver (video/input/audio), CMake build,
   version-from-tag.
 - **F1 — Window & display options**: `-fullscreen`, `-borderless`, `-noaspect`,
-  `-highdpi`, `-nohwaccel`, window position; F11 fullscreen toggle. (`-novsync`
+  `-highdpi`, `-nohwaccel`, window position; fullscreen action (unbound by default). (`-novsync`
   was later removed — see the vsync item under Display.)
-- **F2 — Scanline simulator**: `-scanline <0-100>`, Shift+F11 toggle.
+- **F2 — Scanline simulator**: `-scanline <0-100>`, scanlines action (unbound by default).
 - **F3 — Drag-and-drop**: drop a disk image on the window to mount it (WOZ slot
   from its INFO disk type; other images guessed from file size).
 - **Curved CRT effect**: `-crt 1` + `-crtcurve <0-100>` + `-crtmask <0-100>`,
-  Ctrl+F11 toggle. Curvature (RenderGeometry mesh) + RGB phosphor mask + bloom +
+  crt action (unbound by default). Curvature (RenderGeometry mesh) + RGB phosphor mask + bloom +
   vignette, composes with `-scanline`. All on the 2D renderer, no extra libraries.
 - **Gamepad/controller support**: SDL3 high-level Gamepad API → IIgs
-  joystick/paddles, with hotplug. Select "Native Joystick 1" in the F4 config
+  joystick/paddles, with hotplug. Select "Native Joystick 1" in the Ctrl+F1 config
   menu to route paddles to it.
-- **Screenshots**: F10 captures the framebuffer (`-ssdir` sets the output
+- **Screenshots**: the screenshot action captures the framebuffer (unbound by default;
+  `-ssdir` sets the output
   directory).
-- **Mouse capture**: F3 or middle-click confines the pointer to the window.
-- **xBRZ 2x filter**: `-xbrz 1` or the F4 Display Effects menu. Ported from
+- **Mouse capture**: Ctrl+F2 or middle-click confines the pointer to the window.
+- **xBRZ 2x filter**: `-xbrz 1` or the Ctrl+F1 Display Effects menu. Ported from
   ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
 - **Input remapping**: SDL-free host-to-IIgs mapping in `input.map` (keys, mouse,
-  gamepad buttons and sticks). Joystick Configuration > Remap Controls in the F4
+  gamepad buttons and sticks). Joystick Configuration > Remap Controls in the Ctrl+F1
   menu rebinds keys with press-to-bind, Esc to cancel, and reset to defaults.
   Gamepad remapping is untested on hardware.
 
@@ -61,7 +62,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| Modern **overlay config menu** (vs. F4 text panel) | Low | L | Big polish, big effort. |
+| Modern **overlay config menu** (vs. Ctrl+F1 text panel) | Low | L | Big polish, big effort. |
 
 ## Testing / infrastructure
 

@@ -758,9 +758,10 @@ sdl_input_init(void)
 }
 
 /* Apply the g_fullscreen config var to the live window whenever it changes.
- * Both F11 and the F4 config menu write g_fullscreen; this keeps the actual
- * window state (g_is_fullscreen) in sync with it, so toggling the option in
- * the config panel takes effect immediately, not just on the next launch. */
+ * Both the fullscreen action and the config menu write g_fullscreen; this
+ * keeps the actual window state (g_is_fullscreen) in sync with it, so toggling
+ * the option in the config panel takes effect immediately, not just on the
+ * next launch. */
 static void
 sdl_sync_fullscreen(Window_info *win)
 {
@@ -778,7 +779,7 @@ sdl_sync_fullscreen(Window_info *win)
  * app-wide but only manifests over our window, so when the pointer leaves a
  * windowed-mode window we restore it for the rest of the desktop. The early-out
  * keeps this cheap to call every frame, so it also picks up g_hide_mouse and
- * fullscreen changes made from the F4 config menu. */
+ * fullscreen changes made from the config menu. */
 static void
 sdl_update_cursor_visibility(void)
 {
@@ -796,8 +797,9 @@ sdl_update_cursor_visibility(void)
 	}
 }
 
-/* Toggles pointer capture (bound to F3 by default).  While captured, the
- * pointer stays confined to the window so the IIgs mouse never loses it. */
+/* Toggles pointer capture (bound to Ctrl+F2 and middle-click by default).
+ * While captured, the pointer stays confined to the window so the IIgs mouse
+ * never loses it. */
 static void
 sdl_toggle_mouse_grab(Window_info *win)
 {
@@ -850,7 +852,7 @@ sdl_poll_events(void)
 	Window_info *win = &g_mainwin_info;
 	int	idx, mx, my;
 
-	/* Pick up fullscreen / hide-cursor changes made from the F4 config menu. */
+	/* Pick up fullscreen / hide-cursor changes made from the config menu. */
 	sdl_sync_fullscreen(win);
 	sdl_update_cursor_visibility();
 

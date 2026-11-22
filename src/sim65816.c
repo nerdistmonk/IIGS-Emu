@@ -1566,7 +1566,7 @@ update_60hz(dword64 dfcyc, double dtime_now)
 		draw_iwm_status(2, status_buf);
 
 		snprintf(status_buf, sizeof(status_buf), " IIGS-Emu %-6s      "
-			"Press F4 for Config Menu    %s %s",
+			"Ctrl+F1 for Config Menu     %s %s",
 			GSPLUS_VERSION_STR, code_str1, code_str2);
 		video_update_status_line(3, status_buf);
 

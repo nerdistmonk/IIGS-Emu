@@ -17,13 +17,13 @@ IIGS-Emu does **not** support the early ROM 0.
 
 **Where to put it:** name the file `ROM`, `ROM.01`, or `ROM.03` and place it in
 your home directory, next to the app, or next to your `config.kegs`. IIGS-Emu picks
-it up automatically. You can also select one at runtime: press **F4 → ROM File
+it up automatically. You can also select one at runtime: press **Ctrl+F1 → ROM File
 Selection → ROM File** and browse to it. A handful of other common names
 (`APPLE2GS.ROM`, `APPLE2GS.ROM2`, `xgs.rom`, `342-0077-b`, …) are recognized too.
 
 **Did it work?** A valid ROM 01 file is exactly **128 KB** and a ROM 03 is **256
 KB**. If IIGS-Emu boots to the "Check startup device" screen, the ROM loaded fine —
-it just needs a disk. Press **F4** to mount a disk image, or drag one onto the
+it just needs a disk. Press **Ctrl+F1** to mount a disk image, or drag one onto the
 window.
 
 ### What's been added in IIGS-Emu
@@ -31,9 +31,10 @@ window.
 Some features that are a part of the SDL3 build:
 
 - **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
-  `-highdpi`, `-nohwaccel`, plus window position; F11 toggles
-  fullscreen.
-- **Screenshot capture** - F10 writes the framebuffer to disk.
+  `-highdpi`, `-nohwaccel`, plus window position. Fullscreen has no
+  default key; bind one under Remap Controls.
+- **Screenshot capture** - writes the framebuffer to disk. No default key; bind
+  one under Remap Controls.
 - **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick.
   The SDL controller database (`gamecontrollerdb.txt`, from
   [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB)) is
@@ -42,7 +43,7 @@ Some features that are a part of the SDL3 build:
   A connected gamepad is used automatically (with hotplug); without one, the
   numeric keypad emulates the joystick. The stick's circular travel is remapped
   to the square range Apple joysticks have, so games can reach the corners.
-  Override either behavior in the config menu (F4) under Joystick
+  Override either behavior in the config menu (Ctrl+F1) under Joystick
   Configuration.
 - **Terminal debugger** - a REPL for the built-in 65816 debugger from the
   controlling terminal.
@@ -52,43 +53,34 @@ Some features that are a part of the SDL3 build:
   560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
   GSplus's left-align. `-centera2 0` (or the Display Effects menu) restores
   the GSplus behavior.
-- **CRT scanline simulator** - `-scanline <0-100>`, Shift+F11 to toggle.
+- **CRT scanline simulator** - `-scanline <0-100>`. Bind the scanlines action under Remap Controls to toggle it.
 - **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
-  / `-crtvignette`, Ctrl+F11 to toggle. Screen curvature, RGB phosphor mask,
+  / `-crtvignette`. Bind the crt action under Remap Controls to toggle it. Screen curvature, RGB phosphor mask,
   bloom, and vignette; composes with the scanline simulator.
-- **xBRZ 2x filter** - `-xbrz 1` or the F4 Display Effects menu. Doubles the
+- **xBRZ 2x filter** - `-xbrz 1` or the Display Effects menu (Ctrl+F1). Doubles the
   picture with a corner-smoothing filter and doubles the window size; CRT
   effects apply on top of it.
   - **Tip: reduce vertical lines** - the IIgs' colour stripes on solid areas
     like the desktop wallpaper can look like vertical lines. Set Horizontal
-    Blur to about 70 (`-hblur 70`, or F4 > Display Effects > Horizontal Blur)
+    Blur to about 70 (`-hblur 70`, or Ctrl+F1 > Display Effects > Horizontal Blur)
     to smooth them out. It is a little softer; lower values keep more detail.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
 ## Controls
 
-The following hotkeys let you dynamically change many of the emulator settings,
-but you can also edit most settings by hitting `F4` for the configuration menu. 
+By default the Apple IIgs gets the keyboard directly, F1–F12 included. The emulator
+reserves only these host keys:
 
-| Key | Action | Source |
-|---|---|---|
-| **F1** | Open-Apple (⌘) modifier, for keyboards without an Apple/Command key | GS+ |
-| **F4** | Open the configuration menu (mount disks, pick a ROM, settings) | GS+ |
-| **F5** | Toggle the status line | GS+ |
-| **F6** | Cycle emulation speed (1 MHz / 2.8 MHz / fast) | GS+ |
-| **F7** | Toggle the debugger | GS+ |
-| **Shift + F7** | Toggle fast disk emulation | GS+ |
-| **F8** | Grab / release the mouse (warp + hide pointer) | GS+ |
-| **F9** | Invert paddles | GS+ |
-| **Shift + F9** | Swap paddles | GS+ |
-| **Ctrl + F9** | Copy screen text to the clipboard | GS+ |
-| **F10** | Save a screenshot | GS+ |
-| **F11** | Toggle fullscreen | GS+ |
-| **Shift + F11** | Toggle the CRT scanline effect | GS+ |
-| **Ctrl + F11** | Toggle the CRT curved screen effect | GS+ |
-| **Scroll Lock** or **middle-click** | Toggle mouse capture (confines the pointer to the window) | GS+ |
-| **Ctrl + F12** | Reset the IIgs (Ctrl-Reset) | GS+ |
+| Key | Action |
+|---|---|
+| **Ctrl + F1** | Open or close the configuration menu (mount disks, pick a ROM, settings) |
+| **Ctrl + F2** or **middle-click** | Grab / release the mouse (confines the pointer to the window) |
+| **Ctrl + Menu** | Reset the IIgs (Ctrl holds the IIgs Control key; Menu is the IIgs Reset key) |
+
+Other emulator actions (status line, emulation speed, debugger, fast disk,
+screenshot, fullscreen, CRT effects, and scanlines) have no default key. Bind them
+under **Joystick Configuration > Remap Controls > Mouse and Actions**.
 
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are

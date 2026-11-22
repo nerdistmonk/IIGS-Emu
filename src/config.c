@@ -422,7 +422,7 @@ Cfg_menu g_cfg_main_menu[] = {
 { "Save changes to config.kegs", (void *)config_write_config_kegs_file, 0, 0,
 		CFGTYPE_FUNC },
 { "", 0, 0, 0, 0 },
-{ "Exit Config (or press F4)", (void *)cfg_exit, 0, 0, CFGTYPE_FUNC },
+{ "Exit Config (or press Ctrl+F1)", (void *)cfg_exit, 0, 0, CFGTYPE_FUNC },
 { 0, 0, 0, 0, 0 },
 };
 
