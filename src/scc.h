@@ -42,6 +42,7 @@ STRUCT(Scc) {
 
 	byte	dcd;
 	byte	cts;
+	int	rr0_polls;		// RR0 reads since the last host poll
 	byte	reg_ptr;
 	byte	br_is_zero;
 	byte	tx_buf_empty;

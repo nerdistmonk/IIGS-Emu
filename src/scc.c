@@ -631,6 +631,12 @@ scc_read_reg(dword64 dfcyc, int port)
 	switch(regnum) {
 	case 0:
 	case 4:
+		/* Status-polling drivers never read $C03B, so poll the host here
+		 * too. Every 32nd read keeps the syscall cost low. */
+		scc_ptr->rr0_polls++;
+		if((scc_ptr->rr0_polls & 0x1f) == 0) {
+			scc_try_fill_readbuf(dfcyc, port);
+		}
 		ret = 0x60;	/* 0x44 = no dcd, no cts,0x6c = dcd ok, cts ok*/
 		if(scc_ptr->dcd) {
 			ret |= 0x08;
@@ -824,9 +830,7 @@ scc_write_reg(dword64 dfcyc, int port, word32 val)
 		if(changed_bits & 0x60) {
 			scc_regen_clocks(port);
 		}
-		if(changed_bits & 0x82) {	// DTR or RTS
-			scc_serial_unix_set_modem_lines(port);
-		}
+		scc_serial_unix_set_modem_lines(port);
 		if(changed_bits & 0x80) {
 			scc_printf("SCC port %d DTR:%d\n", port, val & 0x80);
 		}

@@ -38,8 +38,8 @@ scc_serial_unix_open(int port)
 		return;
 	}
 
+	/* Leave DTR/RTS as the kernel set them, as Basilisk II does */
 	scc_serial_unix_change_params(port);
-	scc_serial_unix_set_modem_lines(port);
 
 	scc_ptr->cur_state = 0;		// Actual Serial device
 }
