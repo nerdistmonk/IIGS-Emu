@@ -1901,7 +1901,7 @@ adb_increment_speed()
 		str = "...2.8MHz!";
 		break;
 	case 3:
-		str = "...8.0MHz!";
+		str = "...ZipGS Accelerator!";
 		break;
 	}
 	printf("Toggling g_limit_speed to %d%s\n", g_limit_speed, str);

@@ -407,7 +407,7 @@ Cfg_menu g_cfg_main_menu[] = {
 { "Video Settings", g_cfg_video_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Auto-update config.kegs,0,Manual,1,Immediately",
 		KNMP(g_config_kegs_auto_update), CFGTYPE_INT },
-{ "Speed,0,Unlimited,1,1.0MHz,2,2.8MHz,3,8.0MHz (Zip)",
+{ "Speed,0,Unlimited,1,1.0MHz,2,2.8MHz,3,ZipGS Accelerator",
 		KNMP(g_limit_speed), CFGTYPE_INT },
 { "ZipGS Speed,8,8MHz,16,16MHz,32,32MHz,64,64MHz,128,128MHz",
 		KNMP(g_zip_speed_mhz), CFGTYPE_INT },
