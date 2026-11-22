@@ -43,7 +43,7 @@ Some features that are a part of the SDL3 build:
   loaded from beside the binary, then from `~/.config/iigs-emu/`. D-pads and
   sticks both drive the joystick. The stick's circular travel is remapped to
   the square range Apple joysticks have, so games can reach the corners; turn
-  this off with Gamepad Range under Joystick Configuration (Ctrl+F1).
+  this off with Gamepad Range under Control Configuration (Ctrl+F1).
 - **Terminal debugger** - a REPL for the built-in 65816 debugger from the
   controlling terminal.
 - **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
@@ -93,7 +93,7 @@ and do not hold Open Apple.
 
 Other emulator actions (status line, debugger, fullscreen, CRT effects, and
 scanlines) have no default key. Bind them
-under **Joystick Configuration > Remap Controls > Mouse and Actions**.
+under **Control Configuration > Remap Controls > Mouse and Actions**.
 
 While the config menu is open, the IIgs receives no keyboard or mouse input.
 By default, Caps Lock latches the IIgs Caps Lock key; the host Caps Lock light

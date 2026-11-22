@@ -246,7 +246,7 @@ Cfg_menu g_cfg_remap_menu[IMAP_RG_COUNT + 6];
 Cfg_menu g_cfg_remap_groups[IMAP_RG_COUNT][IMAP_REMAP_MAX_GROUP + 4];
 
 Cfg_menu g_cfg_joystick_menu[] = {
-{ "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU },
+{ "Control Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU },
 { "Gamepad Range,1,Square (Full Corners),0,Circular (Raw)",
 	KNMP(g_joystick_square_range), CFGTYPE_INT },
 { "Joystick Scale X,0x100,Standard,0x119,+10%,0x133,+20%,"
@@ -399,7 +399,7 @@ Cfg_menu g_cfg_sdl_video_menu[] = {
 Cfg_menu g_cfg_main_menu[] = {
 { "IIGS-Emu Configuration", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
 { "Disk Configuration", g_cfg_disk_menu, 0, 0, CFGTYPE_SUBMENU },
-{ "Joystick Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_SUBMENU },
+{ "Control Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_SUBMENU },
 { "ROM File Selection", g_cfg_rom_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Character ROM Selection", g_cfg_charrom_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Serial Port Configuration", g_cfg_serial_menu, 0, 0, CFGTYPE_SUBMENU },
@@ -789,7 +789,7 @@ cfg_remap_menus_init()
 	menu[IMAP_RG_COUNT + 2] = (Cfg_menu){ "Reset all remaps to defaults",
 				(void *)cfg_remap_reset, 0, 0, CFGTYPE_FUNC };
 	menu[IMAP_RG_COUNT + 3] = (Cfg_menu){ "", 0, 0, 0, 0 };
-	menu[IMAP_RG_COUNT + 4] = (Cfg_menu){ "Back to Joystick Configuration",
+	menu[IMAP_RG_COUNT + 4] = (Cfg_menu){ "Back to Control Configuration",
 				g_cfg_joystick_menu, 0, 0, CFGTYPE_MENU };
 
 	for(group = 0; group < IMAP_RG_COUNT; group++) {

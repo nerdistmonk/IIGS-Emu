@@ -54,7 +54,7 @@ rm -rf build
 
 ### Input
 - `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked.
-- `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. The Ctrl+F1 config menu's Joystick Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
+- `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
 - `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
 

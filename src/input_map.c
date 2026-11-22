@@ -1442,7 +1442,7 @@ static struct imap_remap_item	g_remap_items[] = {
 
 static const char *const g_remap_group_names[IMAP_RG_COUNT] = {
 	"Letters A-M", "Letters N-Z", "Numbers", "Punctuation and Space",
-	"Editing and Arrows", "Modifiers", "Extended Keyboard", "Keypad",
+	"Editing and Arrows", "Modifiers", "Function Keys", "Keypad",
 	"Mouse and Actions", "Gamepad"
 };
 

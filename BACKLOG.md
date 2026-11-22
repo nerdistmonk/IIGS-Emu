@@ -30,7 +30,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 - **xBRZ 2x filter**: `-xbrz 1` or the Ctrl+F1 Display Effects menu. Ported from
   ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
 - **Input remapping**: SDL-free host-to-IIgs mapping in `input.map` (keys, mouse,
-  gamepad buttons and sticks). Joystick Configuration > Remap Controls in the Ctrl+F1
+  gamepad buttons and sticks). Control Configuration > Remap Controls in the Ctrl+F1
   menu rebinds keys with press-to-bind (a chord binds as one combo; a lone modifier
   binds on release), Esc to cancel, and reset to defaults. Gamepad remapping is
   tested only with uinput fake pads, not real hardware.
