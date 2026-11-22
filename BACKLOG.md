@@ -63,8 +63,3 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
 | Modern **overlay config menu** (vs. Ctrl+F1 text panel) | Low | L | Big polish, big effort. |
-
-## Testing / infrastructure
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
