@@ -172,7 +172,9 @@ static const struct imap_name g_action_names[] = {
 	{ "fullscreen", IMAP_ACT_FULLSCREEN },
 	{ "scanlines", IMAP_ACT_SCANLINES },
 	{ "crt", IMAP_ACT_CRT },
-	{ "reset", IMAP_ACT_RESET }
+	{ "reset", IMAP_ACT_RESET },
+	{ "zoom_in", IMAP_ACT_ZOOM_IN },
+	{ "zoom_out", IMAP_ACT_ZOOM_OUT }
 };
 
 /* Built-in profile, same syntax as input.map.  A line in the map file for
@@ -274,6 +276,8 @@ static const char *const g_default_map[] = {
 	"ctrl+key:F1 = action:config_panel",
 	"ctrl+key:F2 = action:mouse_grab",
 	"ctrl+key:F12 = action:reset",
+	"ctrl+key:1 = action:zoom_in",
+	"ctrl+key:2 = action:zoom_out",
 	"key:F1 = adb:0x7a",
 	"key:F2 = adb:0x78",
 	"key:F3 = adb:0x63",
@@ -764,6 +768,8 @@ imap_action_is_host(int action)
 	case IMAP_ACT_FULLSCREEN:
 	case IMAP_ACT_SCANLINES:
 	case IMAP_ACT_CRT:
+	case IMAP_ACT_ZOOM_IN:
+	case IMAP_ACT_ZOOM_OUT:
 		return 1;
 	default:
 		return 0;
@@ -1417,6 +1423,8 @@ static struct imap_remap_item	g_remap_items[] = {
 	{ "Fullscreen", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_FULLSCREEN },
 	{ "Scanlines", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_SCANLINES },
 	{ "CRT effect", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_CRT },
+	{ "Zoom in", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_ZOOM_IN },
+	{ "Zoom out", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_ZOOM_OUT },
 	{ "Reset machine", IMAP_RG_MOUSE, IMAP_TGT_ACTION, IMAP_ACT_RESET },
 	{ "Reset key", IMAP_RG_MOUSE, IMAP_TGT_ADB, 0x7f },
 	{ "Button 0", IMAP_RG_GAMEPAD, IMAP_TGT_BUTN, 0 },

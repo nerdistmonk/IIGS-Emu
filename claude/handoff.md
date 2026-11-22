@@ -24,7 +24,7 @@ Read this first in a new session. It captures the working state, conventions, an
 - `src/input_map.c`
   - Default map ~270–291. `key:PAUSE = adb:0x71` (F15) is a default binding.
   - Remap catalog ~1308–1421. `imap_remap_bind` ~1731.
-  - Actions enum ~164–175. Default-unbound actions: speed, screenshot, fullscreen, scanlines, crt. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12).
+  - Actions enum ~164–175. Default-unbound actions: speed, screenshot, fullscreen, scanlines, crt. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2).
 
 ## Environment
 - Xorg `:1` (dummy driver) and headless sway `wayland-1`. Start with `/root/iigs-env/start-displays.sh`.

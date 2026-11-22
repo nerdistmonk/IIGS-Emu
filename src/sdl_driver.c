@@ -50,6 +50,7 @@ typedef struct {
 	int		crt_curve_for;		/* g_crt_curve the mesh was built for */
 	int		crt_vig_for;		/* g_crt_vignette the mesh was built for */
 	int		crt_glow_for;		/* g_crt_glow the mesh was built for */
+	int		crt_zoom_for;		/* g_zoom the mesh was built for */
 	word32		*data;			/* dest buffer for video_out_data() */
 	int		active;
 	int		width_req;		/* current logical width  (pixels) */
@@ -76,6 +77,9 @@ extern int g_crt_vignette;		/* CRT corner darkening, 0-100 */
 extern int g_hblur;			/* horizontal linear blur, 0-100 */
 extern int g_xbrz;			/* xBRZ 2x upscale filter on/off */
 extern int g_vblur;			/* vertical linear blur, 0-100 */
+extern int g_zoom;			/* magnification of the final frame, 100-200 */
+extern int g_config_control_panel;
+extern int g_config_kegs_update_needed;
 extern int g_hide_mouse;		/* hide host cursor over window / in fullscreen */
 extern int g_mainwin_xpos, g_mainwin_ypos;	/* window position (KEGS config vars) */
 extern char *g_cfg_ssdir;		/* screenshot output dir ("" = current dir) */
@@ -115,7 +119,7 @@ static int g_quit_requested = 0;
 static void sdl_create_crt(Window_info *win, int w, int h);
 static void sdl_build_crt_mesh(Window_info *win, int w, int h);
 static void sdl_render_crt(Window_info *win);
-static void sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale);
+static void sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale, float zoom);
 
 /* Texture size as a multiple of the guest size: 2 when xBRZ backs the texture. */
 static int
@@ -244,6 +248,20 @@ sdl_fill_mask(Window_info *win)
 	win->mask_for = g_crt_mask;
 }
 
+/* The config panel is always drawn at 100% so its text stays readable. */
+static int
+sdl_zoom_percent(void)
+{
+	return g_config_control_panel ? 100 : g_zoom;
+}
+
+/* Zoom percent (100-200) as the scale factor applied about the output centre. */
+static float
+sdl_zoom_factor(void)
+{
+	return (float)sdl_zoom_percent() * 0.01f;
+}
+
 /* Build the curvature mesh: a CRT_MESH_COLS x CRT_MESH_ROWS grid whose vertices
  * are barrel-distorted (edges bow outward, corners pull in) and tinted darker
  * toward the corners for a vignette. UVs stay uniform so the GPU maps the flat
@@ -253,7 +271,8 @@ static void
 sdl_build_crt_mesh(Window_info *win, int w, int h)
 {
 	int	i, j, nx, ny, n, idx, vig_strength, glow_strength;
-	float	curve, vignette, glow, u, v, px, py, wx, wy, r2, vig;
+	float	curve, vignette, glow, zoom, u, v, px, py, wx, wy, r2, vig;
+	float	sx, sy;
 
 	nx = CRT_MESH_COLS + 1;
 	ny = CRT_MESH_ROWS + 1;
@@ -286,6 +305,8 @@ sdl_build_crt_mesh(Window_info *win, int w, int h)
 	if(glow_strength > 100) { glow_strength = 100; }
 	glow = (float)glow_strength * 0.01f;
 
+	zoom = sdl_zoom_factor();
+
 	n = 0;
 	for(j = 0; j < ny; j++) {
 		for(i = 0; i < nx; i++) {
@@ -297,8 +318,14 @@ sdl_build_crt_mesh(Window_info *win, int w, int h)
 			 * in by the square of the other axis' distance. */
 			wx = px * (1.0f - curve * py * py);
 			wy = py * (1.0f - curve * px * px);
-			win->crt_verts[n].position.x = (wx * 0.5f + 0.5f) * w;
-			win->crt_verts[n].position.y = (wy * 0.5f + 0.5f) * h;
+			sx = (wx * 0.5f + 0.5f) * w;
+			sy = (wy * 0.5f + 0.5f) * h;
+			/* Zoom magnifies about the output centre; the overflow is
+			 * clipped by the viewport. */
+			win->crt_verts[n].position.x = w * 0.5f +
+						(sx - w * 0.5f) * zoom;
+			win->crt_verts[n].position.y = h * 0.5f +
+						(sy - h * 0.5f) * zoom;
 			win->crt_verts[n].tex_coord.x = u;
 			win->crt_verts[n].tex_coord.y = v;
 			r2 = px * px + py * py;		/* 0 centre .. 2 corner */
@@ -341,6 +368,7 @@ sdl_build_crt_mesh(Window_info *win, int w, int h)
 	win->crt_curve_for = g_crt_curve;
 	win->crt_vig_for = g_crt_vignette;
 	win->crt_glow_for = g_crt_glow;
+	win->crt_zoom_for = sdl_zoom_percent();
 }
 
 /* (Re)create the offscreen targets + mesh at the given logical size. */
@@ -831,9 +859,35 @@ sdl_imap_host_action(int action)
 	case IMAP_ACT_CRT:
 		g_crt = !g_crt;
 		break;
+	case IMAP_ACT_ZOOM_IN:
+		/* cfg_int_update clamps to 100-200, as it does for the config menu. */
+		cfg_int_update(&g_zoom, g_zoom + 1);
+		g_config_kegs_update_needed = 1;
+		break;
+	case IMAP_ACT_ZOOM_OUT:
+		cfg_int_update(&g_zoom, g_zoom - 1);
+		g_config_kegs_update_needed = 1;
+		break;
 	default:
 		break;
 	}
+}
+
+/* Inverse of the zoom in sdl_render_framebuffer and sdl_build_crt_mesh: maps a
+ * logical window point back to where it lands on the unzoomed picture. */
+static void
+sdl_unzoom_point(Window_info *win, float *x, float *y)
+{
+	float	zoom, cx, cy;
+
+	if(sdl_zoom_percent() == 100) {
+		return;
+	}
+	zoom = sdl_zoom_factor();
+	cx = win->width_req * 0.5f;
+	cy = win->main_height * 0.5f;
+	*x = (*x - cx) / zoom + cx;
+	*y = (*y - cy) / zoom + cy;
 }
 
 static void
@@ -902,6 +956,7 @@ sdl_poll_events(void)
 			/* Map window coords through the renderer's logical
 			 * presentation, then into the IIgs framebuffer. */
 			SDL_ConvertEventToRenderCoordinates(win->renderer, &ev);
+			sdl_unzoom_point(win, &ev.motion.x, &ev.motion.y);
 			mx = video_scale_mouse_x(win->kimage_ptr, (int)ev.motion.x, 0);
 			my = video_scale_mouse_y(win->kimage_ptr, (int)ev.motion.y, 0);
 			adb_update_mouse(win->kimage_ptr, mx, my, 0, 0);
@@ -1088,21 +1143,35 @@ sdl_blur_kernel(int blur, float *weight)
  * target's pixels: 1 for logical presentation, tex_scale for an offscreen
  * target sized to the texture. */
 static void
-sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale)
+sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale, float zoom)
 {
 	SDL_Renderer	*r = win->renderer;
 	SDL_FRect	dst;
 	float		hweight[2 * BLUR_MAX_HALF + 1];
 	float		vweight[2 * BLUR_MAX_HALF + 1];
+	float		full_w, full_h, zoom_w, zoom_h, zoom_x, zoom_y;
 	int		kx, ky, hhalf, vhalf, mod;
 	SDL_BlendMode	add;
 
 	hhalf = sdl_blur_kernel(g_hblur, hweight);
 	vhalf = sdl_blur_kernel(g_vblur, vweight);
 
+	/* Zoom magnifies the output about its centre. The destination is larger
+	 * than the output and the overflow is clipped by the viewport. */
+	full_w = (float)(w * dst_scale);
+	full_h = (float)(h * dst_scale);
+	zoom_w = full_w * zoom;
+	zoom_h = full_h * zoom;
+	zoom_x = (full_w - zoom_w) * 0.5f;
+	zoom_y = (full_h - zoom_h) * 0.5f;
+
 	if((hhalf == 0) && (vhalf == 0)) {
-		/* No blur: opaque nearest-neighbour copy, as before. */
-		SDL_RenderTexture(r, win->texture, NULL, NULL);
+		/* No blur: opaque nearest-neighbour copy. */
+		dst.x = zoom_x;
+		dst.y = zoom_y;
+		dst.w = zoom_w;
+		dst.h = zoom_h;
+		SDL_RenderTexture(r, win->texture, NULL, &dst);
 		return;
 	}
 
@@ -1125,8 +1194,8 @@ sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale)
 			SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE,
 			SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(win->texture, add);
-	dst.w = (float)(w * dst_scale);
-	dst.h = (float)(h * dst_scale);
+	dst.w = zoom_w;
+	dst.h = zoom_h;
 
 	/* Separable 2D tent done in a single accumulation step: each (kx,ky) tap gets
 	 * weight hweight[kx]*vweight[ky]. Whichever axis is off has half==0 and one
@@ -1134,12 +1203,12 @@ sdl_render_framebuffer(Window_info *win, int w, int h, int dst_scale)
 	 * and enabling both gives the outer product of the two 1D kernels. */
 	for(ky = -vhalf; ky <= vhalf; ky++) {
 		float vw = vweight[ky + vhalf];
-		dst.y = (float)(ky * dst_scale);
+		dst.y = zoom_y + (float)(ky * dst_scale) * zoom;
 		for(kx = -hhalf; kx <= hhalf; kx++) {
 			mod = (int)(hweight[kx + hhalf] * vw * 255.0f + 0.5f);
 			SDL_SetTextureColorMod(win->texture, (Uint8)mod, (Uint8)mod,
 						(Uint8)mod);
-			dst.x = (float)(kx * dst_scale);
+			dst.x = zoom_x + (float)(kx * dst_scale) * zoom;
 			SDL_RenderTexture(r, win->texture, NULL, &dst);
 		}
 	}
@@ -1168,14 +1237,16 @@ sdl_render_crt(Window_info *win)
 	 * runtime. */
 	if((win->crt_curve_for != g_crt_curve) ||
 				(win->crt_vig_for != g_crt_vignette) ||
-				(win->crt_glow_for != g_crt_glow)) {
+				(win->crt_glow_for != g_crt_glow) ||
+				(win->crt_zoom_for != sdl_zoom_percent())) {
 		sdl_build_crt_mesh(win, w, h);
 		if(!win->crt_verts) {
 			return;
 		}
 	}
 
-	/* --- Pass 1: copy into crt_target (1:1, no logical scaling). --- */
+	/* --- Pass 1: copy into crt_target (1:1, no logical scaling). The zoom is
+	 * not applied here: it is applied to the curve mesh in pass 3. --- */
 	SDL_SetRenderLogicalPresentation(r, 0, 0,
 				SDL_LOGICAL_PRESENTATION_DISABLED);
 	SDL_SetRenderTarget(r, win->crt_target);
@@ -1184,7 +1255,7 @@ sdl_render_crt(Window_info *win)
 	 * pass adds source RGB directly, independent of alpha (see below). */
 	SDL_SetRenderDrawColor(r, 0, 0, 0, 0);
 	SDL_RenderClear(r);
-	sdl_render_framebuffer(win, w, h, win->tex_scale);
+	sdl_render_framebuffer(win, w, h, win->tex_scale, 1.0f);
 
 	/* --- Pass 2: downscale crt_target -> glow_target (LINEAR = blur).
 	 * Skipped entirely at glow 0 (as is the additive draw below). --- */
@@ -1313,7 +1384,8 @@ sdl_update_display(Window_info *win)
 		 * black explicitly since the blur path accumulates additively. */
 		SDL_SetRenderDrawColor(win->renderer, 0, 0, 0, 255);
 		SDL_RenderClear(win->renderer);
-		sdl_render_framebuffer(win, win->width_req, win->main_height, 1);
+		sdl_render_framebuffer(win, win->width_req, win->main_height, 1,
+					sdl_zoom_factor());
 		sdl_render_overlays(win);
 	}
 

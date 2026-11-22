@@ -56,6 +56,11 @@ Some features that are a part of the SDL3 build:
 - **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
   / `-crtvignette`. Bind the crt action under Remap Controls to toggle it. Screen curvature, RGB phosphor mask,
   bloom, and vignette; composes with the scanline simulator.
+- **Zoom** - Ctrl+1 zooms in and Ctrl+2 zooms out, 100-200% in 1% steps. It
+  magnifies the final processed image around the centre, so filters and CRT
+  still apply. The window size stays fixed, so the picture edges (including the
+  status bar) are cropped at higher zoom. The level is saved as `zoom` in
+  config.kegs. Both keys are rebindable under Remap Controls > Mouse.
 - **xBRZ 2x filter** - `-xbrz 1` or the Display Effects menu (Ctrl+F1). Doubles the
   picture with a corner-smoothing filter and doubles the window size; CRT
   effects apply on top of it.

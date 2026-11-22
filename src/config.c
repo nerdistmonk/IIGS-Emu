@@ -160,6 +160,7 @@ int	g_crt_curve = 2;	/* CRT screen curvature amount, 0-100 (0=flat) */
 int	g_crt_mask = 2;	/* CRT phosphor-mask strength, 0-100 (0=off, subtle) */
 int	g_crt_glow = 8;	/* CRT glow/bloom strength, 0-100 (0=off) */
 int	g_crt_vignette = 5;	/* CRT corner darkening, 0-100 (0=off, flat brightness) */
+int	g_zoom = 100;		/* magnification of the final frame, 100-200 percent */
 int	g_xbrz = 0;		/* xBRZ 2x upscale filter (0=off, 1=on) */
 int	g_hblur = 0;		/* horizontal linear blur, 0-100 (0=off, sharp) */
 int	g_vblur = 0;		/* vertical linear blur, 0-100 (0=off, sharp) */
@@ -377,6 +378,7 @@ Cfg_menu g_cfg_sdl_video_menu[] = {
 { "Center 8-bit Video Modes,0,No (KEGS left-align),1,Yes",
 			&g_video_center_a2, "centera2", 0, CFGTYPE_INT },
 { "Scanline Simulator 0-100", &g_scanline_simulator, "scanline", 0, CFGTYPE_INT },
+{ "Zoom 100-200", &g_zoom, "zoom", 0, CFGTYPE_INT },
 { "CRT Effect (curve+mask+glow),0,Off,1,On", &g_crt, "crt", 0, CFGTYPE_INT },
 { "CRT Curvature 0-100", &g_crt_curve, "crtcurve", 0, CFGTYPE_INT },
 { "CRT Phosphor Mask 0-100", &g_crt_mask, "crtmask", 0, CFGTYPE_INT },
@@ -1293,6 +1295,15 @@ cfg_int_update(int *iptr, int new_val)
 			new_val = 100;
 		}
 	}
+	if(iptr == &g_zoom) {
+		/* Zoom is a 100-200 percentage; the hotkeys step it by 1. */
+		if(new_val < 100) {
+			new_val = 100;
+		} else if(new_val > 200) {
+			new_val = 200;
+		}
+	}
+
 	*iptr = new_val;
 	if(old_val == new_val) {
 		return;
