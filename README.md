@@ -13,7 +13,7 @@ copyrighted firmware, so IIGS-Emu can't ship it — you supply your own.
 
 **Which ROM:** the IIgs shipped with two ROM versions. **ROM 03** (256 KB, the
 later model) is the usual choice; **ROM 01** (128 KB) is also fully supported.
-IIGS-Emu does **not** support the early ROM 0.
+IIGS-Emu does **not** support the early ROM 0 or the unreleased ROM 04 prototype.
 
 **Where to put it:** name the file `ROM`, `ROM.01`, or `ROM.03` and place it in
 your home directory, next to the app, or next to your `config.kegs`. IIGS-Emu picks
@@ -60,7 +60,11 @@ Some features that are a part of the SDL3 build:
   magnifies the final processed image around the centre, so filters and CRT
   still apply. The window size stays fixed, so the picture edges (including the
   status bar) are cropped at higher zoom. The level is saved as `zoom` in
-  config.kegs. Both keys are rebindable under Remap Controls > Mouse.
+  config.kegs. Both keys are rebindable under Remap Controls > Mouse and Actions.
+- **Speed control** - Ctrl+F3 cycles Unlimited, 1.024 MHz, 2.8 MHz, and ZipGS
+  Accelerator (the default). ZipGS Accelerator runs at the clock set by **ZipGS
+  Speed** (8–128 MHz, default 16) in the main Ctrl+F1 menu, but only while software
+  has enabled the ZipGS card. Otherwise that clock is not used.
 - **xBRZ 2x filter** - `-xbrz 1` or the Display Effects menu (Ctrl+F1). Doubles the
   picture with a corner-smoothing filter and doubles the window size; CRT
   effects apply on top of it.
@@ -81,6 +85,10 @@ reserves only these host keys:
 | **Ctrl + F1** | Open or close the configuration menu (mount disks, pick a ROM, settings) |
 | **Ctrl + F2** or **middle-click** | Grab / release the mouse (confines the pointer to the window) |
 | **Ctrl + F12** | Reset the IIgs |
+| **Ctrl + 1** / **Ctrl + 2** | Zoom in / zoom out |
+| **Ctrl + F3** | Cycle speed (Unlimited, 1.024 MHz, 2.8 MHz, ZipGS Accelerator) |
+| **Ctrl + F4** | Toggle fast disk emulation |
+| **Ctrl + F5** | Save a screenshot |
 
 The IIgs keys are named by their Apple II-era names, which map to the modern
 keys: **Open Apple** is **Command** (either side, the "clover" key), and
@@ -91,8 +99,8 @@ F1–F15 and the six navigation keys (Help/Insert, Home, Page Up, Forward Delete
 End, Page Down) reach the IIgs as extended keyboard keys. They type no character
 and do not hold Open Apple.
 
-Other emulator actions (status line, debugger, fullscreen, CRT effects, and
-scanlines) have no default key. Bind them
+Other emulator actions (status line, debugger go, fullscreen, CRT effects,
+scanlines, and warp pointer) have no default key. Bind them
 under **Control Configuration > Remap Controls > Mouse and Actions**.
 
 While the config menu is open, the IIgs receives no keyboard or mouse input.

@@ -26,7 +26,7 @@ The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/
    python3 -m venv /root/iigs-env/venv && /root/iigs-env/venv/bin/pip install evdev
    ```
 3. Copy the config: `cp /root/IIGS-Emu/claude/configs/boot-nodisk.cfg /root/iigs-test/work/`
-4. Provide the ROM yourself. The emulator searches for `ROM.03` by relative name in its working directory (`src/config.c:135`, `src/config.c:452`). Loading the config changes the working directory to `/root/iigs-test/work` (the log prints `CWD is now: ...`), so the link goes there, not in `/root/iigs-test`. The 256 KB "ROM 3 Tenspeed Late 1988 Early 1989 v25" image boots:
+4. Provide the ROM yourself. The emulator searches for `ROM.03` by relative name in its working directory (`g_kegs_rom_names` in `src/config.c`). Loading the config changes the working directory to `/root/iigs-test/work` (the log prints `CWD is now: ...`), so the link goes there, not in `/root/iigs-test`. The 256 KB "ROM 3 Tenspeed Late 1988 Early 1989 v25" image boots (ROM 04 does not; see `handoff.md`):
    ```
    ln -sfn /path/to/your/rom /root/iigs-test/work/ROM.03
    ```

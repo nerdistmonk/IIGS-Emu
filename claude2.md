@@ -13,15 +13,15 @@ Working notes for future sessions on IIGS-Emu. Complements CLAUDE.md (architectu
 ## Build
 
 - Repo build (from CLAUDE.md): `cmake -G Ninja -B build -S src && cmake --build build --target gsplus-sdl`.
-- Debug build lives outside the repo at `/root/build-dbg` and is a CMake/Ninja tree. Rebuild with `cmake --build /root/build-dbg -j4`. Do not use `make`; there is no Makefile there.
-- Release binary: `/root/build-normal/iigs-emu`. Debug binary: `/root/build-dbg/iigs-emu`.
+- Release binary: `build/iigs-emu` in the repo (`cmake --build build --target gsplus-sdl`).
+- Debug tree lives outside the repo at `/root/build-dbg`. Configure it once with `cmake -G Ninja -B /root/build-dbg -S /root/IIGS-Emu/src -DCMAKE_BUILD_TYPE=Debug`, then rebuild with `cmake --build /root/build-dbg -j4`. Do not use `make`; there is no Makefile there. The debug binary is `/root/build-dbg/iigs-emu`. It does not exist until configured.
 - Emulator takes a config file with `-cfg <file>`. Config changes need an emulator restart.
 - Stderr is noisy with `GRIND` debug lines. Filter with `grep -a -v GRIND`. ALSA and XDG_RUNTIME_DIR warnings are environmental.
 
 ## Runtime Testing
 
 - No automated tests exist in the repo (see CLAUDE.md). Runtime checks are done with the emulator plus gdb, using configs and fixtures in `/root/iigs-test` (outside the repo).
-- Headless display: `Xvfb :99` (`export DISPLAY=:99`). Check with `xdpyinfo -display :99`.
+- Test display: Xorg `:1` from `/root/iigs-env/start-displays.sh` (see `claude/README.md`). Check with `xdpyinfo -display :1`.
 - Batch gdb pattern: `timeout 120 gdb -batch -x script.gdb --args /root/build-dbg/iigs-emu -cfg x.cfg`. End scripts with `kill` so the emulator exits.
 - gdb gotcha: `$fp` is a built-in register alias (frame pointer). Use other names for convenience variables.
 - Calling emulator functions from gdb works while stopped (for example `call dynapro_handle_write_file($dskp, $fileh)`). This exercises real code paths without guest I/O.
