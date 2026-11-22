@@ -65,6 +65,11 @@ Some features that are a part of the SDL3 build:
   Accelerator (the default). ZipGS Accelerator runs at the clock set by **ZipGS
   Speed** (8–128 MHz, default 16) in the main Ctrl+F1 menu, but only while software
   has enabled the ZipGS card. Otherwise that clock is not used.
+- **On-screen display** - a short message in the top-right corner when a hotkey
+  changes something (zoom, speed, fast disk, scanlines, CRT, mouse capture,
+  screenshots, and so on). It stays for 2 seconds and does not scale with zoom.
+  Turn it off with **Show OSD** in the main Ctrl+F1 menu (on by default, saved
+  as `g_osd_enable` in config.kegs).
 - **xBRZ 2x filter** - `-xbrz 1` or the Display Effects menu (Ctrl+F1). Doubles the
   picture with a corner-smoothing filter and doubles the window size; CRT
   effects apply on top of it.

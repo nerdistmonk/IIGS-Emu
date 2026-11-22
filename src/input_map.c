@@ -69,6 +69,7 @@
 
 #include "defc.h"
 #include "input_map.h"
+#include "protos_sdl.h"
 
 
 #define IMAP_MAX_BINDINGS	512
@@ -368,6 +369,11 @@ extern int g_warp_pointer;
 extern int g_hide_pointer;
 extern int g_mouse_raw_x;
 extern int g_mouse_raw_y;
+extern int g_zoom;
+extern int g_crt;
+extern int g_scanline_simulator;
+extern int g_fullscreen;
+extern int g_limit_speed;
 
 static int
 imap_lookup(const struct imap_name *tab, int count, const char *name)
@@ -780,6 +786,78 @@ imap_action_is_host(int action)
 }
 
 static void
+imap_osd_onoff(const char *name, int on)
+{
+	char	buf[OSD_TEXT_MAX];
+
+	snprintf(buf, sizeof(buf), "%s: %s", name, on ? "on" : "off");
+	osd_show(buf);
+}
+
+/* Confirms a hotkey action on screen.  Runs after the action so it shows the
+ * new state.  Mouse capture and screenshots report from sdl_driver.c, and the
+ * debugger reports in imap_run_action, since its halt request has no state
+ * to read back. */
+static void
+imap_osd_action(int action)
+{
+	char	buf[OSD_TEXT_MAX];
+
+	switch(action) {
+	case IMAP_ACT_STATUS:
+		imap_osd_onoff("Status lines", g_status_enable);
+		break;
+	case IMAP_ACT_SPEED:
+		switch(g_limit_speed) {
+		case 0:
+			osd_show("Speed: Unlimited");
+			break;
+		case 1:
+			osd_show("Speed: 1.0MHz");
+			break;
+		case 2:
+			osd_show("Speed: 2.8MHz");
+			break;
+		default:
+			osd_show("Speed: ZipGS Accelerator");
+			break;
+		}
+		break;
+	case IMAP_ACT_FAST_DISK:
+		imap_osd_onoff("Fast disk", g_fast_disk_emul_en);
+		break;
+	case IMAP_ACT_WARP_POINTER:
+		imap_osd_onoff("Warp pointer", g_warp_pointer);
+		break;
+	case IMAP_ACT_FULLSCREEN:
+		imap_osd_onoff("Fullscreen", g_fullscreen);
+		break;
+	case IMAP_ACT_SCANLINES:
+		if(g_scanline_simulator > 0) {
+			snprintf(buf, sizeof(buf), "Scanlines: %d%%",
+						g_scanline_simulator);
+			osd_show(buf);
+		} else {
+			osd_show("Scanlines: off");
+		}
+		break;
+	case IMAP_ACT_CRT:
+		imap_osd_onoff("CRT", g_crt);
+		break;
+	case IMAP_ACT_ZOOM_IN:
+	case IMAP_ACT_ZOOM_OUT:
+		snprintf(buf, sizeof(buf), "Zoom: %d%%", g_zoom);
+		osd_show(buf);
+		break;
+	case IMAP_ACT_RESET:
+		osd_show("Machine reset");
+		break;
+	default:
+		break;
+	}
+}
+
+static void
 imap_run_action(int action)
 {
 	/* The config_panel action stays live so Ctrl+F1 can close the panel */
@@ -790,6 +868,7 @@ imap_run_action(int action)
 		if(g_host_hook) {
 			g_host_hook(action);
 		}
+		imap_osd_action(action);
 		return;
 	}
 	switch(action) {
@@ -805,8 +884,10 @@ imap_run_action(int action)
 	case IMAP_ACT_DEBUG_GO:
 		if(g_halt_sim) {
 			do_go();
+			osd_show("Debugger: resumed");
 		} else {
 			halt2_printf("Debugger halt requested\n");
+			osd_show("Debugger: halt requested");
 		}
 		break;
 	case IMAP_ACT_FAST_DISK:
@@ -826,6 +907,7 @@ imap_run_action(int action)
 	default:
 		break;
 	}
+	imap_osd_action(action);
 }
 
 /* Returns 1 when the count crosses zero: 0->1 on press, 1->0 on release */

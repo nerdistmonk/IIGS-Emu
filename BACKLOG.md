@@ -26,6 +26,8 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 - **Screenshots**: the screenshot action captures the framebuffer (Ctrl+F5 by default;
   `-ssdir` sets the output directory).
 - **Zoom**: Ctrl+1 / Ctrl+2 magnify the final image 100–200% (saved as `zoom`).
+- **On-screen display**: a 2-second message in the top-right corner for hotkey events
+  (`g_osd_enable`, Show OSD in the Ctrl+F1 menu). Drawn in host pixels, so zoom has no effect.
 - **Mouse capture**: Ctrl+F2 or middle-click confines the pointer to the window.
 - **xBRZ 2x filter**: `-xbrz 1` or the Ctrl+F1 Display Effects menu. Ported from
   ProSystemSE's 2x corner-blend filter; toggles at runtime and works with CRT.
@@ -49,14 +51,6 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 |---|---|---|---|
 | **Integer / pixel-perfect scaling** toggle | Med | S | Crisp 1×/2×/3× vs. letterbox stretch; also stops scanline shimmer at non-integer scales. |
 | Re-add **vsync** option properly | Low | M | Removed pre-1.38.0 (double-pacing caused half-speed + audio gaps). Right fix: when vsync is on, let it drive pacing and drop the sleep-based clock — one pacer, not two. |
-
-## Runtime / system
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| **Fast-forward / turbo** hotkey | High | S | Ctrl+F3 (`action:speed`) already cycles uncapped → 1.024 MHz → 2.8 MHz → ZipGS Accelerator. Open: hold-to-uncap. |
-| **Pause/resume** hotkey | Med | S | |
-| **Save states / snapshots** | Med | L | Full IIgs machine state; KEGS has none. Stretch. |
 
 ## Quality of life
 

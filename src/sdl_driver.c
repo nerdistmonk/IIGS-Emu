@@ -84,6 +84,7 @@ extern int g_hide_mouse;		/* hide host cursor over window / in fullscreen */
 extern int g_mainwin_xpos, g_mainwin_ypos;	/* window position (KEGS config vars) */
 extern char *g_cfg_ssdir;		/* screenshot output dir ("" = current dir) */
 extern int g_halt_sim;			/* nonzero while the debugger has the CPU halted */
+extern int g_osd_enable;		/* on-screen message for hotkey actions */
 
 static int g_is_fullscreen = 0;		/* current fullscreen state (F11 toggles) */
 static int g_mouse_over_window = 0;	/* cursor is inside our window (ENTER/LEAVE) */
@@ -497,6 +498,78 @@ sdl_render_overlays(Window_info *win)
 			   : SDL_LOGICAL_PRESENTATION_LETTERBOX);
 }
 
+#define OSD_SHOW_MS	2000
+#define OSD_CHAR_PX	(SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE * 2)
+
+static char	g_osd_text[OSD_TEXT_MAX];
+static Uint64	g_osd_until_ms = 0;
+
+/* Shows a short message in the top-right corner for OSD_SHOW_MS. */
+void
+osd_show(const char *msg)
+{
+	if(!g_osd_enable) {
+		return;
+	}
+	snprintf(g_osd_text, sizeof(g_osd_text), "%s", msg);
+	g_osd_until_ms = SDL_GetTicks() + OSD_SHOW_MS;
+}
+
+/* Draws the OSD after the picture, in host pixels like sdl_render_overlays, so
+ * zoom does not change its size.  Called after the screenshot is taken, so
+ * captures never include it. */
+static void
+sdl_render_osd(Window_info *win)
+{
+	SDL_Renderer	*r = win->renderer;
+	SDL_FRect	box;
+	float		pad = 6.0f;
+	float		margin = 8.0f;
+	int		ow, oh;
+	Uint8		dr, dg, db, da;
+	SDL_BlendMode	blend;
+
+	if(!g_osd_enable || (g_osd_text[0] == '\0')) {
+		return;
+	}
+	if(SDL_GetTicks() >= g_osd_until_ms) {
+		g_osd_text[0] = '\0';
+		return;
+	}
+
+	SDL_SetRenderLogicalPresentation(r, 0, 0,
+				SDL_LOGICAL_PRESENTATION_DISABLED);
+	if(SDL_GetRenderOutputSize(r, &ow, &oh)) {
+		box.w = (float)(strlen(g_osd_text) * OSD_CHAR_PX) + 2.0f * pad;
+		box.h = (float)OSD_CHAR_PX + 2.0f * pad;
+		box.x = (float)ow - box.w - margin;
+		if(box.x < 0.0f) {
+			box.x = 0.0f;
+		}
+		box.y = margin;
+
+		SDL_GetRenderDrawColor(r, &dr, &dg, &db, &da);
+		SDL_GetRenderDrawBlendMode(r, &blend);
+		SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+		SDL_SetRenderDrawColor(r, 0, 0, 0, 160);
+		SDL_RenderFillRect(r, &box);
+
+		/* Debug text is 8x8 per character; the scale doubles it. */
+		SDL_SetRenderScale(r, 2.0f, 2.0f);
+		SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+		SDL_RenderDebugText(r, (box.x + pad) / 2.0f,
+				(box.y + pad) / 2.0f, g_osd_text);
+		SDL_SetRenderScale(r, 1.0f, 1.0f);
+
+		SDL_SetRenderDrawColor(r, dr, dg, db, da);
+		SDL_SetRenderDrawBlendMode(r, blend);
+	}
+
+	SDL_SetRenderLogicalPresentation(r, win->width_req, win->main_height,
+		g_noaspect ? SDL_LOGICAL_PRESENTATION_STRETCH
+			   : SDL_LOGICAL_PRESENTATION_LETTERBOX);
+}
+
 /* Upscale the whole guest frame 2x with xBRZ and upload it to the 2x texture. */
 static void
 sdl_xbrz_upload(Window_info *win)
@@ -826,6 +899,7 @@ sdl_toggle_mouse_grab(Window_info *win)
 
 	SDL_SetWindowMouseGrab(win->window, grab);
 	printf("Mouse capture %s\n", grab ? "on" : "off");
+	osd_show(grab ? "Mouse capture: on" : "Mouse capture: off");
 }
 
 /* Emulator-side actions that input_map.c hands back (see imap_action_is_host).
@@ -1090,8 +1164,10 @@ sdl_save_screenshot(Window_info *win)
 
 	if(rc) {
 		printf("Screenshot failed: could not write %s\n", path);
+		osd_show("Screenshot failed");
 	} else {
 		printf("Screenshot saved: %s (%dx%d)\n", path, w, h);
+		osd_show("Screenshot saved");
 	}
 }
 
@@ -1396,6 +1472,7 @@ sdl_update_display(Window_info *win)
 		g_screenshot_requested = 0;
 	}
 
+	sdl_render_osd(win);
 	SDL_RenderPresent(win->renderer);
 }
 

@@ -163,6 +163,7 @@ int	g_zoom = 100;		/* magnification of the final frame, 100-200 percent */
 int	g_xbrz = 0;		/* xBRZ 2x upscale filter (0=off, 1=on) */
 int	g_hblur = 0;		/* horizontal linear blur, 0-100 (0=off, sharp) */
 int	g_vblur = 0;		/* vertical linear blur, 0-100 (0=off, sharp) */
+int	g_osd_enable = 1;	/* on-screen message for hotkey actions (0=off, 1=on) */
 int	g_hide_mouse = 1;	/* hide host cursor over the window / in fullscreen */
 char	*g_cfg_ssdir = "";	/* screenshot output dir ("" = current dir) */
 char	*g_cfg_last_dir = 0;	/* last folder browsed in disk selector; saved as "lastdir" */
@@ -403,6 +404,7 @@ Cfg_menu g_cfg_main_menu[] = {
 	"0x400000,4MB,0x600000,6MB,0x800000,8MB,0xa00000,10MB,0xc00000,12MB,"
 	"0xe00000,14MB", KNMP(g_mem_size_exp), CFGTYPE_INT },
 { "Show Status lines,0,Disabled,1,Enabled", KNMP(g_status_enable), CFGTYPE_INT},
+{ "Show OSD,0,Disabled,1,Enabled", KNMP(g_osd_enable), CFGTYPE_INT },
 { "Fatal System Errors,0,Do not stop on bad accesses,1,Enter debugger on bad "
 		"accesses", KNMP(g_user_halt_bad), CFGTYPE_INT },
 { "", 0, 0, 0, 0 },

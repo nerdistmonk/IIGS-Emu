@@ -54,13 +54,11 @@ Read this first in a new session. It captures the working state, conventions, an
 ## Open items
 - Hardware check: whether F-keys and nav keys set `$C025` bit 0x10 on a real IIgs. The firmware reference defines bit 4 as "Keypad key active" but does not list which keys set it. Unverified.
 - Backlog (`BACKLOG.md`):
-  - Fast-forward/turbo (High). Ctrl+F3 already cycles speeds, including uncapped. Open: hold-to-uncap. Ask the user first.
-  - Pause/resume hotkey (Med). Empty notes.
   - Integer/pixel-perfect scaling (Med). Not implemented; the renderer uses `SDL_SCALEMODE_NEAREST`.
   - Vsync re-add (Low). Vsync is forced off in `src/sdl_driver.c` ~598.
   - Clipboard (Med). Not implemented.
-  - Save states (Med). Not implemented.
   - Overlay config menu (Low).
+- Dropped by the user, do not re-add: pause/resume, fast-forward/hold-to-uncap, save states.
 - Gamepad remapping tested only with uinput fake pads.
 - ROM 04 (unreleased prototype, 256 KB) is not supported. Its size selects ROM 3, and the ROM 3 patch block in `src/config.c` (~1533) turns byte `0x357c9` (AND) into BRK, so it halts with "Halting for native break!". The user decided not to pursue it.
 - Keep README.md and BACKLOG.md in sync when default hotkeys or menu labels change. The last docs pass checked them against `src/input_map.c` and `src/config.c`.

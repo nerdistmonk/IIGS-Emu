@@ -10,6 +10,10 @@
 #ifndef GSPLUS_PROTOS_SDL_H
 #define GSPLUS_PROTOS_SDL_H
 
+/* sdl_driver.c */
+#define OSD_TEXT_MAX	64	/* longest message osd_show keeps, incl. NUL */
+void	osd_show(const char *msg);
+
 /* sdl_snd_driver.c */
 void	sdl_snd_init(word32 *shmaddr);
 int	sdl_send_audio(byte *ptr, int size);
