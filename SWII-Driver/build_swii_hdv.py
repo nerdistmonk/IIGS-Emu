@@ -15,6 +15,8 @@ Patches:
   the white 1-byte G template gets a 00 terminator (length 04->05), and the black
   template's length is zeroed so its frames become no-ops. Black pixels are
   dropped in this build.
+  the setup-record routine sends I, then nu/d<, then A/M, so A goes last as in
+  the reference order (the original sends A first)
 
 Layout (512-byte blocks):
   0-1  boot (zero)            2  volume directory
@@ -35,6 +37,15 @@ PATCH_OFF = 0x474D
 READY_OFF = 0x4768  # BNE over the "Ready light off" alert; image 0x4690 + 0xD8
 WHITE_TMPL_OFF = 0x3C13  # 1-byte white G frame template; image 0x3B3B + 0xD8
 BLACK_TMPL_OFF = 0x3C18  # 1-byte black G frame template; image 0x3B40 + 0xD8
+# Setup-record routine body; image 0x39DF + 0xD8. Original order is I, then A/M,
+# then nu/d<. The two 16-byte blocks swap so A is sent last, as in the reference.
+SETUP_OFF = 0x3AB7
+SETUP_ORIG = bytes.fromhex('ae fa 3d f0 05 a9 0a 3a 80 03 a9 08 3a 20 72 45'
+                           '9c 1a 3e'
+                           'ae fc 3d f0 05 a9 0c 3a 80 03 a9 0f 3a 20 72 45')
+SETUP_NEW = bytes.fromhex('ae fc 3d f0 05 a9 0c 3a 80 03 a9 0f 3a 20 72 45'
+                          '9c 1a 3e'
+                          'ae fa 3d f0 05 a9 0a 3a 80 03 a9 08 3a 20 72 45')
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 TOTAL_BLOCKS = 1600
@@ -152,6 +163,9 @@ def main():
         raise SystemExit('expected 1-byte white/black G frame templates at patch site')
     patched[WHITE_TMPL_OFF] = 0x05
     patched[BLACK_TMPL_OFF] = 0x00
+    if patched[SETUP_OFF:SETUP_OFF + len(SETUP_ORIG)] != SETUP_ORIG:
+        raise SystemExit('expected setup-record routine at patch site')
+    patched[SETUP_OFF:SETUP_OFF + len(SETUP_NEW)] = SETUP_NEW
 
     sys_entry = find_entry(raw, SRC_VOL, 'SYSTEM')
     drv_entry = find_entry(raw, SRC_SYSTEM, 'DRIVERS')
