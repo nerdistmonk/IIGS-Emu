@@ -265,13 +265,6 @@ Cfg_menu g_cfg_joystick_menu[] = {
 Cfg_menu g_cfg_rom_menu[] = {
 { "ROM File Selection", g_cfg_rom_menu, 0, 0, CFGTYPE_MENU },
 { "ROM File", KNMP(g_cfg_rom_path), CFGTYPE_FILE },
-{ "", 0, 0, 0, 0 },
-{ "Back to Main Config", g_cfg_main_menu, 0, 0, CFGTYPE_MENU },
-{ 0, 0, 0, 0, 0 },
-};
-
-Cfg_menu g_cfg_charrom_menu[] = {
-{ "Character ROM File Selection", g_cfg_charrom_menu, 0, 0, CFGTYPE_MENU },
 { "Character ROM File", KNMP(g_cfg_charrom_path), CFGTYPE_FILE },
 { "Character Set,0,0x00 US Enhanced,1,0x01 US Un-enhanced,"
 	"2,0x02 Clinton Turner V1 Enhanced,3,0x03 ReActiveMicro Enhanced,"
@@ -397,7 +390,6 @@ Cfg_menu g_cfg_main_menu[] = {
 { "Disk Configuration", g_cfg_disk_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Control Configuration", g_cfg_joystick_menu, 0, 0, CFGTYPE_SUBMENU },
 { "ROM File Selection", g_cfg_rom_menu, 0, 0, CFGTYPE_SUBMENU },
-{ "Character ROM Selection", g_cfg_charrom_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Serial Port Configuration", g_cfg_serial_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Virtual Modem Configuration", g_cfg_modem_menu, 0, 0, CFGTYPE_SUBMENU },
 { "Video Settings", g_cfg_video_menu, 0, 0, CFGTYPE_SUBMENU },
