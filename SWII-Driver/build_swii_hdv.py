@@ -2,16 +2,21 @@
 """Build an 800K ProDOS volume holding the one-byte patched StyleWriter driver.
 
 Usage:
-  python3 build_swii_hdv.py "<path to System 604.hdv>" [output.hdv] [--skip-ready]
+  python3 build_swii_hdv.py "<path to System 604.hdv>" [output.hdv] [--keep-ready-check] [--white-term]
 
 The source must be the System 6 disk image whose SHA-256 is SRC_SHA. The output
-defaults to SWII-Driver.hdv next to this script. The image contains Apple's
-copyrighted driver, so it is gitignored and must not be committed.
+defaults to SWII-Driver.hdv next to this script, with suffixes for the flags
+below. The image contains Apple's copyrighted driver, so it is gitignored and
+must not be committed.
 
 Patches:
   always     status2 0x80 is masked out of the serious-error test (AND #$D902 -> #$5902)
-  --skip-ready  also turns the Ready-bit test's BNE into BRA, so status1 bit 0x01
-             is never treated as "Ready light off" (default output SWII-Driver-skip-ready.hdv)
+  default    also turns the Ready-bit test's BNE into BRA, so status1 bit 0x01
+             is never treated as "Ready light off"
+  --keep-ready-check  leave the Ready-bit BNE alone (suffix -ready-check)
+  --white-term  white 1-byte G template gets a 00 terminator (length 04->05), and
+             the black template's length is zeroed so its frames become no-ops
+             (suffix -white-term). Black pixels are dropped in this build.
 
 Layout (512-byte blocks):
   0-1  boot (zero)            2  volume directory
@@ -30,9 +35,9 @@ import sys
 SRC_SHA = '61e9b40627f2345ce61efebf98dc986b5aa0cb7935020e2bec7dcb6d65794f2e'
 PATCH_OFF = 0x474D
 READY_OFF = 0x4768  # BNE over the "Ready light off" alert; image 0x4690 + 0xD8
+WHITE_TMPL_OFF = 0x3C13  # 1-byte white G frame template; image 0x3B3B + 0xD8
+BLACK_TMPL_OFF = 0x3C18  # 1-byte black G frame template; image 0x3B40 + 0xD8
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_OUT = os.path.join(HERE, 'SWII-Driver.hdv')
-DEFAULT_OUT_SKIP_READY = os.path.join(HERE, 'SWII-Driver-skip-ready.hdv')
 
 TOTAL_BLOCKS = 1600
 VOL_NAME = b'SWIIDRIVER'
@@ -122,15 +127,22 @@ def set_entry(template, key, blocks, eof, header_blk):
 
 def main():
     args = sys.argv[1:]
-    skip_ready = '--skip-ready' in args
-    args = [a for a in args if a != '--skip-ready']
-    if len(args) not in (1, 2):
+    flags = {a for a in args if a.startswith('--')}
+    args = [a for a in args if not a.startswith('--')]
+    if flags - {'--keep-ready-check', '--white-term'} or len(args) not in (1, 2):
         raise SystemExit(__doc__)
+    skip_ready = '--keep-ready-check' not in flags
+    white_term = '--white-term' in flags
     src_path = args[0]
     if len(args) == 2:
         out_path = args[1]
     else:
-        out_path = DEFAULT_OUT_SKIP_READY if skip_ready else DEFAULT_OUT
+        name = 'SWII-Driver'
+        if not skip_ready:
+            name += '-ready-check'
+        if white_term:
+            name += '-white-term'
+        out_path = os.path.join(HERE, name + '.hdv')
 
     raw = open(src_path, 'rb').read()
     if hashlib.sha256(raw).hexdigest() != SRC_SHA:
@@ -150,6 +162,12 @@ def main():
         if patched[READY_OFF:READY_OFF + 2] != bytes([0xD0, 0x05]):
             raise SystemExit('expected BNE +5 at Ready-bit test site')
         patched[READY_OFF] = 0x80
+    if white_term:
+        if (patched[WHITE_TMPL_OFF:WHITE_TMPL_OFF + 5] != bytes([0x04, 0x47, 0x01, 0x00, 0x80])
+                or patched[BLACK_TMPL_OFF:BLACK_TMPL_OFF + 5] != bytes([0x04, 0x47, 0x01, 0x00, 0xC0])):
+            raise SystemExit('expected 1-byte white/black G frame templates at patch site')
+        patched[WHITE_TMPL_OFF] = 0x05
+        patched[BLACK_TMPL_OFF] = 0x00
 
     sys_entry = find_entry(raw, SRC_VOL, 'SYSTEM')
     drv_entry = find_entry(raw, SRC_SYSTEM, 'DRIVERS')
