@@ -88,7 +88,6 @@ scc_serial_unix_change_params(int port)
 
 	memset(&termios_buf, 0, sizeof(struct termios));
 	cfmakeraw(&termios_buf);
-	cfsetspeed(&termios_buf, scc_ptr->baud_rate);
 
 	csz = scc_ptr->char_size;
 	termios_buf.c_cflag = CREAD | CLOCAL;
@@ -124,6 +123,10 @@ scc_serial_unix_change_params(int port)
 		termios_buf.c_cflag |= CDTR_IFLOW | CRTS_IFLOW;		// BSD: CTS/RTS
 #endif
 	}
+
+	/* Set speed after the flags above: they overwrite c_cflag, and a B0
+	 * speed makes the kernel hang up the line, dropping DTR and RTS. */
+	cfsetspeed(&termios_buf, scc_ptr->baud_rate);
 
 	printf("fd: %d, baudrate: %d, iflag:%x, oflag:%x, cflag:%x, lflag:%x\n",
 		fd, (int)termios_buf.c_ispeed, (int)termios_buf.c_iflag,
