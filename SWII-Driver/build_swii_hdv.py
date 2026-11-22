@@ -17,8 +17,9 @@ Patches:
   the white 1-byte G template gets a 00 terminator (length 04->05), and the black
   template's length is zeroed so its frames become no-ops. Black pixels are
   dropped in this build.
-  the setup-record routine sends I, then nu/d<, then A/M, so A goes last as in
-  the reference order (the original sends A first)
+  the setup-record routine sends I, then h u d D, then A/M. The nu and d< records
+  are replaced by h u d D, as BII sends it, and A goes last as in the reference
+  order (the original sends A first)
 
 Layout (512-byte blocks):
   0-1  boot (zero)            2  volume directory
