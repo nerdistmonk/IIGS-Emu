@@ -1,6 +1,6 @@
 # claude/: handoff and test tooling
 
-Working material for resuming IIGS-Emu work in a new session. Nothing here is compiled into the emulator. `CLAUDE.md` and `claude2.md` at the repo root are separate and unchanged.
+Working material for resuming IIGS-Emu work in a new session. Nothing here is compiled into the emulator. `CLAUDE.md` and `technotes.md` are separate and unchanged.
 
 - `handoff.md`: repo state, key code locations, verified results, open items, conventions. Read first.
 - `env/`: test display scripts (Xorg `:1` with the dummy driver, headless sway on `wayland-1`), the emulator launcher, and uinput fake gamepads.

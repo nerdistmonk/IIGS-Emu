@@ -1,6 +1,6 @@
 # IIGS-Emu handoff
 
-Read this first in a new session. It captures the working state, conventions, and open items. Restore steps are in `claude/README.md`.
+Read this first in a new session. It captures the working state, conventions, and open items. Restore steps are in `claude/README.md`, so be sure to read it.
 
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
@@ -9,14 +9,7 @@ Read this first in a new session. It captures the working state, conventions, an
 - Configure: `cmake -S src -B build -G Ninja`. Build: `cmake --build build --target gsplus-sdl`. Binary: `build/iigs-emu`.
 
 ## Recent commits
-- `3875e3f`: "Fatal System Errors" label. Page 2 shadow option hidden via `g_cfg_hidden_menu` (still saved in config.kegs).
-- `5da4e22`: speed option 3 label is "ZipGS Accelerator".
-- `8bbbf32`: "Control Configuration" and "Function Keys" labels.
-- `c836b17`: Ctrl+F3 speed, Ctrl+F4 fast disk, Ctrl+F5 screenshot defaults.
-- `c8b7126`: Ctrl+1 / Ctrl+2 zoom (100–200%, saved as `zoom`).
-- `4fc083b`: ROM path fix and `claude/README.md` restore steps.
-- `542bd5d`: F1–F15 and the six nav keys no longer type a character or hold Open Apple. F-keys use `0x10NN` instead of `0x80NN`. Comments fixed at 0x75/0x77/0x79. README paragraph added.
-- `0e3fcfa`: removed an empty "Testing / infrastructure" table from `BACKLOG.md`.
+- Be sure to read the last 10 or so commits to catch up on current activities.
 
 ## Key code facts
 - `src/adb.c`
@@ -52,16 +45,7 @@ Read this first in a new session. It captures the working state, conventions, an
 - Config panel: F-keys and nav keys do not move the menu.
 
 ## Open items
-- Hardware check: whether F-keys and nav keys set `$C025` bit 0x10 on a real IIgs. The firmware reference defines bit 4 as "Keypad key active" but does not list which keys set it. Unverified.
-- Backlog (`BACKLOG.md`):
-  - Integer/pixel-perfect scaling (Med). Not implemented; the renderer uses `SDL_SCALEMODE_NEAREST`.
-  - Vsync re-add (Low). Vsync is forced off in `src/sdl_driver.c` ~598.
-  - Clipboard (Med). Not implemented.
-  - Overlay config menu (Low).
-- Dropped by the user, do not re-add: pause/resume, fast-forward/hold-to-uncap, save states.
-- Gamepad remapping tested only with uinput fake pads.
-- ROM 04 (unreleased prototype, 256 KB) is not supported. Its size selects ROM 3, and the ROM 3 patch block in `src/config.c` (~1533) turns byte `0x357c9` (AND) into BRK, so it halts with "Halting for native break!". The user decided not to pursue it.
-- Keep README.md and BACKLOG.md in sync when default hotkeys or menu labels change. The last docs pass checked them against `src/input_map.c` and `src/config.c`.
+- None to report
 
 ## Working conventions
 - CMake and GCC only. Do not suggest or use Clang tooling (clang-format, clang-tidy).
