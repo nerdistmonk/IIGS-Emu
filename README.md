@@ -33,8 +33,8 @@ Some features that are a part of the SDL3 build:
 - **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
   `-highdpi`, `-nohwaccel`, plus window position. Fullscreen has no
   default key; bind one under Remap Controls.
-- **Screenshot capture** - writes the framebuffer to disk. No default key; bind
-  one under Remap Controls.
+- **Screenshot capture** - writes the framebuffer to disk. Ctrl+F5 by default; rebind
+  under Remap Controls. Files go to the Screenshot Directory (`ssdir`), or the config.kegs folder if unset.
 - **Gamepad support** - SDL_Gamepad mapped to the IIgs joystick, with hotplug.
   Buttons and sticks can be rebound under Remap Controls, and any key can be
   bound to a joystick button or paddle there. The SDL controller
@@ -91,8 +91,8 @@ F1–F15 and the six navigation keys (Help/Insert, Home, Page Up, Forward Delete
 End, Page Down) reach the IIgs as extended keyboard keys. They type no character
 and do not hold Open Apple.
 
-Other emulator actions (status line, emulation speed, debugger, fast disk,
-screenshot, fullscreen, CRT effects, and scanlines) have no default key. Bind them
+Other emulator actions (status line, debugger, fullscreen, CRT effects, and
+scanlines) have no default key. Bind them
 under **Joystick Configuration > Remap Controls > Mouse and Actions**.
 
 While the config menu is open, the IIgs receives no keyboard or mouse input.
