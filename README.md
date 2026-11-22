@@ -77,6 +77,11 @@ reserves only these host keys:
 | **Ctrl + F2** or **middle-click** | Grab / release the mouse (confines the pointer to the window) |
 | **Ctrl + Menu** | Reset the IIgs (Ctrl holds the IIgs Control key; Menu is the IIgs Reset key) |
 
+The IIgs keys are named by their Apple II-era names, which map to the modern
+keys: **Open Apple** is **Command** (either side, the "clover" key), and
+**Closed Apple** is **Option** (either side). The Remap Controls menu lists them
+as Command and Option.
+
 Other emulator actions (status line, emulation speed, debugger, fast disk,
 screenshot, fullscreen, CRT effects, and scanlines) have no default key. Bind them
 under **Joystick Configuration > Remap Controls > Mouse and Actions**.
