@@ -2,7 +2,8 @@
 
 Working material for resuming IIGS-Emu work in a new session. Nothing here is compiled into the emulator. `CLAUDE.md` and `claude2.md` at the repo root are separate and unchanged.
 
-- `handoff.md`: repo state, key code locations, verified results, open items, conventions. Read first.
+- `handoff.md`: current focus (StyleWriter II printing, blocked), repo state, key code locations, verified results, open items, conventions. Read first.
+- `claude2.md` (repo root): technical notes, including the SWII driver section (offsets, protocol, BII comparison).
 - `env/`: test display scripts (Xorg `:1` with the dummy driver, headless sway on `wayland-1`), the emulator launcher, and uinput fake gamepads.
 - `configs/boot-nodisk.cfg`: boots to the Applesoft `]` prompt with no disks.
 
@@ -33,6 +34,10 @@ The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/
 5. Build (CMake home is `src/`):
    ```
    cmake -S src -B build -G Ninja && cmake --build build --target gsplus-sdl
+   ```
+6. Optional, printer work only. Build the patched StyleWriter test disk from the System 6 image extracted in step 0. The output is gitignored:
+   ```
+   python3 /root/IIGS-Emu/SWII-Driver/build_swii_hdv.py "/root/iigs-assets/System6_and_Games/System 604.hdv"
    ```
 
 ## Run

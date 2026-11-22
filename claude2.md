@@ -64,14 +64,38 @@ File: `src/applesingle.c`.
 - Do not store window position through `video_update_xpos_ypos()`. It clamps to the screen-minus-window size and would corrupt valid positions.
 - Blur with `-nohwaccel 1` renders correctly (checked by screenshot). It does not need a fallback.
 
+## SWII-Driver (StyleWriter printer)
+
+Current state, test history, and open leads are in `claude/handoff.md` ("Current focus"). This section holds the technical facts. Offsets are file offsets in the driver (image address + 0xD8) unless marked "image".
+
+- Builder: `SWII-Driver/build_swii_hdv.py`. Input is the System 6 `System 604.hdv` (sha `61e9b406…`). Output is an 800K ProDOS image with the patched `/SYSTEM/DRIVERS/STYLEWRITER`. Python 3 stdlib only. It takes positional arguments only.
+- Driver queries are `00 FF FF FF <cmd>`. Commands: `1` status1, `2` status2, `B` free buffer, `I` init, `S` resume, `E` end. Form feed is `0x0C`.
+- Status word W = (status2 << 8) | status1, built at image 0x4648–0x4697. Serious-error test `AND #$D902` at file 0x474D (image 0x4673). Ready-light alert `AND #$0001` at image 0x468D, `BNE` at file 0x4768.
+- Writer at file 0x464A (image 0x4572) reads a length byte and writes that many bytes. Before each SCC data write it polls `$E00000,X` bit 0x04.
+- Frame templates (file offsets): R frame length byte 0x3C08 (0x0A originally). White 1-byte G frame 0x3C13 (`04 47 01 00 80`). Black 0x3C18 (`04 47 01 00 c0`).
+- Setup routine at 0x3AAC (image 0x39D4), called with `A = $071C`. It sends the `I` record first, then `A` or `M` by `$3DFA`, and `nu` or `d<` by `$3DFC`.
+- Setup dialect source (from the disassembly): `$3DFC` = config `+0x18` bit 0, read via `JSR $1A11`. `$3DFA` = `$0724 & 1`, set via `JSR $1A4E` on config `+0x20`. The config pointer at `$2A/$2C` is loaded from the parameter block. `L18B6` sets bit 0x8000 in `[$2A+4]` and copies `[$2A]` → `$0C` and `[$2A+2]` → `$0E`. `L18CC` clears that bit. The driver dialog has Quality and Sheet Feed menus only, with no model setting.
+- BII (print-capable reference, `bii-print-1.strace`, serial window after about line 33440, BII writes on fd 34):
+  - Setup letters `h u d D A`, five 1-byte writes.
+  - R frames are 9 bytes, for example `52 00 00 00 00 77 05 ff 00`. Each band is 1400 px wide × 256 rows.
+  - Host termios goes B9600 → B57600 → B230400 before raster.
+  - Status2 `00 81` appears during BII's own job.
+- GS/OS (trace-7 build):
+  - R frame is 10 bytes, `52 00 00 00 00 3f 0b 9f 04 00`, before the 9-byte patch.
+  - Setup `I`, `nu`, `A`.
+  - Page declared 2880 × 3780 rows in four bands. Almost all rows are white, with about 40 bulk raster G blocks per job.
+- Tools: `xxd` and `pdftotext` are not installed. Use `od -A x -t x1z`. Strace fds are reused, so decode only the serial window. Avoid `difflib.SequenceMatcher` on 20 KB streams (it hangs).
+
 ## Git and Commits
 
 - Remote: origin, branch `main`. Recent AppleSingle commits: a43ae29 (read v1), 7982d49 (writer comment).
+- Printer work and the SWII builder are on `debug/serial-trace` (pushed). Debug-only commits `0fac914` and `166fd2d` are not for merge.
 - Commit template used: short imperative subject, body explaining the why, then the `Co-authored-by` trailer.
 - Only commit or push when the user says so.
 
 ## Open Items
 
+- Printer (SWII): stopped and blocked. See `claude/handoff.md`, "Current focus".
 - Whether v2 writing should preserve entries 3 and 4 on rewrite. Decided: keep current behavior and document it.
 - Whether the `DBG` strings in `sdl_driver.c` should be cleaned up. Pre-existing, untouched.
 - Whether Finder Info preservation (commit 30c4661) is enough for real IIGS files. Only one real sample was tested.
