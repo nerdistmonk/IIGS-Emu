@@ -35,7 +35,7 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
   gamepad buttons and sticks). Control Configuration > Remap Controls in the Ctrl+F1
   menu rebinds keys with press-to-bind (a chord binds as one combo; a lone modifier
   binds on release), Esc to cancel, and reset to defaults. Gamepad remapping is
-  tested only with uinput fake pads, not real hardware.
+  confirmed on real hardware.
 
 ---
 
@@ -45,15 +45,3 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 |---|---|---|---|
 | **Clipboard** copy/paste | Med | M | Wire SDL clipboard to the core's copy/paste hooks **(core)**. |
 
-## Display
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| **Integer / pixel-perfect scaling** toggle | Med | S | Crisp 1×/2×/3× vs. letterbox stretch; also stops scanline shimmer at non-integer scales. |
-| Re-add **vsync** option properly | Low | M | Removed pre-1.38.0 (double-pacing caused half-speed + audio gaps). Right fix: when vsync is on, let it drive pacing and drop the sleep-based clock — one pacer, not two. |
-
-## Quality of life
-
-| Item | Pri | Eff | Notes |
-|---|---|---|---|
-| Modern **overlay config menu** (vs. Ctrl+F1 text panel) | Low | L | Big polish, big effort. |
