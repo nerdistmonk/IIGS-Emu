@@ -43,5 +43,15 @@ Effort: **S** small · **M** medium · **L** large. Priority: High / Med / Low.
 
 | Item | Pri | Eff | Notes |
 |---|---|---|---|
-| **Clipboard** copy/paste | Med | M | Wire SDL clipboard to the core's copy/paste hooks **(core)**. |
+| **Clipboard** copy/paste | Med | M | Spec below. |
+
+### Clipboard copy/paste (v1 spec)
+
+- **Hotkeys:** remappable actions. Defaults: Ctrl+Shift+C (copy), Ctrl+Shift+V (paste). Ctrl+letter stays with the guest by default, so Ctrl+C is not used.
+- **Copy, text mode:** whole text screen via `cfg_text_screen_str()` (`src/config.c`). Only when `ALL_STAT_TEXT` is set in `g_cur_a2_stat`, so graphics modes don't copy garbage.
+- **Copy, GS/OS:** observe-only hook on the Toolbox entry `$E10000`. On `PutScrap` with scrap type 0 (text), read `numBytes`, `scrapType`, and `srcPtr` from the stack, convert CR to LF, and set the host clipboard. The hook must never change registers, stack, or PC. `src/debugger.c` already traces `$E10000`/`$E10004`; `toolbox_debug_c()` in `src/sim65816.c` is unused.
+- **Paste:** host text goes into the existing ADB paste buffer (`adb_paste_add_buf()` / `adb_paste_update_state()`, `src/adb.c`). This reaches any app that reads `$C000`. Paste does not use the Scrap Manager.
+- **Host side:** SDL3 clipboard (`SDL_GetClipboardText` / `SDL_SetClipboardText`).
+- **Unverified:** whether GS/OS sends every Toolbox call through `$E10000`; the text scrap line-ending format (CR is assumed); whether GS/OS text fields accept pasted keystrokes.
+- **Reference:** Scrap Manager is in Toolbox Reference Vol. 2, chapter 20 (text = type 0, picture = type 1; `ScrapStartUp` first; `ZeroScrap` then `PutScrap` appends; `GetScrap` sizes the handle).
 
