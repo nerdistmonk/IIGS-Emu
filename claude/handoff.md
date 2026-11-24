@@ -2,6 +2,11 @@
 
 Read this first in a new session. It covers repo state, setup and run, test gotchas, verified results, open items, and working conventions. Architecture and build are in `claude/CLAUDE.md`.
 
+## Resume here
+- Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
+- Pending decision (not answered yet): how to handle guest bytes 0x80–0xFF on copy and paste, such as é, which becomes "i" today. Options: dump the real scrap bytes from GS/OS first (recommended), replace with `?`, or pass raw bytes through. No code has changed for this. See Open items.
+- Last code commits: `656e97c` (copy bottom rows in MIX mode), `948542f` (copy from visible page), `6b1ea9d` (skip clipboard copy in SHR).
+
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
 - Repo: `/root/IIGS-Emu`, remote `origin` = `nerdistmonk/IIGS-Emu`, branch `main`.
@@ -85,6 +90,7 @@ Checking state:
 - System 6.0.4, 8 MHz, Hermes: Edit>Paste of two host lines is intact. Edit>Copy of line 1, then line 2, leaves only line 2 on the host clipboard (ZeroScrap clears).
 - Multi-line Copy from Hermes: works (user test in the guest).
 - WordPerfect (GS/OS): Edit>Copy and Edit>Paste work through the bridge (user test). Ctrl+Shift+V works. Ctrl+Shift+C now shows the text-mode OSD. Its Read.Me screen is SHR with TEXT still set, so the copy used to read a stale text page ("Word.Perfect"). Fixed by checking SHR in `clip_copy_text_screen()`.
+- SHR text copy is intentionally off (user decision). WordPerfect's Read.Me title is drawn with the app's own pixel code, not a Toolbox text call (no Toolbox call carried the title or body text). The ASCII title is in guest RAM (bank $01 at $8997, bank $7F at $503D), so a RAM search might find the title, but it is unverified whether RAM holds unsaved edits or the on-screen text. OCR needs new tooling (no tesseract installed).
 - Keystroke paste into Hermes at 2.8 MHz: 580/580 characters matched with pacing. Before pacing, drops grew with paste rate and lower speed. At 16 MHz, rapid pastes showed no drops (user test, before pacing).
 
 ## Test harness gotchas
@@ -115,7 +121,12 @@ Checking state:
 - Not kept: the `kbd-blind-test` positive control. It needs `DIAG-PASTE` logging, which the normal build does not have.
 
 ## Open items
-- PutScrap append vs replace for the same scrap type is unconfirmed. The bridge appends. The three local Toolbox PDFs (`/root/iigs-assets`) have no PutScrap text, so check the Scrap Manager chapter (Toolbox Reference Vol. 2) if you have it.
+- PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. The Toolbox PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/`, not `/root/iigs-assets`.
+- Non-ASCII (é → i). Copy masks bytes with `& 0x7f` (`clipboard.c:148`). Paste drops bytes ≥0x7f (`clipboard.c:214`). Keystroke paste drops bytes ≥0x80 (`adb.c:1595`).
+  - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The "roman" text matches in Vol. 1–3 are false positives.
+  - The Clipboard glossary (Vol. 3 p.1041) defines the Clipboard as the buffer for the last cut or copied item. "Desk scrap: See Clipboard" (p.1045). Toolbox Revealed p.84 says the desk scrap is "sometimes called a clipboard."
+  - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. Gemini's Mac Roman suggestion is unverified.
+  - Decision pending: dump real scrap bytes from GS/OS first (recommended), replace with `?`, or pass raw bytes through.
 - Other GS/OS apps' Copy and Paste are untested.
 - Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
@@ -133,4 +144,4 @@ Checking state:
   Git identity is not set globally, so pass the author through `GIT_AUTHOR_*` and `GIT_COMMITTER_*`.
 - Do not create planning or notes markdown in the repo, except this `claude/` folder when asked.
 - Check outside advice against the code and the uploaded docs before adopting it. Some of it has been wrong.
-- Uploaded reference docs are not in the repo and are copyrighted. Local copies: the Apple firmware reference text (353 pages), the IIgs hardware reference PDF (text), and GSHARDWAREREF.pdf (scanned, no text layer). Extract text with pypdf in a venv, not system pip.
+- Uploaded reference docs are not in the repo and are copyrighted. Local copies: the Apple firmware reference text (353 pages), the IIgs hardware reference PDF (text), and GSHARDWAREREF.pdf (earlier noted as scanned with no text layer, but the user says their PDFs have OCR text, so re-check). The Toolbox Reference Vol. 1–3 PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/` and have OCR text layers. Extract text with pypdf in a venv, not system pip.
