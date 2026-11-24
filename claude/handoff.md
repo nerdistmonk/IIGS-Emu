@@ -25,6 +25,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 - `$C061` (Open Apple) reads `adb_is_cmd_key_down()` (`src/adb.c`, called from `io_read()` in `src/moremem.c`). Any 0x80 in the table holds Open Apple, which is why F-keys were changed.
 - `src/input_map.c`
   - Default map `g_default_map`. `key:PAUSE = adb:0x71` (F15) is a default binding. Copy and paste are `ctrl+shift+key:C` and `ctrl+shift+key:V`.
+  - Mouse wheel: `wheel:UP = adb:0x3e` and `wheel:DOWN = adb:0x3d` are default bindings. `imap_mouse_wheel()` sends one press/release per notch, or captures the direction when a remap is pending. The config panel ignores wheel input.
   - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (Mouse and Actions). `imap_remap_bind()`.
   - Actions enum `enum imap_action` in `src/input_map.h`; name table `g_action_names` in `src/input_map.c`. Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
 - `g_vbl_count` (defined in `src/sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
@@ -92,6 +93,7 @@ Checking state:
 - WordPerfect (GS/OS): Edit>Copy and Edit>Paste work through the bridge (user test). Ctrl+Shift+V works. Ctrl+Shift+C now shows the text-mode OSD. Its Read.Me screen is SHR with TEXT still set, so the copy used to read a stale text page ("Word.Perfect"). Fixed by checking SHR in `clip_copy_text_screen()`.
 - SHR text copy is intentionally off (user decision). WordPerfect's Read.Me title is drawn with the app's own pixel code, not a Toolbox text call (no Toolbox call carried the title or body text). The ASCII title is in guest RAM (bank $01 at $8997, bank $7F at $503D), so a RAM search might find the title, but it is unverified whether RAM holds unsaved edits or the on-screen text. OCR needs new tooling (no tesseract installed).
 - Keystroke paste into Hermes at 2.8 MHz: 580/580 characters matched with pacing. Before pacing, drops grew with paste rate and lower speed. At 16 MHz, rapid pastes showed no drops (user test, before pacing).
+- Mouse wheel (xdotool click 4/5): each notch sends one press/release of 0x3e (Up) or 0x3d (Down). In the Remap UI, scrolling up onto Right moved the wheel bind from Up to Right, and after the panel closed, wheel up sent 0x3c (Right) and wheel down still sent 0x3d.
 
 ## Test harness gotchas
 

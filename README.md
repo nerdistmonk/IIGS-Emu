@@ -130,6 +130,11 @@ then e gives é), and Option+C gives ç directly. Holding Option+E past the
 emulator's key repeat delay (about 0.75 seconds by default) repeats the E, which
 can leave extra bare accents (´´´´e).
 
+The mouse wheel sends Up and Down arrows by default, one keystroke per notch.
+To change that, select a row under **Remap Controls > Editing and Arrows** and
+scroll the wheel, the same way a mouse button is captured. In `input.map` the
+sources are `wheel:UP` and `wheel:DOWN`.
+
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are
 placed by file size.

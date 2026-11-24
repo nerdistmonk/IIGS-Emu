@@ -70,7 +70,7 @@ rm -rf build
 
 ### Input
 - `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked. Host text queued for keystroke paste (`g_kbd_paste_buf`) is fed one key per `PASTE_FRAMES_PER_KEY` (4) VBL frames (`PASTE_FRAMES_PER_KEY` in `adb.c`; gate in `adb_paste_update_state()`), which is 15 keys/s. Pacing is needed because `g_vbl_count` (`sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, so unpaced keys arrive at about 60/s. The guest keyboard routine reads `$C000` once per frame, so slow guests drop characters at that rate. Live host typing bypasses pacing.
-- `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
+- `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse buttons, mouse wheel, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. Wheel notches are `wheel:UP`/`wheel:DOWN` sources (`imap_mouse_wheel()`, defaults `adb:0x3e`/`adb:0x3d`). Each notch is one press and release, or it captures the direction during a remap. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
 - `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
 
