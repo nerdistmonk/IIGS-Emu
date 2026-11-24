@@ -15,6 +15,8 @@
  * the format requires: CRC-32 over each chunk and Adler-32 over the zlib data.
  *
  * write_png_rgba() takes 8-bit RGBA, top-to-bottom, tightly packed (no padding).
+ * write_png_gray1() takes 1-bit packed pixels (bit 1 = white, bit 0 = black),
+ * rows padded to whole bytes, top-to-bottom.
  */
 
 #include <stdio.h>
@@ -22,7 +24,6 @@
 #include <string.h>
 
 #include "defc.h"
-#include "protos_sdl.h"
 
 /* ---- CRC-32 (PNG chunk checksum, IEEE 802.3 polynomial 0xEDB88320) ------- */
 
@@ -162,19 +163,69 @@ png_zlib_store(const unsigned char *raw, size_t raw_len, size_t *out_len)
 	return out;
 }
 
-/* ---- public entry point -------------------------------------------------- */
+/* ---- shared emitter ------------------------------------------------------ */
+
+/* Wrap `raw` (filtered scanlines, each row prefixed by a filter byte) in a
+ * stored zlib stream and write it as a PNG at `path`. `depth` and `ctype`
+ * go straight into IHDR. */
+static int
+png_emit(const char *path, const unsigned char *raw, size_t rawlen,
+	int w, int h, unsigned char depth, unsigned char ctype)
+{
+	static const unsigned char sig[8] =
+		{ 137, 80, 78, 71, 13, 10, 26, 10 };
+	unsigned char ihdr[13];
+	unsigned char *zlib;
+	size_t zlen;
+	FILE	*f;
+	int	rc;
+
+	zlib = png_zlib_store(raw, rawlen, &zlen);
+	if(!zlib) {
+		return -1;
+	}
+
+	f = fopen(path, "wb");
+	if(!f) {
+		free(zlib);
+		return -1;
+	}
+
+	rc = 0;
+	if(fwrite(sig, 1, 8, f) != 8) {
+		rc = -1;
+	}
+
+	/* IHDR: width, height, bit depth, colour type, default
+	 * compression/filter/interlace. */
+	png_put_be32(ihdr + 0, (unsigned long)w);
+	png_put_be32(ihdr + 4, (unsigned long)h);
+	ihdr[8] = depth;
+	ihdr[9] = ctype;
+	ihdr[10] = 0;
+	ihdr[11] = 0;
+	ihdr[12] = 0;
+
+	if(!rc) { rc = png_write_chunk(f, "IHDR", ihdr, sizeof(ihdr)); }
+	if(!rc) { rc = png_write_chunk(f, "IDAT", zlib, zlen); }
+	if(!rc) { rc = png_write_chunk(f, "IEND", NULL, 0); }
+
+	free(zlib);
+	if(fclose(f) != 0) {
+		rc = -1;
+	}
+	return rc;
+}
+
+/* ---- public entry points ------------------------------------------------- */
 
 /* Write `rgba` (w*h pixels, 8-bit RGBA, top-to-bottom, no row padding) to a
  * PNG at `path`. Returns 0 on success, non-zero on failure. */
 int
 write_png_rgba(const char *path, const unsigned char *rgba, int w, int h)
 {
-	static const unsigned char sig[8] =
-		{ 137, 80, 78, 71, 13, 10, 26, 10 };
-	unsigned char ihdr[13];
-	unsigned char *raw, *zlib;
-	size_t rawlen, zlen, rowbytes;
-	FILE	*f;
+	unsigned char *raw;
+	size_t rawlen, rowbytes;
 	int	y, rc;
 
 	if(!rgba || w <= 0 || h <= 0) {
@@ -195,40 +246,38 @@ write_png_rgba(const char *path, const unsigned char *rgba, int w, int h)
 		memcpy(dst, rgba + (size_t)y * rowbytes, rowbytes);
 	}
 
-	zlib = png_zlib_store(raw, rawlen, &zlen);
+	rc = png_emit(path, raw, rawlen, w, h, 8, 6);
 	free(raw);
-	if(!zlib) {
+	return rc;
+}
+
+/* Write `bits` (w*h pixels, 1 bit each, packed MSB-first, rows padded to
+ * whole bytes) to a greyscale PNG at `path`. Bit 1 is white, bit 0 is black.
+ * Returns 0 on success, non-zero on failure. */
+int
+write_png_gray1(const char *path, const unsigned char *bits, int w, int h)
+{
+	unsigned char *raw;
+	size_t rawlen, rowbytes;
+	int	y, rc;
+
+	if(!bits || w <= 0 || h <= 0) {
 		return -1;
 	}
 
-	f = fopen(path, "wb");
-	if(!f) {
-		free(zlib);
+	rowbytes = ((size_t)w + 7) / 8;
+	rawlen = (size_t)h * (rowbytes + 1);
+	raw = malloc(rawlen);
+	if(!raw) {
 		return -1;
 	}
-
-	rc = 0;
-	if(fwrite(sig, 1, 8, f) != 8) {
-		rc = -1;
+	for(y = 0; y < h; y++) {
+		unsigned char *dst = raw + (size_t)y * (rowbytes + 1);
+		*dst++ = 0x00;			/* filter type: None */
+		memcpy(dst, bits + (size_t)y * rowbytes, rowbytes);
 	}
 
-	/* IHDR: width, height, bit depth 8, colour type 6 (RGBA), default
-	 * compression/filter/interlace. */
-	png_put_be32(ihdr + 0, (unsigned long)w);
-	png_put_be32(ihdr + 4, (unsigned long)h);
-	ihdr[8] = 8;				/* bit depth */
-	ihdr[9] = 6;				/* colour type: truecolour+alpha */
-	ihdr[10] = 0;				/* compression method */
-	ihdr[11] = 0;				/* filter method */
-	ihdr[12] = 0;				/* interlace: none */
-
-	if(!rc) { rc = png_write_chunk(f, "IHDR", ihdr, sizeof(ihdr)); }
-	if(!rc) { rc = png_write_chunk(f, "IDAT", zlib, zlen); }
-	if(!rc) { rc = png_write_chunk(f, "IEND", NULL, 0); }
-
-	free(zlib);
-	if(fclose(f) != 0) {
-		rc = -1;
-	}
+	rc = png_emit(path, raw, rawlen, w, h, 1, 0);
+	free(raw);
 	return rc;
 }

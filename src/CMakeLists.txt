@@ -57,6 +57,8 @@ set(GSPLUS_CORE_SOURCES
     scc.c
     scc_socket_driver.c
     scc_unixdriver.c
+    filewriter.c
+    png_write.c
     iwm.c
     input_map.c
     moremem.c
@@ -134,7 +136,6 @@ target_compile_options(gsplus_core_sdl PRIVATE -Wall)
 add_executable(gsplus-sdl
     sdl_driver.c
     sdl_snd_driver.c
-    png_write.c
     xbrz.c
 )
 target_link_libraries(gsplus-sdl PRIVATE gsplus_core_sdl SDL3::SDL3)

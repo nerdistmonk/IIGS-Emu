@@ -338,6 +338,16 @@ void scc_add_to_readbufv(dword64 dfcyc, int port, const char *fmt, ...);
 void scc_transmit(dword64 dfcyc, int port, word32 val);
 void scc_add_to_writebuf(dword64 dfcyc, int port, word32 val);
 
+/* filewriter.c */
+void filewriter_open(int port);
+void filewriter_close(int port);
+void filewriter_put(int port, unsigned char b);
+void filewriter_flush_all(void);
+
+/* png_write.c */
+int write_png_rgba(const char *path, const unsigned char *rgba, int w, int h);
+int write_png_gray1(const char *path, const unsigned char *bits, int w, int h);
+
 
 
 /* scc_socket_driver.c */

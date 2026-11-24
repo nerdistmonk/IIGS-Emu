@@ -25,6 +25,7 @@
 #define	SCC_OUTBUF_SIZE		512		/* must be a power of 2 */
 
 #define SCC_MODEM_MAX_CMD_STR	128
+#define SCC_STATE_FILEWRITER	4
 
 # define SOCKET			int		/* Unix socket fd */
 # define INVALID_SOCKET		(-1)

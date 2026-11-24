@@ -73,6 +73,7 @@ rm -rf build
 - `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse buttons, mouse wheel, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. Wheel notches are `wheel:UP`/`wheel:DOWN` sources (`imap_mouse_wheel()`, defaults `adb:0x3e`/`adb:0x3d`). Each notch is one press and release, or it captures the direction during a remap. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
 - `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
+- `filewriter.c` + `filewriter_font.h` — FileWriter virtual printer (`SCC_STATE_FILEWRITER` = 4). `scc_add_to_writebuf()` hands bytes to `filewriter_put()` and skips `out_buf`. Each page is written as a 1-bit greyscale `.png` (`write_png_gray1()` in `png_write.c`) and a `.txt`. Glyphs are FreeMono 7×9 (GPL-3+ with the Font Exception). Do not use `kegsfont.h`, which is Apple's character ROM. Pages flush on FF, page end, port close, and `filewriter_flush_all()` at quit (`sdl_driver.c`).
 
 ### Clipboard
 - `clipboard.c` — Host clipboard bridge; no SDL code. Host hooks are registered in `sdl_input_init()` (`sdl_driver.c`). It observes GS/OS ZeroScrap and PutScrap through the Toolbox hook `clip_toolbox_call()`, which the JSL and JML handlers in `instable.h` call. It covers `$E10000` and `$E10004` (DISPATCH1 and DISPATCH2), not the `$E1000x` user vectors.

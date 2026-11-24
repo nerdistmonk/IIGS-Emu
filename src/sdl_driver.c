@@ -1782,7 +1782,7 @@ main(int argc, char **argv)
 		sdl_update_display(&g_mainwin_info);
 	}
 
+	filewriter_flush_all();
 	sdl_snd_shutdown();
-	SDL_Quit();
 	return 0;
 }

@@ -18,6 +18,7 @@ extern int g_code_yellow;
 extern dword64 g_cur_dfcyc;
 extern int g_serial_cfg[2];
 extern int g_serial_mask[2];
+extern char *g_cfg_ssdir;
 extern char *g_serial_remote_ip[2];
 extern int g_serial_remote_port[2];
 extern char *g_serial_device[2];
@@ -50,6 +51,7 @@ int g_scc_overflow = 0;
 int	g_scc_init = 0;
 
 // cur_state >= 0 and matches g_serial_cfg[port]: port is in that mode
+// cur_state = SCC_STATE_FILEWRITER: bytes go to filewriter.c, not a device
 // cur_state = -1: port is in no particular mode and should go to g_serial_cfg[]
 // cur_state = -2: port failed to enter g_serial_cfg[], do not try again until
 //		something changes
@@ -343,6 +345,7 @@ scc_port_close(int port)
 
 	scc_serial_unix_close(port);
 	scc_socket_close(port);
+	filewriter_close(port);
 
 	scc_ptr->cur_state = -1;		// Nothing open
 }
@@ -357,6 +360,9 @@ scc_port_open(dword64 dfcyc, int port)
 
 	if(cfg == 0) {		// Real host serial port
 		scc_serial_unix_open(port);
+	} else if(cfg == SCC_STATE_FILEWRITER) {
+		g_scc[port].cur_state = SCC_STATE_FILEWRITER;
+		filewriter_open(port);
 	} else if(cfg >= 1) {
 		scc_socket_open(dfcyc, port, cfg);
 	}
@@ -415,6 +421,11 @@ scc_get_serial_status(int get_status, int port)
 	case 3:
 		snprintf(buf, 80, "Opened %d, sockfd:%d", 6501 + port,
 					(int)g_scc[port].sockfd);
+		str = buf;
+		break;
+	case SCC_STATE_FILEWRITER:
+		snprintf(buf, 80, "FileWriter: %s",
+			(g_cfg_ssdir && g_cfg_ssdir[0]) ? g_cfg_ssdir : "current dir");
 		str = buf;
 		break;
 	default:
@@ -492,7 +503,7 @@ scc_try_to_empty_writebuf(dword64 dfcyc, int port)
 
 	if(cur_state == 0) {
 		scc_serial_unix_empty_writebuf(port);
-	} else if(cur_state >= 1) {
+	} else if(cur_state >= 1 && cur_state < SCC_STATE_FILEWRITER) {
 		scc_socket_empty_writebuf(dfcyc, port);
 	}
 }
@@ -530,7 +541,7 @@ scc_try_fill_readbuf(dword64 dfcyc, int port)
 	cur_state = scc_ptr->cur_state;
 	if(cur_state == 0) {
 		scc_serial_unix_fill_readbuf(dfcyc, port, space_left);
-	} else if(cur_state >= 1) {
+	} else if(cur_state >= 1 && cur_state < SCC_STATE_FILEWRITER) {
 		scc_socket_fill_readbuf(dfcyc, port, space_left);
 	}
 }
@@ -1339,7 +1350,10 @@ scc_transmit(dword64 dfcyc, int port, word32 val)
 			return;
 		}
 	}
-	if(g_serial_mask[port] || (scc_ptr->reg[5] & 0x60) != 0x60) {
+	/* The FileWriter printer's 8th-bit handling is its own switch, so the
+	 * Serial Mask setting only applies to real and socket ports. */
+	if((scc_ptr->reg[5] & 0x60) != 0x60 ||
+			(scc_ptr->cur_state != SCC_STATE_FILEWRITER && g_serial_mask[port])) {
 		val = val & 0x7f;
 	}
 
@@ -1357,6 +1371,11 @@ scc_add_to_writebuf(dword64 dfcyc, int port, word32 val)
 		return;			// Port is closed
 	}
 	scc_ptr = &(g_scc[port]);
+
+	if(scc_ptr->cur_state == SCC_STATE_FILEWRITER) {
+		filewriter_put(port, (unsigned char)val);
+		return;
+	}
 
 	out_wrptr = scc_ptr->out_wrptr;
 	out_rdptr = scc_ptr->out_rdptr;

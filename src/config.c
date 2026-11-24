@@ -293,7 +293,7 @@ Cfg_menu g_cfg_serial_menu[] = {
 { "Serial Port Configuration", g_cfg_serial_menu, 0, 0, CFGTYPE_MENU },
 { "Slot 1 (port 0) settings", 0, 0, 0, 0 },
 { "  Main setting  ,0,Use Real Device below,1,Use a virtual modem,"
-		"2,Use Remote IP below,3,Use incoming port 6501",
+		"2,Use Remote IP below,3,Use incoming port 6501,4,FileWriter printer",
 		KNMP(g_serial_cfg[0]), CFGTYPE_INT },
 { "  Status        ", (void *)cfg_get_serial0_status, 0, 0, CFGTYPE_FUNC },
 { "  Real Device   ", KNMP(g_serial_device[0]), CFGTYPE_FILE },
@@ -304,7 +304,7 @@ Cfg_menu g_cfg_serial_menu[] = {
 { "", 0, 0, 0, 0 },
 { "Slot 2 (port 1) settings", 0, 0, 0, 0, },
 { "  Main setting  ,0,Use Real Device below,1,Use a virtual modem,"
-		"2,Use Remote IP below,3,Use incoming port 6502",
+		"2,Use Remote IP below,3,Use incoming port 6502,4,FileWriter printer",
 		KNMP(g_serial_cfg[1]), CFGTYPE_INT },
 { "  Status        ", (void *)cfg_get_serial1_status, 0, 0, CFGTYPE_FUNC },
 { "  Real Device   ", KNMP(g_serial_device[1]), CFGTYPE_FILE },

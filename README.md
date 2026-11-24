@@ -85,6 +85,16 @@ Some features that are a part of the SDL3 build:
   clipboard (tested with Hermes) and convert accented letters between Mac Roman and
   UTF-8. Host characters with no Mac Roman form, such as €, paste as `?`. Both
   hotkeys can be rebound under Remap Controls > Mouse and Actions.
+- **FileWriter virtual printer** - set a serial port's Main setting to
+  `FileWriter printer` under Serial Port Configuration (Ctrl+F1). The printer
+  emulates an Apple ImageWriter II. Each page is saved as a pixel-faithful
+  `.png` and a text-only `.txt` (Mac Roman, CR line endings) in the Screenshot
+  Directory (`ssdir`), or the config.kegs folder if unset. Pages are written at
+  form feed, when the paper runs past the page length, when the port is
+  changed, and at normal quit. A page that crashes the emulator before one of
+  these points is lost. The Serial Mask setting does not apply; the printer's own
+  8th-bit switch decides. Not emulated: true proportional spacing, custom
+  characters, MouseText, tabs, and bold or underline.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
