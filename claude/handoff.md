@@ -65,7 +65,8 @@ Run:
 
 Checking state:
 
-- `/root/iigs-test/work/input.map` holds live test bindings (F6 → 0x39, APPLICATION → 0x61). It is not committed. Remap Controls rewrites it.
+- `. /root/iigs-env/env.sh` (copy in `claude/env/env.sh`) sets `DISPLAY=:1`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, and dummy audio for ad-hoc commands.
+- `/root/iigs-test/work/input.map` is the live input map used by the test configs. It is not committed. Remap Controls rewrites it.
 - The window id changes each launch: `DISPLAY=:1 xdotool search --name IIGS-Emu`. Find the PID with `ps -eo pid,args | grep iigs-emu`.
 - Screenshot: `DISPLAY=:1 import -window <id> file.png`, then view it.
 - Boots to the Applesoft `]` prompt with no disk. Read registers with `PRINT PEEK(-16347)` ($C025), `PEEK(-16287)` ($C061), `PEEK(-16384)` ($C000).
@@ -95,11 +96,10 @@ Checking state:
 
 ## Test fixtures
 
-- The user's `System_604.hdv` and `System_Addons.hdv` contain ShrinkIt. `GS.SHRINKIT` is in `/ARCHIVE.UTILS` on System_604. Both volumes are nearly full (about 52K and 67K free).
+- `/root/iigs-assets/System6_and_Games/System 604.hdv` (the image `boot-sys604.cfg` mounts) contains ShrinkIt as `/ARCHIVE.UTILS/GS.SHRINKIT` (type $B3, aux $DB07).
 - `GS.GS.Diag.sdk` and `GSMEMTESTv20.sdk` are NuFX archives, not AppleSingle.
 - ShrinkIt creates AppleSingle through the Special menu, "Create AppleSingle...". Drag from Special to the item (mousedown, mouseup). The File menu has no AppleSingle option.
 - The desktop wallpaper, drawn by DeskMaker, contains fake disk-like icons. Trust only real volume icons and window contents.
-- Reference: `/root/iigs-test/applesingle_real.bin` is a real 130,827-byte ShrinkIt AppleSingle v1 file. Entries: 7 (ProDOS file info), 4 (ShrinkIt resource header/comment, all zeros here), 3 (real name `GS.ShrinkIt`), 2 (resource fork, 18,071 bytes), and 1 (data fork, 112,443 bytes). File type 0xB3 and aux 0xDB07 match the catalog.
 
 ## Test programs and tools
 
@@ -130,5 +130,5 @@ Checking state:
   `Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>`
   Git identity is not set globally, so pass the author through `GIT_AUTHOR_*` and `GIT_COMMITTER_*`.
 - Do not create planning or notes markdown in the repo, except this `claude/` folder when asked.
-- Check outside advice (including Gemini's suggestions on this code) against the code and the uploaded docs before adopting it. Some of it has been wrong.
+- Check outside advice against the code and the uploaded docs before adopting it. Some of it has been wrong.
 - Uploaded reference docs are not in the repo and are copyrighted. Local copies: the Apple firmware reference text (353 pages), the IIgs hardware reference PDF (text), and GSHARDWAREREF.pdf (scanned, no text layer). Extract text with pypdf in a venv, not system pip.
