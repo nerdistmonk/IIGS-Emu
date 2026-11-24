@@ -1068,7 +1068,7 @@ sdl_poll_events(void)
 {
 	SDL_Event ev;
 	Window_info *win = &g_mainwin_info;
-	int	idx, mx, my;
+	int	idx, mx, my, ticks;
 
 	/* Pick up fullscreen / hide-cursor changes made from the config menu. */
 	sdl_sync_fullscreen(win);
@@ -1147,6 +1147,21 @@ sdl_poll_events(void)
 			if(idx >= 0) {
 				imap_mouse_button(win->kimage_ptr, idx,
 					ev.type == SDL_EVENT_MOUSE_BUTTON_UP);
+			}
+			break;
+		case SDL_EVENT_MOUSE_WHEEL:
+			/* integer_y counts whole notches, positive away from the user.
+			 * Flipped (natural) scrolling reports the opposite sign, so
+			 * undo it to get the physical wheel direction. */
+			ticks = ev.wheel.integer_y;
+			if(ev.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
+				ticks = -ticks;
+			}
+			for(; ticks > 0; ticks--) {
+				imap_mouse_wheel(win->kimage_ptr, IMAP_WHEEL_UP);
+			}
+			for(; ticks < 0; ticks++) {
+				imap_mouse_wheel(win->kimage_ptr, IMAP_WHEEL_DOWN);
 			}
 			break;
 		case SDL_EVENT_GAMEPAD_ADDED:

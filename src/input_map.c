@@ -30,6 +30,8 @@
  *                     optional modifier prefixes, key sources only,
  *                     e.g. ctrl+key:F11
  *     mouse:LEFT|MIDDLE|RIGHT
+ *     wheel:UP|DOWN   mouse wheel, one notch per press.  A notch is pressed
+ *                     and released at once, so it cannot hold a target.
  *     pad:NAME        gamepad button: SOUTH EAST WEST NORTH BACK GUIDE
  *                     START LEFT_STICK RIGHT_STICK LEFT_SHOULDER
  *                     RIGHT_SHOULDER DPAD_UP DPAD_DOWN DPAD_LEFT
@@ -81,7 +83,8 @@ enum {
 	IMAP_SRC_KEY,
 	IMAP_SRC_MOUSE,
 	IMAP_SRC_PAD,
-	IMAP_SRC_AXIS
+	IMAP_SRC_AXIS,
+	IMAP_SRC_WHEEL
 };
 
 enum {
@@ -139,6 +142,10 @@ static const struct imap_name g_key_names[] = {
 static const struct imap_name g_mouse_names[] = {
 	{ "LEFT", IMAP_MOUSE_LEFT }, { "MIDDLE", IMAP_MOUSE_MIDDLE },
 	{ "RIGHT", IMAP_MOUSE_RIGHT }
+};
+
+static const struct imap_name g_wheel_names[] = {
+	{ "UP", IMAP_WHEEL_UP }, { "DOWN", IMAP_WHEEL_DOWN }
 };
 
 /* SDL_GAMEPAD_BUTTON_* values; see SDL_gamepad.h */
@@ -276,6 +283,8 @@ static const char *const g_default_map[] = {
 	"key:NUMLOCKCLEAR = adb:0x47",
 	"mouse:LEFT = mouse:1",
 	"mouse:MIDDLE = action:mouse_grab",
+	"wheel:UP = adb:0x3e",
+	"wheel:DOWN = adb:0x3d",
 	"ctrl+key:F1 = action:config_panel",
 	"ctrl+key:F2 = action:mouse_grab",
 	"ctrl+key:F12 = action:reset",
@@ -322,6 +331,7 @@ static int	g_num_bindings = 0;
 
 static int	g_key_active[IMAP_NUM_SCANCODES];	/* binding index + 1, 0 = none */
 static int	g_mouse_active[IMAP_NUM_MOUSE];
+static int	g_wheel_active[IMAP_NUM_WHEEL];
 static int	g_pad_active[IMAP_NUM_PAD_BUTTONS];
 static int	g_axis_active[IMAP_NUM_AXES];		/* binding index + 1 */
 static int	g_trigger_swallow[IMAP_NUM_AXES];	/* until released */
@@ -502,6 +512,13 @@ imap_parse_source(char *s, struct imap_binding *b)
 		if(b->src < 0) {
 			return "unknown mouse button (LEFT, MIDDLE, RIGHT)";
 		}
+	} else if(!strcasecmp(s, "wheel")) {
+		b->src_kind = IMAP_SRC_WHEEL;
+		b->src = imap_lookup(g_wheel_names, IMAP_COUNT(g_wheel_names),
+									name);
+		if(b->src < 0) {
+			return "unknown wheel direction (UP, DOWN)";
+		}
 	} else if(!strcasecmp(s, "pad")) {
 		b->src_kind = IMAP_SRC_PAD;
 		b->src = imap_lookup(g_pad_names, IMAP_COUNT(g_pad_names), name);
@@ -516,7 +533,7 @@ imap_parse_source(char *s, struct imap_binding *b)
 			return "unknown gamepad axis name";
 		}
 	} else {
-		return "unknown source kind (use key, mouse, pad, axis)";
+		return "unknown source kind (use key, mouse, wheel, pad, axis)";
 	}
 	if(b->mods && (b->src_kind != IMAP_SRC_KEY)) {
 		return "modifiers apply to key sources only";
@@ -675,6 +692,7 @@ imap_reset_state(void)
 {
 	memset(g_key_active, 0, sizeof(g_key_active));
 	memset(g_mouse_active, 0, sizeof(g_mouse_active));
+	memset(g_wheel_active, 0, sizeof(g_wheel_active));
 	memset(g_pad_active, 0, sizeof(g_pad_active));
 	memset(g_axis_active, 0, sizeof(g_axis_active));
 	memset(g_trigger_swallow, 0, sizeof(g_trigger_swallow));
@@ -736,7 +754,7 @@ imap_load_file(const char *path)
  */
 static const char *const g_map_file_header[] = {
 	"# GSplus input map.  One binding per line: source = target [invert]",
-	"# Sources: key:NAME mouse:LEFT|MIDDLE|RIGHT pad:NAME axis:NAME",
+	"# Sources: key:NAME mouse:LEFT|MIDDLE|RIGHT wheel:UP|DOWN pad:NAME axis:NAME",
 	"#          (keys take shift+ ctrl+ alt+ gui+ prefixes)",
 	"# Targets: adb:0xNN mouse:1 pdl:N [invert] butn:N action:NAME none",
 	"# A line replaces the built-in binding for its source.  \"= none\" unbinds it.",
@@ -1152,6 +1170,22 @@ imap_mouse_button(Kimage *km, int button, int is_up)
 	}
 	imap_source_event(km, &g_mouse_active[button], IMAP_SRC_MOUSE, button,
 								0, is_up);
+}
+
+/* A wheel notch has no held state, so it is pressed and released at once.
+ * Each notch is one keystroke on an ADB target, and the target is not held.
+ */
+void
+imap_mouse_wheel(Kimage *km, int dir)
+{
+	if((dir < 0) || (dir >= IMAP_NUM_WHEEL)) {
+		return;
+	}
+	if(imap_remap_capture(IMAP_SRC_WHEEL, dir, 0)) {
+		return;
+	}
+	imap_source_event(km, &g_wheel_active[dir], IMAP_SRC_WHEEL, dir, 0, 0);
+	imap_source_event(km, &g_wheel_active[dir], IMAP_SRC_WHEEL, dir, 0, 1);
 }
 
 static int
@@ -1600,6 +1634,10 @@ imap_src_name(int kind, int src, char *key, size_t len)
 		name = imap_name_of(g_mouse_names, IMAP_COUNT(g_mouse_names),
 									src);
 		break;
+	case IMAP_SRC_WHEEL:
+		name = imap_name_of(g_wheel_names, IMAP_COUNT(g_wheel_names),
+									src);
+		break;
 	case IMAP_SRC_PAD:
 		name = imap_name_of(g_pad_names, IMAP_COUNT(g_pad_names), src);
 		break;
@@ -1625,10 +1663,10 @@ imap_source_text(const struct imap_binding *b, int display, char *buf,
 		"Shift+", "Ctrl+", "Alt+", "GUI+"
 	};
 	static const char *const	kind_file[] = {
-		"key:", "mouse:", "pad:", "axis:"
+		"key:", "mouse:", "pad:", "axis:", "wheel:"
 	};
 	static const char *const	kind_show[] = {
-		"", "Mouse ", "Pad ", "Axis "
+		"", "Mouse ", "Pad ", "Axis ", "Wheel "
 	};
 	char	key[16];
 	int	i;

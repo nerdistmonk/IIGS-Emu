@@ -23,6 +23,11 @@
 #define IMAP_MOUSE_RIGHT	2
 #define IMAP_NUM_MOUSE		3
 
+/* Mouse wheel directions passed to imap_mouse_wheel(), one per notch */
+#define IMAP_WHEEL_UP		0
+#define IMAP_WHEEL_DOWN		1
+#define IMAP_NUM_WHEEL		2
+
 #define IMAP_NUM_PAD_BUTTONS	26	/* SDL_GAMEPAD_BUTTON_COUNT */
 #define IMAP_NUM_SDL_AXES	6	/* SDL_GAMEPAD_AXIS_COUNT */
 #define IMAP_AXIS_DPAD_X	6	/* D-pad as an axis, see input_map.c */
@@ -58,6 +63,7 @@ void imap_set_host_hook(void (*hook)(int action));
 
 void imap_key_event(Kimage *km, int scancode, int mods, int is_up);
 void imap_mouse_button(Kimage *km, int button, int is_up);
+void imap_mouse_wheel(Kimage *km, int dir);
 void imap_pad_button(Kimage *km, int button, int is_up);
 void imap_pad_axis(Kimage *km, int axis, int value);
 void imap_pad_release_all(Kimage *km);
