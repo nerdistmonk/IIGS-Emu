@@ -10,19 +10,19 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 
 ## Key code facts
 - `src/adb.c`
-  - `g_a2_key_to_ascii[]` (~156–295). Table bytes: `[1]` is the unshifted column, `[2]` shifted, `[3]` ctrl.
+  - `g_a2_key_to_ascii[]`. Table bytes: `[1]` is the unshifted column, `[2]` shifted, `[3]` ctrl.
   - `hard_key` is set from the unshifted column `[1] & 0xef00`. It queues a char to `$C000` only when set.
-  - `adb_key_is_nonchar_extended()` (~1611) forces `hard_key = 0` for F-keys and nav keys (~1659, ~1827).
+  - `adb_key_is_nonchar_extended()` forces `hard_key = 0` for F-keys and nav keys in `adb_key_event()`. `adb_panel_key_event()` also calls it.
   - `special = (ascii >> 8) & 0xff` is ORed into `$C025` on press and recomputed on release.
-  - `adb_key_event` (~1624) ← `adb_virtual_key_update` (~1989) ← `adb_maybe_virtual_key_update` (~1952). Raw ADB register `adb_kbd_reg0_data` (~558) is written only when autopoll is off (~1973, ~1980).
-  - Keystroke paste: `adb_paste_add_buf()` (~1572), `adb_paste_update_state()` (~1549). Paced at `PASTE_FRAMES_PER_KEY` = 4 (line 111), so 15 keys/s. See the Input section of `claude/CLAUDE.md`.
+  - `adb_key_event()` ← `adb_virtual_key_update()` ← `adb_maybe_virtual_key_update()`. Raw ADB register `adb_kbd_reg0_data()` is written only when autopoll is off (the two calls in `adb_maybe_virtual_key_update()`).
+  - Keystroke paste: `adb_paste_add_buf()`, `adb_paste_update_state()`. Paced at `PASTE_FRAMES_PER_KEY` = 4, so 15 keys/s. See the Input section of `claude/CLAUDE.md`.
 - `$C025` (KEYMODREG) bits, per the IIgs firmware reference: 0x80 Open Apple, 0x40 Solid Apple, 0x20 modifier latch updated, 0x10 keypad key active, 0x08 repeat, 0x04 caps, 0x02 control, 0x01 shift.
-- `$C061` (Open Apple) reads `adb_is_cmd_key_down()` (`src/adb.c` ~1881, used by `src/moremem.c` ~1321). Any 0x80 in the table holds Open Apple, which is why F-keys were changed.
+- `$C061` (Open Apple) reads `adb_is_cmd_key_down()` (`src/adb.c`, called from `io_read()` in `src/moremem.c`). Any 0x80 in the table holds Open Apple, which is why F-keys were changed.
 - `src/input_map.c`
-  - Default map `g_default_map` (~187). `key:PAUSE = adb:0x71` (F15) is a default binding. Copy and paste are `ctrl+shift+key:C` and `ctrl+shift+key:V` (287–288).
-  - Remap catalog entries "Copy text screen" and "Paste clipboard" (Mouse and Actions, 1519–1520). `imap_remap_bind` ~1832.
-  - Actions enum `enum imap_action` in `src/input_map.h` (~34); name table `g_action_names` in `src/input_map.c` (~164–180). Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
-- `g_vbl_count` (defined `src/sim65816.c` 1016, incremented 1106) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
+  - Default map `g_default_map`. `key:PAUSE = adb:0x71` (F15) is a default binding. Copy and paste are `ctrl+shift+key:C` and `ctrl+shift+key:V`.
+  - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (Mouse and Actions). `imap_remap_bind()`.
+  - Actions enum `enum imap_action` in `src/input_map.h`; name table `g_action_names` in `src/input_map.c`. Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
+- `g_vbl_count` (defined in `src/sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
 
 ## Setup and run
 
