@@ -19,7 +19,14 @@ Linux is the only supported platform. From the repository root:
 cmake -G Ninja -B build -S src
 cmake --build build --target gsplus-sdl
 ```
-Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. See README.md for the apt package list.
+Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. Ubuntu 24.04 has no SDL3 package, so CMake fetches SDL3 `release-3.4.10` there. The apt packages for the full test setup are listed in `handoff.md` (Setup and run).
+
+### Debug build (outside the repo)
+```bash
+cmake -G Ninja -B /root/build-dbg -S /root/IIGS-Emu/src -DCMAKE_BUILD_TYPE=Debug
+cmake --build /root/build-dbg -j4
+```
+Produces `/root/build-dbg/iigs-emu`. The directory does not exist until configured. Use `cmake --build`; there is no Makefile.
 
 ### Clean
 ```bash
@@ -52,17 +59,32 @@ rm -rf build
 - `dynapro.c` — Host directory mounting as virtual ProDOS volumes
 - `woz.c` — WOZ disk image format support
 - `unshk.c`, `undeflate.c`, `applesingle.c` — Archive/compression format support
+- Dynamic folders (`@500:/path`) mount host folders as ProDOS volumes. They cannot create new files. `dynapro_write` (`dynapro.c` ~1120–1190) updates only blocks of existing host files, so a save to a dynamic folder silently does nothing.
+- Dynamic folders need a valid `.applesingle` file name for forked files. The name mapping is in `dyna_type.c` (~285–286).
+- AppleSingle reader: `applesingle_from_unix`, called from `dynapro_file_from_unix` (`dynapro.c` ~1940–1945) when the storage nibble is 0x50 (forked). Writer: `applesingle_map_from_prodos`, called from `dynapro_map_file` (`dynapro.c` ~2157–2166) for storage type 5. It runs on a guest write via `dynapro_handle_write_file` (~870–890), which remaps with `do_file_data=1`.
+- AppleSingle v1 File Info (entry 7) is decoded only when bytes 8..13 read "ProDOS". The file type is at +11 and the aux type at +14..15. v2 ProDOS File Info (entry 11) is v2 only; v1 does not use it. AppleSingle fields are big-endian; use `applesingle_get_be32` and `applesingle_get_be16`.
+- The writer emits v2 with entries 11 (ProDOS info), 9 (Finder info, when present), 1 (data fork), and 2 (resource fork). It drops entries 3 and 4 and v1 dates. This is documented in a comment above `applesingle_map_from_prodos` (commit 7982d49). The user chose to keep this behavior.
+- Round trip verified: real v1 file → mount → `dynapro_handle_write_file` → v2 file. Both forks are byte-identical, type and aux are preserved, and the reader parses the output (type 0xB3, aux 0xDB07).
+- Dynamic folder config errors are truncated at `CFG_ERR_BUFSIZE` (256, `config.c` ~100), raised from 80 in commit 8f96a48.
+- WOZ: a `#` on woz-525 is an expected TMAP rejection. SmartPort images (woz-short) are refused silently by design; the user declined adding a message.
+- Drag-and-drop (`cfg_inspect_maybe_insert_file`, `config.c`): WOZ files route by the INFO chunk disk type (byte 21: 1 = 5.25" to slot 6, 2 = 3.5" to slot 5). Other files use the size guess. Verified with gdb `call` on crafted files.
 
 ### Input
-- `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked. Host text queued for keystroke paste (`g_kbd_paste_buf`) is fed one key per `PASTE_FRAMES_PER_KEY` (4) VBL frames, so slow guests keep up.
+- `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked. Host text queued for keystroke paste (`g_kbd_paste_buf`) is fed one key per `PASTE_FRAMES_PER_KEY` (4) VBL frames (`adb.c` 111; gate in `adb_paste_update_state()`), which is 15 keys/s. Pacing is needed because `g_vbl_count` (`sim65816.c` 1106) advances on wall-clock time, so unpaced keys arrive at about 60/s. The guest keyboard routine reads `$C000` once per frame, so slow guests drop characters at that rate. Live host typing bypasses pacing.
 - `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
 - `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
 
 ### Clipboard
-- `clipboard.c` — Host clipboard bridge; no SDL code. Observes GS/OS ZeroScrap and PutScrap through the `$E10000` Toolbox JSL hook (`instable.h`). Redirects GetScrap, GetScrapHandle, and GetScrapSize to the shim when the host clipboard changed.
-- `clipboard_shim.asm` — 65816 shim for `$FB0000`. Its 159-byte image is `clip_shim_code[]` in `clipboard.c` (`64tass -b`).
-- Ctrl+Shift+C and Ctrl+Shift+V are the default `copy` and `paste` actions (`input_map.c`). They are dispatched in `sdl_imap_host_action` (`sdl_driver.c`). Ctrl+Shift+V types through the ADB paste buffer.
+- `clipboard.c` — Host clipboard bridge; no SDL code. Host hooks are registered from `sdl_driver.c` (~846). It observes GS/OS ZeroScrap and PutScrap through the `$E10000` Toolbox JSL hook (`instable.h` 247, `clip_toolbox_jsl()`).
+- `clipboard_shim.asm` — 65816 shim that runs at `$FB0000`. Its 159-byte image is `clip_shim_code[]` in `clipboard.c`. Assemble with `64tass -b -o clipboard_shim.bin clipboard_shim.asm`. The default `-a` output is 161 bytes and does not match.
+- `$FB0000` is a 64 KB host-only RAM bank (`HOST_RAM_BASE`, `protos_base.h` 149–150; allocated in `moremem.c` ~899). Only the shim uses it, and shim calls are never redirected or published. Shim parameters: LEN word at host RAM offset `$110`, tool number at `$114`, staged text at `$1000` (max `0xe000`).
+- Guest reads: GetScrap, GetScrapHandle, and GetScrapSize (text type 0) are redirected to the shim when host text differs from the last sync. The shim runs ZeroScrap, then PutScrap of text staged at `$FB1000`, then the real tool with the caller's parameters. Whether every Toolbox call goes through `$E10000` is unverified (see `handoff.md`).
+- Guest writes: ZeroScrap clears the observed scrap. Text PutScrap appends to it and publishes to the host. Guest → host: CR → LF, other control characters dropped, 7-bit. Host → guest: LF → CR, tabs → spaces, control and non-ASCII bytes dropped.
+- Tool numbers are `$FFTT` (tool set `$16`): ZeroScrap `$0B16`, PutScrap `$0C16`, GetScrap `$0D16`, GetScrapHandle `$0E16`, GetScrapSize `$0F16`. `$0816` is invalid and returns `$16FF`. Sources: ORCA-C `scrap.h` and `mrkite/regs/iigs/scrap.txt`.
+- Ctrl+Shift+C and Ctrl+Shift+V are the default `copy` and `paste` actions (`input_map.c` 287–288), dispatched in `sdl_imap_host_action` (`sdl_driver.c` ~981).
+  - Copy: `sdl_clip_copy_text_screen()` (`sdl_driver.c` ~910). Text mode only; outside text mode, the OSD says Copy works in text mode.
+  - Paste: `sdl_clip_paste_host()` (~928) → `clip_paste_text()` → `adb_paste_add_buf()`. It types the text as paced keystrokes, so it reaches any app that reads `$C000`. GS/OS Edit>Paste does not use this path.
 
 ### Configuration & Debug
 - `config.c` — Runtime configuration UI, disk mounting, settings persistence (`config.kegs`)
@@ -88,7 +110,7 @@ The emulator core is platform-independent. Platform-specific code is isolated in
 
 ## Runtime Requirements
 
-The emulator needs an Apple IIgs ROM file to run. Configuration is stored in `config.kegs`. Input bindings are stored in `input.map` beside it, written with commented defaults on first run; `-map <file>` selects another file.
+The emulator needs an Apple IIgs ROM file to run. It looks for `ROM.03` by relative name in its working directory (`g_kegs_rom_names` in `src/config.c`) and logs `Found ROM at path: ...` (`config.c` 1382). The 256 KB "ROM 3 Tenspeed Late 1988 Early 1989 v25" image boots; ROM 04 does not. Loading a config changes the working directory (the log prints `CWD is now: ...`), so the ROM link must be in that directory. Configuration is stored in `config.kegs`. Pass a config with `-cfg <file>`; config changes need an emulator restart. Input bindings are stored in `input.map` beside it, written with commented defaults on first run; `-map <file>` selects another file.
 
 ## No Test Suite
 

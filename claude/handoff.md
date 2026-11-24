@@ -1,22 +1,12 @@
 # IIGS-Emu handoff
 
-Read this first in a new session. It captures the working state, conventions, and open items. Restore steps are in `claude/README.md`, so be sure to read it.
+Read this first in a new session. It covers repo state, setup and run, test gotchas, verified results, open items, and working conventions. Architecture and build are in `claude/CLAUDE.md`.
 
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
 - Repo: `/root/IIGS-Emu`, remote `origin` = `nerdistmonk/IIGS-Emu`, branch `main`.
-- HEAD = `origin/main` = `a5ca71b` ("Fix ZeroScrap tool call number").
-- Configure: `cmake -S src -B build -G Ninja`. Build: `cmake --build build --target gsplus-sdl`. Binary: `build/iigs-emu`.
-
-## Recent commits
-- `a5ca71b` Fix ZeroScrap tool call number (`$0B16`, not `$0816`)
-- `f078e93` Redirect GetScrapHandle and GetScrapSize to the clipboard shim
-- `20fe722` Pace keyboard paste to one key every four frames
-- `492ea00` Add clipboard copy/paste with GS/OS GetScrap support
-- `131a15e` Backlog: spec clipboard copy/paste
-- `34f44cf` Update backlog: drop display and overlay items, confirm gamepad remap
-- `3875e3f` Rename Fatal System Errors and hide Page 2 shadow option
-- Run `git log --oneline -10` for anything newer.
+- HEAD = `origin/main` = `55fa509` ("Document clipboard bridge and keystroke paste pacing"). Run `git log --oneline -10` for anything newer.
+- Build and configure: see `claude/CLAUDE.md`.
 
 ## Key code facts
 - `src/adb.c`
@@ -25,28 +15,64 @@ Read this first in a new session. It captures the working state, conventions, an
   - `adb_key_is_nonchar_extended()` (~1611) forces `hard_key = 0` for F-keys and nav keys (~1659, ~1827).
   - `special = (ascii >> 8) & 0xff` is ORed into `$C025` on press and recomputed on release.
   - `adb_key_event` (~1624) ← `adb_virtual_key_update` (~1989) ← `adb_maybe_virtual_key_update` (~1952). Raw ADB register `adb_kbd_reg0_data` (~558) is written only when autopoll is off (~1973, ~1980).
-  - Keystroke paste: `adb_paste_add_buf()` (~1572), `adb_paste_update_state()` (~1549). Paced at `PASTE_FRAMES_PER_KEY` = 4 (line 111), so 15 keys/s. See Clipboard below.
+  - Keystroke paste: `adb_paste_add_buf()` (~1572), `adb_paste_update_state()` (~1549). Paced at `PASTE_FRAMES_PER_KEY` = 4 (line 111), so 15 keys/s. See the Input section of `claude/CLAUDE.md`.
 - `$C025` (KEYMODREG) bits, per the IIgs firmware reference: 0x80 Open Apple, 0x40 Solid Apple, 0x20 modifier latch updated, 0x10 keypad key active, 0x08 repeat, 0x04 caps, 0x02 control, 0x01 shift.
 - `$C061` (Open Apple) reads `adb_is_cmd_key_down()` (`src/adb.c` ~1881, used by `src/moremem.c` ~1321). Any 0x80 in the table holds Open Apple, which is why F-keys were changed.
 - `src/input_map.c`
   - Default map `g_default_map` (~187). `key:PAUSE = adb:0x71` (F15) is a default binding. Copy and paste are `ctrl+shift+key:C` and `ctrl+shift+key:V` (287–288).
   - Remap catalog entries "Copy text screen" and "Paste clipboard" (Mouse and Actions, 1519–1520). `imap_remap_bind` ~1832.
   - Actions enum `enum imap_action` in `src/input_map.h` (~34); name table `g_action_names` in `src/input_map.c` (~164–180). Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
-- `g_vbl_count` (defined `src/sim65816.c` 1016, incremented 1106) advances on wall-clock time, not per guest cycle. Unpaced keys therefore arrive at about 60/s, which is why slow guests drop characters.
+- `g_vbl_count` (defined `src/sim65816.c` 1016, incremented 1106) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
 
-## Environment
-- Xorg `:1` (dummy driver) and headless sway `wayland-1`. Start with `/root/iigs-env/start-displays.sh`.
-  - The script skips starting Xorg if `/tmp/.X11-unix/X1` exists. If Xorg isn't running, first remove that socket and `/tmp/.X1-lock`.
-- Launcher: `/root/iigs-env/run-emu.sh x11 -cfg /root/iigs-test/work/boot-nodisk.cfg`. It runs from `/root/iigs-test`.
-- Test config: `claude/configs/boot-nodisk.cfg`, copied to `/root/iigs-test/work/`.
-- `/root/iigs-test/work/input.map` holds live test bindings (F6 → 0x39, APPLICATION → 0x61) and is not committed. Remap Controls rewrites it.
-- Window id changes each launch: `DISPLAY=:1 xdotool search --name IIGS-Emu`.
+## Setup and run
+
+The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/IIGS-Emu/build/iigs-emu`.
+
+1. Install packages. Ubuntu 24.04 has no SDL3 package, so CMake fetches SDL3 `release-3.4.10` from GitHub (needs network). `xserver-xorg-input-void` is not in 24.04:
+   ```
+   apt-get install -y cmake ninja-build git build-essential p7zip-full xdotool xclip imagemagick xserver-xorg-core xserver-xorg-video-dummy xauth x11-utils sway python3-venv 64tass libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev libxinerama-dev libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libdrm-dev libgbm-dev libegl-dev libgl-dev libgles-dev libpulse-dev libasound2-dev libpipewire-0.3-dev libsndio-dev libdbus-1-dev libudev-dev libibus-1.0-dev
+   ```
+2. Extract the uploaded assets. ROMs, disk images, and reference docs are not in the repo. Extract them from the session's upload folder: `tar -xjf Apple_IIGS_Dev.tar.bz2 -C /root/iigs-assets` and `7z x System6_and_Games.7z -o/root/iigs-assets/System6_and_Games`.
+3. Copy the scripts, make them executable, and create the venv that `fakepad.py` needs:
+   ```
+   mkdir -p /root/iigs-env /root/iigs-test/work
+   cp /root/IIGS-Emu/claude/env/* /root/iigs-env/
+   chmod +x /root/iigs-env/*.sh /root/iigs-env/fakepad.py
+   python3 -m venv /root/iigs-env/venv && /root/iigs-env/venv/bin/pip install evdev
+   cp /root/IIGS-Emu/claude/configs/boot-nodisk.cfg /root/iigs-test/work/
+   ```
+4. Provide the ROM. Loading a config changes the working directory to `/root/iigs-test/work`, so the link goes there, not in `/root/iigs-test`. ROM 3 is the image that boots (see `claude/CLAUDE.md`, Runtime Requirements):
+   ```
+   ln -sfn /path/to/your/rom /root/iigs-test/work/ROM.03
+   ```
+5. Build: see `claude/CLAUDE.md`, Build Commands.
+
+Run:
+```
+/root/iigs-env/start-displays.sh                 # Xorg :1 and headless sway wayland-1
+/root/iigs-env/run-emu.sh x11 -cfg /root/iigs-test/work/boot-nodisk.cfg
+/root/iigs-env/stop-displays.sh
+```
+
+- Smoke test: the log shows `Found ROM at path: ROM.03`, and the screen shows "Check startup device!" with the Applesoft `]` prompt.
+- Stderr is noisy with `GRIND` debug lines. Filter with `grep -a -v GRIND`. ALSA and XDG_RUNTIME_DIR warnings are environmental.
+- `start-displays.sh` skips starting Xorg if `/tmp/.X11-unix/X1` exists. If Xorg won't start because of a stale socket, remove `/tmp/.X11-unix/X1` and `/tmp/.X1-lock`, then rerun it.
+- Configs. Only `boot-nodisk.cfg` is in the repo. The others live outside it, so recreate them if missing:
+  - `boot-nodisk.cfg`: boots to `]` with no disks.
+  - `boot-sys604.cfg`: `boot-nodisk.cfg` with `s7d1 = /root/iigs-assets/System6_and_Games/System 604.hdv`. Use it for Hermes and clipboard tests.
+  - `boot-28.cfg`: `boot-sys604.cfg` plus `g_limit_speed = 2` (2.8 MHz).
+- Gamepads: `/root/iigs-env/fakepad.py xbox360|snes` creates a uinput pad and reads commands from `/root/iigs-env/pad.fifo`. It needs root.
+
+Checking state:
+
+- `/root/iigs-test/work/input.map` holds live test bindings (F6 → 0x39, APPLICATION → 0x61). It is not committed. Remap Controls rewrites it.
+- The window id changes each launch: `DISPLAY=:1 xdotool search --name IIGS-Emu`. Find the PID with `ps -eo pid,args | grep iigs-emu`.
 - Screenshot: `DISPLAY=:1 import -window <id> file.png`, then view it.
 - Boots to the Applesoft `]` prompt with no disk. Read registers with `PRINT PEEK(-16347)` ($C025), `PEEK(-16287)` ($C061), `PEEK(-16384)` ($C000).
 - Hold a key during Return: `xdotool keydown F7; xdotool key Return; xdotool keyup F7`.
 - Baseline `$C025` with no keys held is 32 (latch bit) or 0.
-- System 6.0.4 for Hermes tests: `/root/iigs-test/work/boot-sys604.cfg` (`s7d1 = /root/iigs-assets/System6_and_Games/System 604.hdv`). `boot-28.cfg` adds `g_limit_speed = 2` (2.8 MHz). Details and gotchas are in `technotes.md`.
-- Clipboard checks: `DISPLAY=:1 xclip -selection clipboard -o` reads the host clipboard. `xclip -selection clipboard` writes it.
+- Host clipboard: `DISPLAY=:1 xclip -selection clipboard -o` reads it, and `xclip -selection clipboard` writes it.
+- Display check: `xdpyinfo -display :1`.
 
 ## Verified (emulator only, not hardware)
 - F1 held: `$C061`=0, `$C025`=16, no character.
@@ -58,14 +84,22 @@ Read this first in a new session. It captures the working state, conventions, an
 - System 6.0.4, 8 MHz, Hermes: Edit>Paste of two host lines is intact. Edit>Copy of line 1, then line 2, leaves only line 2 on the host clipboard (ZeroScrap clears).
 - Keystroke paste into Hermes at 2.8 MHz: 580/580 characters matched with pacing. Before pacing, drops grew with paste rate and lower speed. At 16 MHz, rapid pastes showed no drops (user test, before pacing).
 
-## Clipboard
-- `src/clipboard.c` has no SDL code. Host hooks are registered from `sdl_driver.c` (~846). `src/clipboard_shim.asm` is the 65816 shim. `clip_shim_code[]` in `clipboard.c` is its 159-byte image (`64tass -b`).
-- Ctrl+Shift+C: `sdl_clip_copy_text_screen()` (`sdl_driver.c` ~910). Text mode only. Otherwise the OSD says Copy works in text mode.
-- Ctrl+Shift+V: `sdl_clip_paste_host()` (~928) → `clip_paste_text()` → `adb_paste_add_buf()`. It types the text as paced keystrokes, so it reaches any app that reads `$C000`. Edit>Paste in GS/OS does not use this path.
-- GS/OS Edit>Copy and Edit>Paste: the JSL `$E10000` hook (`instable.h` 247) calls `clip_toolbox_jsl()`. ZeroScrap clears the observed scrap. PutScrap text appends to it and is published to the host. A guest GetScrap, GetScrapHandle, or GetScrapSize (text type) is redirected to the shim at `$FB0000` when host text differs from the last sync.
-- `$FB0000` is a 64 KB host-only RAM bank (`HOST_RAM_BASE`, `protos_base.h` 149–150; allocated in `moremem.c` ~899). Shim calls are never redirected or published.
-- Tool numbers are `$FFTT`: ZeroScrap is `$0B16`. `$0816` is invalid and returns `$16FF`. Sources: ORCA-C `scrap.h`, `mrkite/regs/iigs/scrap.txt`.
-- Text conversion. Guest → host: CR → LF, other control characters dropped, 7-bit. Host → guest: LF → CR, tabs → spaces, control and non-ASCII bytes dropped.
+## Test harness gotchas
+
+- Config: a `#` in front of an `s<slot>d<drive>` line ejects that drive. An earlier "no error" result was a false negative from this (commit 30c4661). Verify mounts before trusting results.
+- Saves: dynamic folders cannot create new files, and a save to one silently does nothing. To test saves, use a blank ProDOS `.po` image (819200 bytes; the `/tmp/mkpo.py` approach) and check free space in the Save dialog ("N free of M K"). GS/OS volumes in these images fill quickly.
+- Slow guests: to test paste against a slow guest, set `g_limit_speed = 2` (2.8 MHz). With pacing in place, 580/580 keys matched at that speed. Drops there point to a pacing regression.
+- GS/OS menus (Hermes and others) need press-and-hold. A quick click does not open them. Use `xdotool mousedown 1`, sleep about 0.8 s, move, then `xdotool mouseup 1`. In Hermes, the entry is near the bottom of the Apple logo menu.
+- Hand-written 65816 programs: keep code and data out of `$0400–$07FF` (the text page). Load them through the monitor, run with `300G`, and end with `jmp $ff69` to return to the monitor.
+- gdb batch pattern: `timeout 120 gdb -batch -x script.gdb --args /root/build-dbg/iigs-emu -cfg x.cfg`. End scripts with `kill` so the emulator exits. `$fp` is a built-in register alias, so use other names for convenience variables. Calling emulator functions while stopped works, for example `call dynapro_handle_write_file($dskp, $fileh)`. This exercises real code paths without guest I/O.
+
+## Test fixtures
+
+- The user's `System_604.hdv` and `System_Addons.hdv` contain ShrinkIt. `GS.SHRINKIT` is in `/ARCHIVE.UTILS` on System_604. Both volumes are nearly full (about 52K and 67K free).
+- `GS.GS.Diag.sdk` and `GSMEMTESTv20.sdk` are NuFX archives, not AppleSingle.
+- ShrinkIt creates AppleSingle through the Special menu, "Create AppleSingle...". Drag from Special to the item (mousedown, mouseup). The File menu has no AppleSingle option.
+- The desktop wallpaper, drawn by DeskMaker, contains fake disk-like icons. Trust only real volume icons and window contents.
+- Reference: `/root/iigs-test/applesingle_real.bin` is a real 130,827-byte ShrinkIt AppleSingle v1 file. Entries: 7 (ProDOS file info), 4 (ShrinkIt resource header/comment, all zeros here), 3 (real name `GS.ShrinkIt`), 2 (resource fork, 18,071 bytes), and 1 (data fork, 112,443 bytes). File type 0xB3 and aux 0xDB07 match the catalog.
 
 ## Open items
 - Multi-line Copy from Hermes is tested only in the harness. Test it in Hermes.
@@ -76,12 +110,14 @@ Read this first in a new session. It captures the working state, conventions, an
 
 ## Working conventions
 - CMake and GCC only. Do not suggest or use Clang tooling (clang-format, clang-tidy).
-- Ask before assuming design details. Use `ask_user` with one question at a time, and do not repeat a question already asked without acknowledging it.
+- Linux is the only supported platform. Do not add macOS or Windows code paths.
+- Ask before assuming design details or changing behavior. Use `ask_user` with one question at a time, and do not repeat a question already asked without acknowledging it.
+- Confirm each bug at runtime (ASan/UBSan, gdb) before changing code.
 - Comment code only where it needs clarification.
-- Commit and push only on explicit request. Use the author `nerdistmonk <5949983+nerdistmonk@users.noreply.github.com>` and this trailer:
-  `Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>`
 - Keep replies concise (≤100 words unless the task needs more).
+- Commit and push only on explicit request. Write a short imperative subject and a body that explains why. Use the author `nerdistmonk <5949983+nerdistmonk@users.noreply.github.com>` and this trailer:
+  `Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>`
+  Git identity is not set globally, so pass the author through `GIT_AUTHOR_*` and `GIT_COMMITTER_*`.
 - Do not create planning or notes markdown in the repo, except this `claude/` folder when asked.
-- Gemini's advice on this code was checked and partly rejected. Verify claims against the code and the uploaded docs before adopting them.
+- Check outside advice (including Gemini's suggestions on this code) against the code and the uploaded docs before adopting it. Some of it has been wrong.
 - Uploaded reference docs are not in the repo and are copyrighted. Local copies: the Apple firmware reference text (353 pages), the IIgs hardware reference PDF (text), and GSHARDWAREREF.pdf (scanned, no text layer). Extract text with pypdf in a venv, not system pip.
-- Earlier session checkpoints lived under `/root/.copilot/session-state/…/checkpoints/`. They are local and may not be present in a new session.
