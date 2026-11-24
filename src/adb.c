@@ -107,6 +107,8 @@ int	g_adb_mouse_coord = 0;
 
 #define MAX_KBD_BUF		8
 #define MAX_KBD_PASTE_BUF	32768
+/* The guest takes one key per frame and slower guests drop keys fed faster. */
+#define PASTE_FRAMES_PER_KEY	4
 
 int	g_adb_mainwin_has_focus = 1;
 int	g_key_down = 0;
@@ -119,6 +121,7 @@ int	g_kbd_paste_rd_pos = 0;
 int	g_kbd_paste_wr_pos = 0;
 byte	g_kbd_paste_buf[MAX_KBD_PASTE_BUF];
 word32	g_kbd_paste_last_key = 0;
+word32	g_kbd_paste_next_vbl = 0;
 word32	g_adb_repeat_vbl = 0;
 
 int	g_kbd_dev_addr = 2;		/* ADB physical kbd addr */
@@ -1555,6 +1558,10 @@ adb_paste_update_state()
 		return;
 	}
 	if(g_kbd_chars_buffered == 0) {
+		if(g_vbl_count < g_kbd_paste_next_vbl) {
+			return;
+		}
+		g_kbd_paste_next_vbl = g_vbl_count + PASTE_FRAMES_PER_KEY;
 		g_kbd_buf[0] = g_kbd_paste_buf[rd_pos];
 		g_kbd_paste_rd_pos = rd_pos + 1;
 		g_kbd_chars_buffered = 1;
@@ -1727,6 +1734,9 @@ adb_read_c000()
 {
 	word32	vbl_count;
 
+	if(g_kbd_chars_buffered == 0) {
+		adb_paste_update_state();
+	}
 	if( ((g_kbd_buf[0] & 0x80) == 0) && (g_key_down == 0)) {
 		/* nothing happening, just get out */
 		return g_kbd_buf[0];
