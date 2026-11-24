@@ -83,6 +83,8 @@ Checking state:
 - Config panel: F-keys and nav keys do not move the menu.
 - Clipboard, harness programs (hand-written 65816): text copy and paste, PutScrap CR→LF with high-bit mask, append, hotkey isolation.
 - System 6.0.4, 8 MHz, Hermes: Edit>Paste of two host lines is intact. Edit>Copy of line 1, then line 2, leaves only line 2 on the host clipboard (ZeroScrap clears).
+- Multi-line Copy from Hermes: works (user test in the guest).
+- WordPerfect (GS/OS): Edit>Copy and Edit>Paste work through the bridge (user test). Ctrl+Shift+V works. Ctrl+Shift+C does nothing, since it reads the text screen only.
 - Keystroke paste into Hermes at 2.8 MHz: 580/580 characters matched with pacing. Before pacing, drops grew with paste rate and lower speed. At 16 MHz, rapid pastes showed no drops (user test, before pacing).
 
 ## Test harness gotchas
@@ -113,10 +115,10 @@ Checking state:
 - Not kept: the `kbd-blind-test` positive control. It needs `DIAG-PASTE` logging, which the normal build does not have.
 
 ## Open items
-- Multi-line Copy from Hermes is tested only in the harness. Test it in Hermes.
 - PutScrap append vs replace for the same scrap type is unconfirmed. The bridge appends. The three local Toolbox PDFs (`/root/iigs-assets`) have no PutScrap text, so check the Scrap Manager chapter (Toolbox Reference Vol. 2) if you have it.
 - Other GS/OS apps' Copy and Paste are untested.
-- Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes.
+- Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
+- AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
 
 ## Working conventions
