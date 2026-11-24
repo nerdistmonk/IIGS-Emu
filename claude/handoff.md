@@ -4,7 +4,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 
 ## Resume here
 - Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
-- Pending decision (not answered yet): how to handle guest bytes 0x80–0xFF on copy and paste, such as é, which becomes "i" today. Options: dump the real scrap bytes from GS/OS first (recommended), replace with `?`, or pass raw bytes through. No code has changed for this. See Open items.
+- Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V is still ASCII-only. See Open items.
 - Last code commits: `656e97c` (copy bottom rows in MIX mode), `948542f` (copy from visible page), `6b1ea9d` (skip clipboard copy in SHR).
 
 ## Project
@@ -122,11 +122,11 @@ Checking state:
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. The Toolbox PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/`, not `/root/iigs-assets`.
-- Non-ASCII (é → i). Copy masks bytes with `& 0x7f` (`clipboard.c:148`). Paste drops bytes ≥0x7f (`clipboard.c:214`). Keystroke paste drops bytes ≥0x80 (`adb.c:1595`).
+- Non-ASCII (é) on Edit>Copy/Paste: fixed with Mac Roman ↔ UTF-8 mapping in `clipboard.c`. Runtime check in Hermes: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7). Paste rendered them. Host € pasted as `?`. Keystroke paste (Ctrl+Shift+V) still drops bytes ≥0x80 (`adb.c:1595`). Ctrl+Shift+C is unchanged (text-page screen codes).
   - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The "roman" text matches in Vol. 1–3 are false positives.
   - The Clipboard glossary (Vol. 3 p.1041) defines the Clipboard as the buffer for the last cut or copied item. "Desk scrap: See Clipboard" (p.1045). Toolbox Revealed p.84 says the desk scrap is "sometimes called a clipboard."
-  - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. Gemini's Mac Roman suggestion is unverified.
-  - Decision pending: dump real scrap bytes from GS/OS first (recommended), replace with `?`, or pass raw bytes through.
+  - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. The Copy byte values ($8E for é) confirm the Mac Roman reading at runtime.
+  - Open: $DB is mapped to ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. Its on-screen glyph in Hermes was not confirmed.
 - Other GS/OS apps' Copy and Paste are untested.
 - Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.

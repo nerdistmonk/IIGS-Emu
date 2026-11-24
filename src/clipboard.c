@@ -131,6 +131,84 @@ clip_stack_val(word32 sp, word32 off, int nbytes)
 	return val;
 }
 
+/* Mac Roman $80-$FF as Unicode.  GS/OS dead-key accents arrive in this
+ * encoding (verified: Option+E e leaves $8E on the scrap).  $DB is the
+ * currency sign from the 1984 table, not the later euro sign. */
+static const word16 clip_mac_high[128] = {
+	0x00c4, 0x00c5, 0x00c7, 0x00c9, 0x00d1, 0x00d6, 0x00dc, 0x00e1,
+	0x00e0, 0x00e2, 0x00e4, 0x00e3, 0x00e5, 0x00e7, 0x00e9, 0x00e8,
+	0x00ea, 0x00eb, 0x00ed, 0x00ec, 0x00ee, 0x00ef, 0x00f1, 0x00f3,
+	0x00f2, 0x00f4, 0x00f6, 0x00f5, 0x00fa, 0x00f9, 0x00fb, 0x00fc,
+	0x2020, 0x00b0, 0x00a2, 0x00a3, 0x00a7, 0x2022, 0x00b6, 0x00df,
+	0x00ae, 0x00a9, 0x2122, 0x00b4, 0x00a8, 0x2260, 0x00c6, 0x00d8,
+	0x221e, 0x00b1, 0x2264, 0x2265, 0x00a5, 0x00b5, 0x2202, 0x2211,
+	0x220f, 0x03c0, 0x222b, 0x00aa, 0x00ba, 0x03a9, 0x00e6, 0x00f8,
+	0x00bf, 0x00a1, 0x00ac, 0x221a, 0x0192, 0x2248, 0x2206, 0x00ab,
+	0x00bb, 0x2026, 0x00a0, 0x00c0, 0x00c3, 0x00d5, 0x0152, 0x0153,
+	0x2013, 0x2014, 0x201c, 0x201d, 0x2018, 0x2019, 0x00f7, 0x25ca,
+	0x00ff, 0x0178, 0x2044, 0x00a4, 0x2039, 0x203a, 0xfb01, 0xfb02,
+	0x2021, 0x00b7, 0x201a, 0x201e, 0x2030, 0x00c2, 0x00ca, 0x00c1,
+	0x00cb, 0x00c8, 0x00cd, 0x00ce, 0x00cf, 0x00cc, 0x00d3, 0x00d4,
+	0xf8ff, 0x00d2, 0x00da, 0x00db, 0x00d9, 0x0131, 0x02c6, 0x02dc,
+	0x00af, 0x02d8, 0x02d9, 0x02da, 0x00b8, 0x02dd, 0x02db, 0x02c7,
+};
+
+/* Writes the UTF-8 encoding of cp to dst and returns its length (1-3). */
+static int
+clip_utf8_put(char *dst, word32 cp)
+{
+	if(cp < 0x80) {
+		dst[0] = cp;
+		return 1;
+	}
+	if(cp < 0x800) {
+		dst[0] = 0xc0 | (cp >> 6);
+		dst[1] = 0x80 | (cp & 0x3f);
+		return 2;
+	}
+	dst[0] = 0xe0 | (cp >> 12);
+	dst[1] = 0x80 | ((cp >> 6) & 0x3f);
+	dst[2] = 0x80 | (cp & 0x3f);
+	return 3;
+}
+
+/* Decodes the UTF-8 sequence at p and returns its Mac Roman byte, or '?' when
+ * the character has no Mac Roman form.  *used gets the bytes consumed. */
+static int
+clip_mac_from_utf8(const byte *p, int *used)
+{
+	word32	cp;
+	int	n, i;
+
+	if((p[0] & 0xe0) == 0xc0) {
+		n = 2;
+		cp = p[0] & 0x1f;
+	} else if((p[0] & 0xf0) == 0xe0) {
+		n = 3;
+		cp = p[0] & 0x0f;
+	} else if((p[0] & 0xf8) == 0xf0) {
+		n = 4;
+		cp = p[0] & 0x07;
+	} else {
+		*used = 1;
+		return '?';
+	}
+	for(i = 1; i < n; i++) {
+		if((p[i] & 0xc0) != 0x80) {
+			*used = i;
+			return '?';
+		}
+		cp = (cp << 6) | (p[i] & 0x3f);
+	}
+	*used = n;
+	for(i = 0; i < 128; i++) {
+		if(clip_mac_high[i] == cp) {
+			return 0x80 + i;
+		}
+	}
+	return '?';
+}
+
 static void
 clip_append_scrap(word32 src, word32 num_bytes)
 {
@@ -145,7 +223,15 @@ clip_append_scrap(word32 src, word32 num_bytes)
 		if(clip_is_io(addr)) {
 			break;
 		}
-		c = clip_read_byte(addr) & 0x7f;
+		c = clip_read_byte(addr);
+		if(c >= 0x80) {
+			if(g_scrap_len + 3 > CLIP_SCRAP_MAX) {
+				break;
+			}
+			g_scrap_len += clip_utf8_put(&g_scrap_text[g_scrap_len],
+						clip_mac_high[c - 0x80]);
+			continue;
+		}
 		if(c == 0x0d) {
 			c = '\n';
 		} else if(((c < 0x20) && (c != '\t')) || (c == 0x7f)) {
@@ -189,8 +275,9 @@ clip_observe_toolbox(word32 xreg, word32 stack, int publish)
 	}
 }
 
-/* Normalizes text for the GS/OS scrap: CR line ends, 7-bit printable ASCII,
- * tabs as spaces.  Writes the shim text and LEN word, returns the length. */
+/* Normalizes text for the GS/OS scrap: CR line ends, printable ASCII, tabs as
+ * spaces, and UTF-8 letters mapped to Mac Roman where possible ('?' otherwise).
+ * Writes the shim text and LEN word, returns the length. */
 static int
 clip_stage_text(const char *text)
 {
@@ -211,6 +298,11 @@ clip_stage_text(const char *text)
 			c = '\r';
 		} else if(c == '\t') {
 			c = ' ';
+		} else if(c >= 0x80) {
+			int	used;
+
+			c = clip_mac_from_utf8(p, &used);
+			p += used - 1;
 		} else if((c < 0x20) || (c >= 0x7f)) {
 			continue;
 		}

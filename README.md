@@ -79,9 +79,11 @@ Some features that are a part of the SDL3 build:
     to smooth them out. It is a little softer; lower values keep more detail.
 - **Host clipboard** - Ctrl+Shift+C copies the text screen (text modes only) to the
   host clipboard. Ctrl+Shift+V types the host clipboard into the IIgs as keystrokes,
-  paced so slow programs keep up. GS/OS Edit>Copy and Edit>Paste share the same host
-  clipboard (tested with Hermes). Both hotkeys can be rebound under Remap Controls >
-  Mouse and Actions.
+  paced so slow programs keep up; it types ASCII only. GS/OS Edit>Copy and
+  Edit>Paste share the same host clipboard (tested with Hermes) and convert accented
+  letters between Mac Roman and UTF-8. Host characters with no Mac Roman form, such
+  as €, paste as `?`. Both hotkeys can be rebound under Remap Controls > Mouse and
+  Actions.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
@@ -118,6 +120,13 @@ under **Control Configuration > Remap Controls > Mouse and Actions**.
 While the config menu is open, the IIgs receives no keyboard or mouse input.
 By default, Caps Lock latches the IIgs Caps Lock key; the host Caps Lock light
 does not show that state.
+
+Only the US keyboard layout is supported. The emulator always reports layout 0
+and character set 0, and it ignores a layout chosen in the Control Panel, so
+non-US layouts do not change which characters keys produce. Option accent keys
+work in GS/OS applications: Option+E, Option+U, and Option+N are dead keys (Option+E
+then e gives é), and Option+C gives ç directly. If Option and the base letter go
+down in the same instant, the accent can be dropped.
 
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are
