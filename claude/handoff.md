@@ -5,7 +5,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
 - Repo: `/root/IIGS-Emu`, remote `origin` = `nerdistmonk/IIGS-Emu`, branch `main`.
-- HEAD = `origin/main` = `55fa509` ("Document clipboard bridge and keystroke paste pacing"). Run `git log --oneline -10` for anything newer.
+- Run `git log --oneline -10` for the current state.
 - Build and configure: see `claude/CLAUDE.md`.
 
 ## Key code facts
@@ -39,7 +39,7 @@ The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/
    cp /root/IIGS-Emu/claude/env/* /root/iigs-env/
    chmod +x /root/iigs-env/*.sh /root/iigs-env/fakepad.py
    python3 -m venv /root/iigs-env/venv && /root/iigs-env/venv/bin/pip install evdev
-   cp /root/IIGS-Emu/claude/configs/boot-nodisk.cfg /root/iigs-test/work/
+   cp /root/IIGS-Emu/claude/configs/*.cfg /root/iigs-test/work/
    ```
 4. Provide the ROM. Loading a config changes the working directory to `/root/iigs-test/work`, so the link goes there, not in `/root/iigs-test`. ROM 3 is the image that boots (see `claude/CLAUDE.md`, Runtime Requirements):
    ```
@@ -57,7 +57,7 @@ Run:
 - Smoke test: the log shows `Found ROM at path: ROM.03`, and the screen shows "Check startup device!" with the Applesoft `]` prompt.
 - Stderr is noisy with `GRIND` debug lines. Filter with `grep -a -v GRIND`. ALSA and XDG_RUNTIME_DIR warnings are environmental.
 - `start-displays.sh` skips starting Xorg if `/tmp/.X11-unix/X1` exists. If Xorg won't start because of a stale socket, remove `/tmp/.X11-unix/X1` and `/tmp/.X1-lock`, then rerun it.
-- Configs. Only `boot-nodisk.cfg` is in the repo. The others live outside it, so recreate them if missing:
+- Configs (`claude/configs/`, copied in step 3):
   - `boot-nodisk.cfg`: boots to `]` with no disks.
   - `boot-sys604.cfg`: `boot-nodisk.cfg` with `s7d1 = /root/iigs-assets/System6_and_Games/System 604.hdv`. Use it for Hermes and clipboard tests.
   - `boot-28.cfg`: `boot-sys604.cfg` plus `g_limit_speed = 2` (2.8 MHz).
@@ -87,7 +87,7 @@ Checking state:
 ## Test harness gotchas
 
 - Config: a `#` in front of an `s<slot>d<drive>` line ejects that drive. An earlier "no error" result was a false negative from this (commit 30c4661). Verify mounts before trusting results.
-- Saves: dynamic folders cannot create new files, and a save to one silently does nothing. To test saves, use a blank ProDOS `.po` image (819200 bytes; the `/tmp/mkpo.py` approach) and check free space in the Save dialog ("N free of M K"). GS/OS volumes in these images fill quickly.
+- Saves: dynamic folders cannot create new files, and a save to one silently does nothing. To test saves, use a blank ProDOS `.po` image (819200 bytes; no generator is kept in the repo, so create one first) and check free space in the Save dialog ("N free of M K"). GS/OS volumes in these images fill quickly.
 - Slow guests: to test paste against a slow guest, set `g_limit_speed = 2` (2.8 MHz). With pacing in place, 580/580 keys matched at that speed. Drops there point to a pacing regression.
 - GS/OS menus (Hermes and others) need press-and-hold. A quick click does not open them. Use `xdotool mousedown 1`, sleep about 0.8 s, move, then `xdotool mouseup 1`. In Hermes, the entry is near the bottom of the Apple logo menu.
 - Hand-written 65816 programs: keep code and data out of `$0400–$07FF` (the text page). Load them through the monitor, run with `300G`, and end with `jmp $ff69` to return to the monitor.
@@ -100,6 +100,17 @@ Checking state:
 - ShrinkIt creates AppleSingle through the Special menu, "Create AppleSingle...". Drag from Special to the item (mousedown, mouseup). The File menu has no AppleSingle option.
 - The desktop wallpaper, drawn by DeskMaker, contains fake disk-like icons. Trust only real volume icons and window contents.
 - Reference: `/root/iigs-test/applesingle_real.bin` is a real 130,827-byte ShrinkIt AppleSingle v1 file. Entries: 7 (ProDOS file info), 4 (ShrinkIt resource header/comment, all zeros here), 3 (real name `GS.ShrinkIt`), 2 (resource fork, 18,071 bytes), and 1 (data fork, 112,443 bytes). File type 0xB3 and aux 0xDB07 match the catalog.
+
+## Test programs and tools
+
+- `claude/harness/`: hand-written 65816 programs. Assemble with `64tass -b -o out.bin file.asm` (raw bytes at `$0300`), then load and run them as in the harness gotchas above. Each header describes its inputs and results.
+  - `scrap-test8.asm`: ZeroScrap error isolation. Results are at `$0A30–$0A42`, plus `$0A84–$0A90` for SP and user ID.
+  - `scrap-test9.asm`: host clipboard accumulation. Set the guest text at `$00:6000` and `$00:6008` first. After a correct ZeroScrap the host clipboard reads `BBBB`.
+  - `kbd-skip-test.asm`: counts keystroke skips. Results are at `$1000–$103D`. Paste 62 characters and compare. Use `boot-28.cfg` for a slow guest.
+- `claude/tools/`:
+  - `mkhex.py BIN START`: prints a binary as monitor hex lines (`ADDR: XX ...`, CR-separated). START is hex.
+  - `prodos_tool.py IMAGE CMD`: reads ProDOS `.po`/`.hdv` images. Commands: `ls`, `get NAME OUTFILE`, `find PATTERN`, `tools NAME...`, and the Toolbox-call scans `scan`, `scrap`, `le`.
+- Not kept: the `kbd-blind-test` positive control. It needs `DIAG-PASTE` logging, which the normal build does not have.
 
 ## Open items
 - Multi-line Copy from Hermes is tested only in the harness. Test it in Hermes.
