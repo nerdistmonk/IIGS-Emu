@@ -1099,6 +1099,23 @@ cfg_text_screen_dump(int get_status)
 
 char g_text_screen_buf[2100] = { 0 };
 
+// Converts one text-page code to ASCII.  With the alternate character set on,
+//  codes $40-$5F (bit 7 clear) display MouseText, which has no ASCII letter.
+static int
+cfg_text_screen_char(byte raw)
+{
+	int	c;
+
+	if((g_cur_a2_stat & ALL_STAT_ALTCHARSET) && ((raw & 0xe0) == 0x40)) {
+		return '?';
+	}
+	c = raw & 0x7f;
+	if(c < 0x20) {
+		c += 0x40;
+	}
+	return c;
+}
+
 char *
 cfg_text_screen_str(int first_row)
 {
@@ -1119,16 +1136,11 @@ cfg_text_screen_str(int first_row)
 		for(j = 0; j < 40; j++) {
 			offset = g_screen_index[i] + j;
 			if(g_cur_a2_stat & ALL_STAT_VID80) {
-				c = g_slow_memory_ptr[0x10000 + page_base + offset] & 0x7f;
-				if(c < 0x20) {
-					c += 0x40;
-				}
+				c = cfg_text_screen_char(
+					g_slow_memory_ptr[0x10000 + page_base + offset]);
 				bufptr[pos++] = c;
 			}
-			c = g_slow_memory_ptr[page_base + offset] & 0x7f;
-			if(c < 0x20) {
-				c += 0x40;
-			}
+			c = cfg_text_screen_char(g_slow_memory_ptr[page_base + offset]);
 			if(c == 0x7f) {
 				c = ' ';
 			}

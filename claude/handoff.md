@@ -4,7 +4,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 
 ## Resume here
 - Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
-- Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V is still ASCII-only. See Open items.
+- Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see Open items).
 - Last code commits: `656e97c` (copy bottom rows in MIX mode), `948542f` (copy from visible page), `6b1ea9d` (skip clipboard copy in SHR).
 
 ## Project
@@ -122,7 +122,8 @@ Checking state:
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. The Toolbox PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/`, not `/root/iigs-assets`.
-- Non-ASCII (é) on Edit>Copy/Paste: fixed with Mac Roman ↔ UTF-8 mapping in `clipboard.c`. Runtime check in Hermes: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7). Paste rendered them. Host € pasted as `?`. Keystroke paste (Ctrl+Shift+V) still drops bytes ≥0x80 (`adb.c:1595`). Ctrl+Shift+C is unchanged (text-page screen codes).
+- Non-ASCII (é) on Edit>Copy/Paste: fixed with Mac Roman ↔ UTF-8 mapping in `clipboard.c`. Runtime check in Hermes: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7). Paste rendered them. Host € pasted as `?`. Ctrl+Shift+V (`clip_paste_text`) types one `?` per non-ASCII UTF-8 character. Runtime check: host `xé€ü` gave `???` after the leading `x` was lost (see next item). Ctrl+Shift+C (text-page copy) is changed too: with the alternate character set on (`$C00F`), codes $40–$5F show MouseText and copy as `?` (`cfg_text_screen_char` in `config.c`). Runtime check (Applesoft, POKE into row 20 at 1616): alt on gave `??Aa!` for `$40 $41 $C1 $61 $21`. Alt off (`$C00E`) gave `@AAa!`. Normal letters are unchanged.
+  - Ctrl+Shift+V used to lose its first characters. The paste fed `$C000` directly, and GS/OS read Ctrl or Shift held during the drain as a modifier (host `abc` gave only `c`). Fixed: the paste waits until Ctrl and Shift are released (`sdl_clip_paste_pending` in `sdl_driver.c`). Runtime: host `xé€ü` gave `x???`. With Ctrl+Shift held for 2.5 s after V, `abc` typed in full.
   - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The "roman" text matches in Vol. 1–3 are false positives.
   - The Clipboard glossary (Vol. 3 p.1041) defines the Clipboard as the buffer for the last cut or copied item. "Desk scrap: See Clipboard" (p.1045). Toolbox Revealed p.84 says the desk scrap is "sometimes called a clipboard."
   - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. The Copy byte values ($8E for é) confirm the Mac Roman reading at runtime.

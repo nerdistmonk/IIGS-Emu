@@ -403,8 +403,9 @@ clip_copy_text_screen(void)
 	return text;
 }
 
-/* Feeds host text through the ADB keystroke paste buffer.  Returns 1 if the
- * buffer filled before the whole text fit. */
+/* Feeds host text through the ADB keystroke paste buffer.  Each non-ASCII
+ * UTF-8 character becomes one '?'.  Returns 1 if the buffer filled before the
+ * whole text fit. */
 int
 clip_paste_text(const char *text)
 {
@@ -415,6 +416,11 @@ clip_paste_text(const char *text)
 		c = *p;
 		if(c == '\t') {
 			c = ' ';
+		} else if(c >= 0x80) {
+			while((p[1] & 0xc0) == 0x80) {
+				p++;
+			}
+			c = '?';
 		} else if(((c < 0x20) && (c != '\r') && (c != '\n')) ||
 							(c == 0x7f)) {
 			continue;

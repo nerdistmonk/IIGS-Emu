@@ -923,12 +923,16 @@ sdl_clip_copy_text_screen(void)
 	clip_publish_text(text);
 }
 
-/* Pastes host clipboard text into the ADB keystroke buffer. */
+/* Host clipboard text waiting to be typed into the ADB keystroke buffer. */
+static char	*g_paste_pending_text = 0;
+
+/* Snapshots the host clipboard for a keystroke paste.  The text is typed
+ * after Ctrl and Shift are released, so the emulated keys do not combine with
+ * the held modifiers. */
 static void
 sdl_clip_paste_host(void)
 {
 	char	*text;
-	int	truncated;
 
 	text = SDL_GetClipboardText();
 	if((text == 0) || (text[0] == 0)) {
@@ -936,8 +940,24 @@ sdl_clip_paste_host(void)
 		osd_show("Clipboard has no text");
 		return;
 	}
-	truncated = clip_paste_text(text);
-	SDL_free(text);
+	SDL_free(g_paste_pending_text);
+	g_paste_pending_text = text;
+	osd_show("Paste starts when Ctrl and Shift are released");
+}
+
+/* Types the pending paste once Ctrl and Shift are up. */
+static void
+sdl_clip_paste_pending(void)
+{
+	int	truncated;
+
+	if((g_paste_pending_text == 0) ||
+				(SDL_GetModState() & (SDL_KMOD_CTRL | SDL_KMOD_SHIFT))) {
+		return;
+	}
+	truncated = clip_paste_text(g_paste_pending_text);
+	SDL_free(g_paste_pending_text);
+	g_paste_pending_text = 0;
 	osd_show(truncated ? "Paste truncated: keyboard buffer full" :
 						"Pasted clipboard text");
 }
@@ -1053,6 +1073,7 @@ sdl_poll_events(void)
 	/* Pick up fullscreen / hide-cursor changes made from the config menu. */
 	sdl_sync_fullscreen(win);
 	sdl_update_cursor_visibility();
+	sdl_clip_paste_pending();
 
 	while(SDL_PollEvent(&ev)) {
 		switch(ev.type) {

@@ -78,12 +78,13 @@ Some features that are a part of the SDL3 build:
     Blur to about 70 (`-hblur 70`, or Ctrl+F1 > Display Effects > Horizontal Blur)
     to smooth them out. It is a little softer; lower values keep more detail.
 - **Host clipboard** - Ctrl+Shift+C copies the text screen (text modes only) to the
-  host clipboard. Ctrl+Shift+V types the host clipboard into the IIgs as keystrokes,
-  paced so slow programs keep up; it types ASCII only. GS/OS Edit>Copy and
-  Edit>Paste share the same host clipboard (tested with Hermes) and convert accented
-  letters between Mac Roman and UTF-8. Host characters with no Mac Roman form, such
-  as €, paste as `?`. Both hotkeys can be rebound under Remap Controls > Mouse and
-  Actions.
+  host clipboard. MouseText cells (alternate character set on) copy as `?`.
+  Ctrl+Shift+V types the host clipboard into the IIgs as keystrokes, paced so slow
+  programs keep up, and starts once Ctrl and Shift are released. Each non-ASCII
+  character types as one `?`. GS/OS Edit>Copy and Edit>Paste share the same host
+  clipboard (tested with Hermes) and convert accented letters between Mac Roman and
+  UTF-8. Host characters with no Mac Roman form, such as €, paste as `?`. Both
+  hotkeys can be rebound under Remap Controls > Mouse and Actions.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
