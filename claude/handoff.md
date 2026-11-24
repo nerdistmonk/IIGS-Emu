@@ -84,7 +84,7 @@ Checking state:
 - Clipboard, harness programs (hand-written 65816): text copy and paste, PutScrap CR→LF with high-bit mask, append, hotkey isolation.
 - System 6.0.4, 8 MHz, Hermes: Edit>Paste of two host lines is intact. Edit>Copy of line 1, then line 2, leaves only line 2 on the host clipboard (ZeroScrap clears).
 - Multi-line Copy from Hermes: works (user test in the guest).
-- WordPerfect (GS/OS): Edit>Copy and Edit>Paste work through the bridge (user test). Ctrl+Shift+V works. Ctrl+Shift+C does nothing, since it reads the text screen only.
+- WordPerfect (GS/OS): Edit>Copy and Edit>Paste work through the bridge (user test). Ctrl+Shift+V works. Ctrl+Shift+C now shows the text-mode OSD. Its Read.Me screen is SHR with TEXT still set, so the copy used to read a stale text page ("Word.Perfect"). Fixed by checking SHR in `clip_copy_text_screen()`.
 - Keystroke paste into Hermes at 2.8 MHz: 580/580 characters matched with pacing. Before pacing, drops grew with paste rate and lower speed. At 16 MHz, rapid pastes showed no drops (user test, before pacing).
 
 ## Test harness gotchas

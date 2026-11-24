@@ -289,7 +289,9 @@ clip_copy_text_screen(void)
 	char	*text;
 	int	len;
 
-	if(!(g_cur_a2_stat & ALL_STAT_TEXT)) {
+	// SHR overrides the TEXT switch on screen, so the text page may be stale.
+	if((!(g_cur_a2_stat & ALL_STAT_TEXT)) ||
+			(g_cur_a2_stat & ALL_STAT_SUPER_HIRES)) {
 		return 0;
 	}
 	text = cfg_text_screen_str();
