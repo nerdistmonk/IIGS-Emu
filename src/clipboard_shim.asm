@@ -1,8 +1,9 @@
 ; GetScrap shim, assembled at $FB0000 in the host-only RAM bank (src/clipboard.c).
-; A JSL $E10000 with X=$0D16 and text scrap type is redirected here.  On entry
-; the stack holds the caller's return address (3 bytes) and the GetScrap
-; parameters (scrapType, destHandle).  The shim saves them, runs ZeroScrap and
-; PutScrap on the host text staged at $FB1000, then runs the real GetScrap with
+; A JSL $E10000 for GetScrap, GetScrapHandle, or GetScrapSize with text scrap
+; type is redirected here, and TOOL holds the tool number.  On entry the stack
+; holds the caller's return address (3 bytes) and the six parameter bytes
+; (result space and scrapType).  The shim saves them, runs ZeroScrap and
+; PutScrap on the host text staged at $FB1000, then runs the real tool with
 ; the caller's parameters and returns with the stack as the caller expects.
 ; Assemble with: 64tass -a -o clipboard_shim.bin clipboard_shim.asm
         .cpu "65816"
@@ -10,6 +11,7 @@ RET     = $fb0100
 ARG     = $fb0104
 PSAVE   = $fb010c
 LEN     = $fb0110
+TOOL    = $fb0114
 
         * = $fb0000
         php
@@ -70,9 +72,11 @@ LEN     = $fb0110
         pha
         lda ARG
         pha
-        rep #$10
+        rep #$30
+        .al
         .xl
-        ldx #$0d16
+        lda TOOL
+        tax
         jsl $e10000
 
         sep #$20

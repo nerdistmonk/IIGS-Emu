@@ -13,9 +13,9 @@
  * reaches the window through imap_set_host_hook.
  *
  * GS/OS paste: when the host clipboard holds text that differs from the last
- * synced text, a guest GetScrap is redirected to the 65816 shim in the host-only
- * RAM bank (clipboard_shim.asm).  The shim loads the text into the desk scrap
- * and then runs the native GetScrap. */
+ * synced text, a guest GetScrap, GetScrapHandle, or GetScrapSize is redirected
+ * to the 65816 shim in the host-only RAM bank (clipboard_shim.asm).  The shim
+ * loads the text into the desk scrap and then runs the native call. */
 
 #include "defc.h"
 
@@ -25,14 +25,17 @@ extern int g_cur_a2_stat;
 #define CLIP_TOOL_ZERO_SCRAP	0x0816	/* Scrap Manager ZeroScrap */
 #define CLIP_TOOL_PUT_SCRAP	0x0c16	/* Scrap Manager PutScrap */
 #define CLIP_TOOL_GET_SCRAP	0x0d16	/* Scrap Manager GetScrap */
+#define CLIP_TOOL_GET_SCRAP_HANDLE	0x0e16	/* Scrap Manager GetScrapHandle */
+#define CLIP_TOOL_GET_SCRAP_SIZE	0x0f16	/* Scrap Manager GetScrapSize */
 #define CLIP_SCRAP_TYPE_TEXT	0x0000
 #define CLIP_TOOLBOX_ENTRY	0xe10000
 #define CLIP_SHIM_LEN		0x110	/* shim LEN word, host RAM offset */
+#define CLIP_SHIM_TOOL		0x114	/* shim tool number word, host RAM offset */
 #define CLIP_SHIM_STAGE		0x1000	/* shim text staging, host RAM offset */
 #define CLIP_STAGE_MAX		0xe000
 
 /* Assembled from clipboard_shim.asm (64tass -b).  Copied to host RAM before
- * each redirected GetScrap. */
+ * each redirected Scrap Manager read. */
 static const byte clip_shim_code[] = {
 	0x08, 0xe2, 0x20, 0x68, 0x8f, 0x0c, 0x01, 0xfb, 0x68, 0x8f, 0x00, 0x01,
 	0xfb, 0x68, 0x8f, 0x01, 0x01, 0xfb, 0x68, 0x8f, 0x02, 0x01, 0xfb, 0x68,
@@ -44,10 +47,10 @@ static const byte clip_shim_code[] = {
 	0x10, 0xa2, 0x16, 0x0c, 0x22, 0x00, 0x00, 0xe1, 0xe2, 0x20, 0xaf, 0x09,
 	0x01, 0xfb, 0x48, 0xaf, 0x08, 0x01, 0xfb, 0x48, 0xaf, 0x07, 0x01, 0xfb,
 	0x48, 0xaf, 0x06, 0x01, 0xfb, 0x48, 0xaf, 0x05, 0x01, 0xfb, 0x48, 0xaf,
-	0x04, 0x01, 0xfb, 0x48, 0xc2, 0x10, 0xa2, 0x16, 0x0d, 0x22, 0x00, 0x00,
-	0xe1, 0xe2, 0x20, 0xaf, 0x02, 0x01, 0xfb, 0x48, 0xaf, 0x01, 0x01, 0xfb,
-	0x48, 0xaf, 0x00, 0x01, 0xfb, 0x48, 0xaf, 0x0c, 0x01, 0xfb, 0x48, 0x28,
-	0x6b,
+	0x04, 0x01, 0xfb, 0x48, 0xc2, 0x30, 0xaf, 0x14, 0x01, 0xfb, 0xaa, 0x22,
+	0x00, 0x00, 0xe1, 0xe2, 0x20, 0xaf, 0x02, 0x01, 0xfb, 0x48, 0xaf, 0x01,
+	0x01, 0xfb, 0x48, 0xaf, 0x00, 0x01, 0xfb, 0x48, 0xaf, 0x0c, 0x01, 0xfb,
+	0x48, 0x28, 0x6b,
 };
 
 static char	g_scrap_text[CLIP_SCRAP_MAX + 1];
@@ -241,8 +244,17 @@ clip_stage_host(void)
 	return clip_stage_text(host);
 }
 
+static int
+clip_is_scrap_read(word32 tool)
+{
+	return (tool == CLIP_TOOL_GET_SCRAP) ||
+		(tool == CLIP_TOOL_GET_SCRAP_HANDLE) ||
+		(tool == CLIP_TOOL_GET_SCRAP_SIZE);
+}
+
 /* Called from the JSL handler before the jump.  Returns the address to jump to:
- * target, or the shim when a guest GetScrap should import host text.  ret_bank
+ * target, or the shim when a guest GetScrap, GetScrapHandle, or GetScrapSize
+ * should import host text.  ret_bank
  * is the caller's program bank; the shim's own calls (host RAM bank) are never
  * redirected or published. */
 word32
@@ -257,11 +269,12 @@ clip_toolbox_jsl(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
 	}
 	sp = stack & 0xffff;
 	from_guest = (ret_bank != (HOST_RAM_BASE >> 16));
-	if(from_guest && g_host_ram_ptr &&
-			((xreg & 0xffff) == CLIP_TOOL_GET_SCRAP) &&
+	if(from_guest && g_host_ram_ptr && clip_is_scrap_read(xreg & 0xffff) &&
 			(clip_stack_val(sp, 4, 2) == CLIP_SCRAP_TYPE_TEXT) &&
 			clip_stage_host()) {
 		memcpy(g_host_ram_ptr, clip_shim_code, sizeof(clip_shim_code));
+		g_host_ram_ptr[CLIP_SHIM_TOOL] = xreg & 0xff;
+		g_host_ram_ptr[CLIP_SHIM_TOOL + 1] = (xreg >> 8) & 0xff;
 		return HOST_RAM_BASE;
 	}
 	clip_observe_toolbox(xreg, stack, from_guest);
