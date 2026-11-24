@@ -1,4 +1,4 @@
-# claude2.md
+# technotes.md
 
 Working notes for future sessions on IIGS-Emu. Complements CLAUDE.md (architecture and build). Everything here was verified at runtime or from source unless marked otherwise.
 
@@ -28,6 +28,15 @@ Working notes for future sessions on IIGS-Emu. Complements CLAUDE.md (architectu
 - Config gotcha: a `#` in front of an `s<slot>d<drive>` line ejects that drive. An earlier "no error" result was a false negative from this (commit 30c4661). Verify mounts before trusting results.
 - Dynamic folders (`@500:/path`) mount host folders as ProDOS volumes. They cannot create new files. `dynapro_write` (dynapro.c ~1120-1190) updates only blocks of existing host files. A save to a dynamic folder silently does nothing.
 - To test saves, use a blank ProDOS `.po` image (the `/tmp/mkpo.py` approach: 819200 bytes, ProDOS volume name). Check free space in the Save dialog ("N free of M K"). GS/OS volumes in these images fill quickly.
+
+## Clipboard and Paste Testing
+
+- Scrap Manager tool numbers are `$FFTT` (tool set `$16`). ZeroScrap is `$0B16`. `$0816` is not a valid tool and returns `$16FF`. Sources: ORCA-C `scrap.h` and `mrkite/regs/iigs/scrap.txt`.
+- Keystroke paste is paced by `PASTE_FRAMES_PER_KEY` in `adb.c`. `g_vbl_count` advances on wall-clock time, so unpaced keys arrive at about 60/s. A guest that reads `$C000` once per frame drops keys, and the drops grew as the emulated speed fell. To test a slow guest, set `g_limit_speed = 2` (2.8 MHz).
+- GS/OS menus (Hermes and others) need press-and-hold. A quick click does not open them. Use `xdotool mousedown 1`, sleep about 0.8 s, move, then `xdotool mouseup 1`.
+- `xclip` needs `DISPLAY=:1`. The window id changes on every launch: `DISPLAY=:1 xdotool search --name IIGS-Emu`. Find the PID with `ps -eo pid,args | grep iigs-emu`.
+- Harness programs: keep code and data out of `$0400–$07FF` (the text page). Load code through the monitor, then run it with `300G`. End with `jmp $ff69` to return to the monitor.
+- Assemble the shim with `64tass -b -o clipboard_shim.bin clipboard_shim.asm`. The 159-byte image must match `clip_shim_code[]` in `clipboard.c`. The default `-a` output is 161 bytes.
 
 ## GS/ShrinkIt and Sample Files
 
@@ -64,4 +73,4 @@ File: `src/applesingle.c`.
 
 ## Open Items
 
-- None to report
+See `handoff.md` for the current open items and the latest verified results.

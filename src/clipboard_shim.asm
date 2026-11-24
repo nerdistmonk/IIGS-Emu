@@ -5,7 +5,8 @@
 ; (result space and scrapType).  The shim saves them, runs ZeroScrap and
 ; PutScrap on the host text staged at $FB1000, then runs the real tool with
 ; the caller's parameters and returns with the stack as the caller expects.
-; Assemble with: 64tass -a -o clipboard_shim.bin clipboard_shim.asm
+; Assemble with: 64tass -b -o clipboard_shim.bin clipboard_shim.asm
+; (-b gives the raw 159-byte image that clip_shim_code[] in clipboard.c uses.)
         .cpu "65816"
 RET     = $fb0100
 ARG     = $fb0104

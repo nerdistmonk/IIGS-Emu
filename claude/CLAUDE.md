@@ -36,6 +36,7 @@ rm -rf build
 ### Memory
 - `moremem.c` — Memory management, page table fixup, I/O register reads/writes ($C000-$C0FF area)
 - Page-table-based MMU for dynamic address mapping
+- Host-only 64 KB RAM bank at `$FB0000` (`HOST_RAM_BASE` in `protos_base.h`) holds the clipboard shim and staged text. Only the clipboard shim uses it.
 
 ### Video
 - `video.c` — All Apple IIgs/II graphics mode rendering (text, lores, hires, super hires)
@@ -53,10 +54,15 @@ rm -rf build
 - `unshk.c`, `undeflate.c`, `applesingle.c` — Archive/compression format support
 
 ### Input
-- `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked.
+- `adb.c` — Apple Desktop Bus (keyboard, mouse); accepts only IIgs keycodes. While the config panel is open, `adb_panel_*` feeds the menu from a separate key queue and IIgs input is blocked. Host text queued for keystroke paste (`g_kbd_paste_buf`) is fed one key per `PASTE_FRAMES_PER_KEY` (4) VBL frames, so slow guests keep up.
 - `input_map.c` + `input_map.h` — SDL-free host-to-IIgs mapping (keys, mouse, gamepad to ADB keys, mouse, paddles, BUTN, and emulator actions), loaded from `input.map`. The Ctrl+F1 config menu's Control Configuration > Remap Controls (`config.c`) edits it through the `imap_remap_*` API; saving rewrites the file and drops comments.
 - `paddles.c` — Game port paddles and push buttons
 - `scc.c` + `scc_socket_driver.c` — Serial Communications Controller with TCP/IP modem emulation
+
+### Clipboard
+- `clipboard.c` — Host clipboard bridge; no SDL code. Observes GS/OS ZeroScrap and PutScrap through the `$E10000` Toolbox JSL hook (`instable.h`). Redirects GetScrap, GetScrapHandle, and GetScrapSize to the shim when the host clipboard changed.
+- `clipboard_shim.asm` — 65816 shim for `$FB0000`. Its 159-byte image is `clip_shim_code[]` in `clipboard.c` (`64tass -b`).
+- Ctrl+Shift+C and Ctrl+Shift+V are the default `copy` and `paste` actions (`input_map.c`). They are dispatched in `sdl_imap_host_action` (`sdl_driver.c`). Ctrl+Shift+V types through the ADB paste buffer.
 
 ### Configuration & Debug
 - `config.c` — Runtime configuration UI, disk mounting, settings persistence (`config.kegs`)

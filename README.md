@@ -77,6 +77,11 @@ Some features that are a part of the SDL3 build:
     like the desktop wallpaper can look like vertical lines. Set Horizontal
     Blur to about 70 (`-hblur 70`, or Ctrl+F1 > Display Effects > Horizontal Blur)
     to smooth them out. It is a little softer; lower values keep more detail.
+- **Host clipboard** - Ctrl+Shift+C copies the text screen (text modes only) to the
+  host clipboard. Ctrl+Shift+V types the host clipboard into the IIgs as keystrokes,
+  paced so slow programs keep up. GS/OS Edit>Copy and Edit>Paste share the same host
+  clipboard (tested with Hermes). Both hotkeys can be rebound under Remap Controls >
+  Mouse and Actions.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
@@ -94,6 +99,8 @@ reserves only these host keys:
 | **Ctrl + F3** | Cycle speed (Unlimited, 1.024 MHz, 2.8 MHz, ZipGS Accelerator) |
 | **Ctrl + F4** | Toggle fast disk emulation |
 | **Ctrl + F5** | Save a screenshot |
+| **Ctrl + Shift + C** | Copy the text screen to the host clipboard (text modes only) |
+| **Ctrl + Shift + V** | Type the host clipboard into the IIgs as keystrokes |
 
 The IIgs keys are named by their Apple II-era names, which map to the modern
 keys: **Open Apple** is **Command** (either side, the "clover" key), and
