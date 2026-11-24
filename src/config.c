@@ -1091,7 +1091,7 @@ cfg_text_screen_dump(int get_status)
 				errno);
 		return 0;
 	}
-	bufptr = cfg_text_screen_str();
+	bufptr = cfg_text_screen_str(0);
 	fputs(bufptr, ofile);
 	fclose(ofile);
 	return 0;
@@ -1100,7 +1100,7 @@ cfg_text_screen_dump(int get_status)
 char g_text_screen_buf[2100] = { 0 };
 
 char *
-cfg_text_screen_str()
+cfg_text_screen_str(int first_row)
 {
 	char	*bufptr;
 	int	pos, start_pos, c, offset, page_base;
@@ -1114,7 +1114,7 @@ cfg_text_screen_str()
 	if(!(g_cur_a2_stat & ALL_STAT_ST80) && (g_cur_a2_stat & ALL_STAT_PAGE2)) {
 		page_base = 0x0800;
 	}
-	for(i = 0; i < 24; i++) {
+	for(i = first_row; i < 24; i++) {
 		start_pos = pos;
 		for(j = 0; j < 40; j++) {
 			offset = g_screen_index[i] + j;

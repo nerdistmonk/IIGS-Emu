@@ -281,20 +281,28 @@ clip_toolbox_jsl(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
 	return target;
 }
 
-/* Returns the visible text screen with trailing blank lines removed, or NULL
- * when the display is not in text mode. The result lives in a shared buffer. */
+/* Returns the visible text with trailing blank lines removed, or NULL when no
+ * text is shown (graphics without MIX, or SHR). The result lives in a shared
+ * buffer. */
 const char *
 clip_copy_text_screen(void)
 {
 	char	*text;
-	int	len;
+	int	len, first_row;
 
 	// SHR overrides the TEXT switch on screen, so the text page may be stale.
-	if((!(g_cur_a2_stat & ALL_STAT_TEXT)) ||
-			(g_cur_a2_stat & ALL_STAT_SUPER_HIRES)) {
+	if(g_cur_a2_stat & ALL_STAT_SUPER_HIRES) {
 		return 0;
 	}
-	text = cfg_text_screen_str();
+	if(g_cur_a2_stat & ALL_STAT_TEXT) {
+		first_row = 0;
+	} else if(g_cur_a2_stat & ALL_STAT_MIX_T_GR) {
+		// MIX shows text only in the bottom four rows (line 160 and up).
+		first_row = 20;
+	} else {
+		return 0;
+	}
+	text = cfg_text_screen_str(first_row);
 	len = strlen(text);
 	while((len > 0) && (text[len-1] == '\n')) {
 		len--;

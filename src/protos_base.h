@@ -145,7 +145,7 @@ void cfg_err_printf(const char *pre_str, const char *fmt, ...);
 void cfg_toggle_config_panel(void);
 void cfg_set_config_panel(int panel);
 char *cfg_text_screen_dump(int get_status);
-char *cfg_text_screen_str(void);
+char *cfg_text_screen_str(int first_row);
 #define HOST_RAM_BASE	0xfb0000
 #define HOST_RAM_SIZE	0x10000
 extern byte *g_host_ram_ptr;

@@ -905,7 +905,7 @@ sdl_toggle_mouse_grab(Window_info *win)
 	osd_show(grab ? "Mouse capture: on" : "Mouse capture: off");
 }
 
-/* Copies the visible text screen to the host clipboard (text mode only). */
+/* Copies the visible text (text mode, or the bottom rows in MIX) to the host clipboard. */
 static void
 sdl_clip_copy_text_screen(void)
 {

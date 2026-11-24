@@ -118,7 +118,7 @@ Checking state:
 - PutScrap append vs replace for the same scrap type is unconfirmed. The bridge appends. The three local Toolbox PDFs (`/root/iigs-assets`) have no PutScrap text, so check the Scrap Manager chapter (Toolbox Reference Vol. 2) if you have it.
 - Other GS/OS apps' Copy and Paste are untested.
 - Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
-- AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text mode.
+- AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
 
 ## Working conventions
