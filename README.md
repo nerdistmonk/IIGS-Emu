@@ -126,8 +126,9 @@ Only the US keyboard layout is supported. The emulator always reports layout 0
 and character set 0, and it ignores a layout chosen in the Control Panel, so
 non-US layouts do not change which characters keys produce. Option accent keys
 work in GS/OS applications: Option+E, Option+U, and Option+N are dead keys (Option+E
-then e gives é), and Option+C gives ç directly. If Option and the base letter go
-down in the same instant, the accent can be dropped.
+then e gives é), and Option+C gives ç directly. Holding Option+E past the
+emulator's key repeat delay (about 0.75 seconds by default) repeats the E, which
+can leave extra bare accents (´´´´e).
 
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are
