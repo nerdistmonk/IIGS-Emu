@@ -52,6 +52,7 @@ set(GSPLUS_CORE_SOURCES
     engine_c.c
     clock.c
     config.c
+    clipboard.c
     debugger.c
     scc.c
     scc_socket_driver.c

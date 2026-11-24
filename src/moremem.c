@@ -17,6 +17,7 @@ extern byte *g_dummy_memory1_ptr;
 extern byte *g_slow_memory_ptr;
 extern byte *g_rom_fc_ff_ptr;
 extern byte *g_rom_cards_ptr;
+byte *g_host_ram_ptr = 0;
 
 extern word32 g_slow_mem_changed[];
 
@@ -892,6 +893,13 @@ setup_pageinfo()
 	/* mark unused memory as BAD_MEM */
 	fixup_any_bank_any_page(mem_size_pages, 0xfc00-mem_size_pages,
 			BANK_BAD_MEM, BANK_BAD_MEM);
+
+	/* Host-only RAM above any guest RAM size; the ROM never sees it */
+	if(g_host_ram_ptr == 0) {
+		g_host_ram_ptr = memalloc_align(HOST_RAM_SIZE, 0, 0);
+	}
+	fixup_any_bank_any_page(HOST_RAM_BASE >> 8, HOST_RAM_SIZE >> 8,
+			g_host_ram_ptr, g_host_ram_ptr);
 
 	fixup_shadow_all_banks();
 

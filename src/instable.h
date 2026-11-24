@@ -244,6 +244,7 @@ case 0x22:			/*  JSL Long */
 	CYCLES_PLUS_3;
 	INC_KPC_3;
 	PUSH24_UNSAFE(kpc);
+	tmp1 = clip_toolbox_jsl(xreg, stack, psr, (kpc >> 16) & 0xff, tmp1);
 	kpc = tmp1 & 0xffffff;
 	break;
 

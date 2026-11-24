@@ -751,6 +751,8 @@ sdl_mouse_index(int sdl_button)
 /* reconnect.  input_map.c decides what each control drives.               */
 
 static void sdl_imap_host_action(int action);
+static char *sdl_clip_get_host(void);
+static int sdl_clip_set_host(const char *text);
 
 static SDL_Gamepad *g_sdl_gamepad = NULL;	/* the open controller, or NULL */
 
@@ -841,6 +843,7 @@ void
 sdl_input_init(void)
 {
 	imap_set_host_hook(sdl_imap_host_action);
+	clip_set_host_hooks(sdl_clip_get_host, sdl_clip_set_host);
 	if(!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
 		printf("SDL_INIT_GAMEPAD failed: %s\n", SDL_GetError());
 		return;
@@ -902,6 +905,76 @@ sdl_toggle_mouse_grab(Window_info *win)
 	osd_show(grab ? "Mouse capture: on" : "Mouse capture: off");
 }
 
+/* Copies the visible text screen to the host clipboard (text mode only). */
+static void
+sdl_clip_copy_text_screen(void)
+{
+	const char	*text;
+
+	text = clip_copy_text_screen();
+	if(text == 0) {
+		osd_show("Copy works in text mode; GS/OS apps use their own Copy");
+		return;
+	}
+	if(text[0] == 0) {
+		osd_show("Text screen is empty");
+		return;
+	}
+	clip_publish_text(text);
+}
+
+/* Pastes host clipboard text into the ADB keystroke buffer. */
+static void
+sdl_clip_paste_host(void)
+{
+	char	*text;
+	int	truncated;
+
+	text = SDL_GetClipboardText();
+	if((text == 0) || (text[0] == 0)) {
+		SDL_free(text);
+		osd_show("Clipboard has no text");
+		return;
+	}
+	truncated = clip_paste_text(text);
+	SDL_free(text);
+	osd_show(truncated ? "Paste truncated: keyboard buffer full" :
+						"Pasted clipboard text");
+}
+
+/* Returns a malloc'd copy of the host clipboard text, or NULL. */
+static char *
+sdl_clip_get_host(void)
+{
+	char	*sdl_text, *copy;
+	size_t	len;
+
+	sdl_text = SDL_GetClipboardText();
+	if(sdl_text == 0) {
+		return 0;
+	}
+	len = strlen(sdl_text);
+	copy = malloc(len + 1);
+	if(copy) {
+		memcpy(copy, sdl_text, len + 1);
+	}
+	SDL_free(sdl_text);
+	return copy;
+}
+
+/* Every copy to the host clipboard goes through here, so this is the one place
+ * that reports success or failure. */
+static int
+sdl_clip_set_host(const char *text)
+{
+	if(SDL_SetClipboardText(text)) {
+		osd_show("Copied to clipboard");
+		return 1;
+	}
+	osd_show("Host clipboard copy failed");
+	return 0;
+}
+
 /* Emulator-side actions that input_map.c hands back (see imap_action_is_host).
  * Runs on key press only; key repeat never reaches input_map.c. */
 static void
@@ -941,6 +1014,12 @@ sdl_imap_host_action(int action)
 	case IMAP_ACT_ZOOM_OUT:
 		cfg_int_update(&g_zoom, g_zoom - 1);
 		g_config_kegs_update_needed = 1;
+		break;
+	case IMAP_ACT_COPY:
+		sdl_clip_copy_text_screen();
+		break;
+	case IMAP_ACT_PASTE:
+		sdl_clip_paste_host();
 		break;
 	default:
 		break;
