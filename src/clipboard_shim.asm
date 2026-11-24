@@ -40,7 +40,7 @@ TOOL    = $fb0114
 
         rep #$10
         .xl
-        ldx #$0816
+        ldx #$0b16
         jsl $e10000
 
         pea $0000
