@@ -82,7 +82,7 @@ rm -rf build
 - Guest writes: ZeroScrap clears the observed scrap. Text PutScrap appends to it and publishes to the host. Guest → host: CR → LF, other control characters dropped, 7-bit. Host → guest: LF → CR, tabs → spaces, control and non-ASCII bytes dropped.
 - Tool numbers are `$FFTT` (tool set `$16`): ZeroScrap `$0B16`, PutScrap `$0C16`, GetScrap `$0D16`, GetScrapHandle `$0E16`, GetScrapSize `$0F16`. `$0816` is invalid and returns `$16FF`. Sources: ORCA-C `scrap.h` and `mrkite/regs/iigs/scrap.txt`.
 - Ctrl+Shift+C and Ctrl+Shift+V are the default `copy` and `paste` actions (`g_default_map` in `input_map.c`), dispatched in `sdl_imap_host_action()` (`sdl_driver.c`).
-  - Copy: `sdl_clip_copy_text_screen()` (`sdl_driver.c`). Text mode only (TEXT on and SHR off, since SHR overrides TEXT on screen). Otherwise the OSD says Copy works in text mode.
+  - Copy: `sdl_clip_copy_text_screen()` (`sdl_driver.c`). Text mode only (TEXT on and SHR off, since SHR overrides TEXT on screen). Otherwise the OSD says Copy works in text mode. Page selection matches the renderer: PAGE2 picks page 2 only when 80STORE is off (`cfg_text_screen_str()` in `config.c`).
   - Paste: `sdl_clip_paste_host()` → `clip_paste_text()` → `adb_paste_add_buf()`. It types the text as paced keystrokes, so it reaches any app that reads `$C000`. GS/OS Edit>Paste does not use this path.
 
 ### Configuration & Debug

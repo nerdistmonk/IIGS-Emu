@@ -1109,10 +1109,9 @@ cfg_text_screen_str()
 	// bufptr must be at least (81*24)+2 characters
 	bufptr = &g_text_screen_buf[0];
 	pos = 0;
-	// PAGE2 selects text page 2 in 40-column mode, matching redraw_changed_text.
-	//  80-column text always uses page 1 from both banks.
+	// Same page selection as video_all_stat_to_filt_stat: 80STORE blocks PAGE2.
 	page_base = 0x0400;
-	if(!(g_cur_a2_stat & ALL_STAT_VID80) && (g_cur_a2_stat & ALL_STAT_PAGE2)) {
+	if(!(g_cur_a2_stat & ALL_STAT_ST80) && (g_cur_a2_stat & ALL_STAT_PAGE2)) {
 		page_base = 0x0800;
 	}
 	for(i = 0; i < 24; i++) {
@@ -1120,7 +1119,7 @@ cfg_text_screen_str()
 		for(j = 0; j < 40; j++) {
 			offset = g_screen_index[i] + j;
 			if(g_cur_a2_stat & ALL_STAT_VID80) {
-				c = g_slow_memory_ptr[0x10400 + offset] & 0x7f;
+				c = g_slow_memory_ptr[0x10000 + page_base + offset] & 0x7f;
 				if(c < 0x20) {
 					c += 0x40;
 				}
