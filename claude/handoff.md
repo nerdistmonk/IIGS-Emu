@@ -5,8 +5,12 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 ## Resume here
 - Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
 - Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see `claude/CLAUDE.md`, Clipboard).
-- FileWriter virtual printer is committed (`cde0f91`). Status and gaps are under "FileWriter status" below. ESC l (CR insertion) is parsed in the working tree but not yet committed.
-- Last code commits: `cde0f91` (FileWriter printer), `502f4c4` (document wheel binds), `623dc0e` (mouse wheel as a bind source). Run `git log --oneline -10` for the full list.
+- FileWriter virtual printer is committed: `cde0f91` (printer), `e9e3ac7` (ESC l CR insertion), `7fd32ad` (skip `.txt` for pages with no text). The user's latest build prints correctly from Hermes. Status and gaps are under "FileWriter status" below.
+- Dropped by the user: the right-mouse bind discussion. Do not raise it again.
+- No open request from the user. Wait for the next task.
+- Sandbox: the emulator is stopped. Xorg `:1` and sway may still run; `/root/iigs-env/stop-displays.sh` stops them. Scratch files outside the repo: `/tmp/*.png`, `/tmp/emu.log`, `/tmp/close_win.py`, `/tmp/xlibenv`, `/root/iigs-test/work/boot-fw.cfg`.
+- Working tree: `claude/handoff.md` is edited and uncommitted. Commit and push only on request.
+- Last code commits: `7fd32ad`, `e9e3ac7`, `cde0f91` (FileWriter), `502f4c4` (document wheel binds), `623dc0e` (mouse wheel as a bind source). Run `git log --oneline -10` for the full list.
 
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
@@ -93,7 +97,8 @@ Checking state:
 - Display check: `xdpyinfo -display :1`.
 
 ## Verified (emulator only, not hardware)
-- FileWriter (scratch harness, not kept): 15 scenarios, and the PNG output was checked. Guest-side printing through the serial TX path is not verified.
+- FileWriter (scratch harness, not kept): 15 scenarios, and the PNG output was checked.
+- FileWriter, user's latest build, Hermes Print...: prints correctly (user report). An earlier build gave a good PNG and an empty TXT on a bitmap-only page, which led to `7fd32ad`.
 - Clipboard in Hermes after the Mac Roman fix: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7), and paste rendered them.
 - Ctrl+Shift+V after the paste-pending fix: host `xé€ü` gave `x???`. Before the fix, host `abc` gave only `c`. With Ctrl+Shift held 2.5 s after V, `abc` typed in full.
 - Text-page copy with the alternate charset on: codes `$40 $41 $C1 $61 $21` copied as `??Aa!`. With it off, `@AAa!`.
@@ -116,6 +121,14 @@ Checking state:
 - Saves: dynamic folders cannot create new files, and a save to one silently does nothing. To test saves, use a blank ProDOS `.po` image (819200 bytes; no generator is kept in the repo, so create one first) and check free space in the Save dialog ("N free of M K"). GS/OS volumes in these images fill quickly.
 - Slow guests: to test paste against a slow guest, set `g_limit_speed = 2` (2.8 MHz). With pacing in place, 580/580 keys matched at that speed. Drops there point to a pacing regression.
 - GS/OS menus (Hermes and others) need press-and-hold. A quick click does not open them. Use `xdotool mousedown 1`, sleep about 0.8 s, move, then `xdotool mouseup 1`. In Hermes, the entry is near the bottom of the Apple logo menu.
+- FileWriter in the sandbox (Hermes):
+  - Open Hermes from the bottom item of the Apple menu. Type text first, or Print... does nothing.
+  - Print... is in the document's own File menu (about 84,96), not the desktop File menu (greyed out).
+  - Enable FileWriter in the serial config: Ctrl+F1, then Serial Port Configuration, so the printer slot is 4 (`g_serial_cfg[1] = 4`).
+  - Control Panel > DC Printer: Port = Printer, Type = ImageWriter.
+  - Shut down with Special > Shut Down (press-and-hold). At "Save changes?", choose Discard.
+  - SIGTERM loses the buffered page (see Open items).
+  - Mouse input needs a keypress first to focus the guest.
 - Hand-written 65816 programs: keep code and data out of `$0400–$07FF` (the text page). Load them through the monitor, run with `300G`, and end with `jmp $ff69` to return to the monitor.
 - gdb batch pattern: `timeout 120 gdb -batch -x script.gdb --args /root/build-dbg/iigs-emu -cfg x.cfg`. End scripts with `kill` so the emulator exits. `$fp` is a built-in register alias, so use other names for convenience variables. Calling emulator functions while stopped works, for example `call dynapro_handle_write_file($dskp, $fileh)`. This exercises real code paths without guest I/O.
 
@@ -138,14 +151,15 @@ Checking state:
 - Not kept: the `kbd-blind-test` positive control. It needs `DIAG-PASTE` logging, which the normal build does not have.
 
 ## FileWriter status
-- Committed in `cde0f91`. Code: `src/filewriter.c`, `src/filewriter_font.h`, and `write_png_gray1()` in `src/png_write.c`. Serial config value 4 selects FileWriter in both serial menus (`config.c`).
+- Committed in `cde0f91`, `e9e3ac7`, `7fd32ad`. Code: `src/filewriter.c`, `src/filewriter_font.h`, and `write_png_gray1()` in `src/png_write.c`. Serial config value 4 selects FileWriter in both serial menus (`config.c`).
 - Output per page: a 1-bit greyscale `.png` (pixel-faithful) and a `.txt` (Mac Roman, CR line endings; `filewriter.c:12`). The `.txt` is written only if the page has ASCII text. Bitmap-only pages (ESC S/G, such as Hermes printouts) get just the `.png`. The canvas is 1360×1584 px (8.5×11 in at 160×144 dpi). The 8th bit is included by default.
 - Implemented: printable text, CR, LF, FF, BS, and CTRL-_ n feed. ESC pitch (n N E e q Q p P; proportional uses 8-dot cells). ESC T L F H D Z R G S g V A B f r c l. ESC l 0 turns CR insertion on (default), ESC l 1 turns it off. Values other than 0 or 1 are ignored.
 - Not implemented:
   - MouseText, custom characters, ribbon, double width, bold, underline.
   - Tab stops. TAB (0x09) is a no-op.
 - Flush: pages flush on FF, page end, port close, and at normal quit (`filewriter_flush_all()`, `sdl_driver.c`). The `exit()` calls in `sim65816.c` and the `sdl_driver.c` error paths skip it, so an unflushed page is lost.
-- Unverified: guest-side printing through the serial TX path. The "W" glyph and the ESC H and ESC c edge cases.
+- User-verified on their build: Hermes Print... produces a page. Sandbox runs never flushed a page (cause unknown, sandbox-only).
+- Still unverified: the "W" glyph and the ESC H and ESC c edge cases.
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. Vol. 1 and 2 PDFs are only in the upload folder (see Working conventions).
@@ -155,6 +169,8 @@ Checking state:
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
+- FileWriter: a page is buffered until FF, page end, port close, or normal quit. SIGTERM and the `exit()` paths lose it (see Flush above). Not fixed; no user request.
+- FileWriter sandbox: a Hermes print never flushed a file in the sandbox. The user's build works. Dropped by the user.
 
 ## Working conventions
 - CMake and GCC only. Do not suggest or use Clang tooling (clang-format, clang-tidy).
