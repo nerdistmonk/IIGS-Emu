@@ -152,7 +152,7 @@ extern byte *g_host_ram_ptr;
 
 void clip_set_host_hooks(char *(*get)(void), int (*set)(const char *text));
 int clip_publish_text(const char *text);
-word32 clip_toolbox_jsl(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
+word32 clip_toolbox_call(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
 								word32 target);
 const char *clip_copy_text_screen(void);
 int clip_paste_text(const char *text);

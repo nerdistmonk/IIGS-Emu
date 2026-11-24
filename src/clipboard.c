@@ -28,7 +28,8 @@ extern int g_cur_a2_stat;
 #define CLIP_TOOL_GET_SCRAP_HANDLE	0x0e16	/* Scrap Manager GetScrapHandle */
 #define CLIP_TOOL_GET_SCRAP_SIZE	0x0f16	/* Scrap Manager GetScrapSize */
 #define CLIP_SCRAP_TYPE_TEXT	0x0000
-#define CLIP_TOOLBOX_ENTRY	0xe10000
+#define CLIP_TOOLBOX_ENTRY	0xe10000	/* DISPATCH1 */
+#define CLIP_TOOLBOX_ENTRY2	0xe10004	/* DISPATCH2 */
 #define CLIP_SHIM_LEN		0x110	/* shim LEN word, host RAM offset */
 #define CLIP_SHIM_TOOL		0x114	/* shim tool number word, host RAM offset */
 #define CLIP_SHIM_STAGE		0x1000	/* shim text staging, host RAM offset */
@@ -344,19 +345,22 @@ clip_is_scrap_read(word32 tool)
 		(tool == CLIP_TOOL_GET_SCRAP_SIZE);
 }
 
-/* Called from the JSL handler before the jump.  Returns the address to jump to:
- * target, or the shim when a guest GetScrap, GetScrapHandle, or GetScrapSize
- * should import host text.  ret_bank
- * is the caller's program bank; the shim's own calls (host RAM bank) are never
- * redirected or published. */
+/* Called from the JSL and JML handlers before the jump.  Returns the address to
+ * jump to: target, or the shim when a guest GetScrap, GetScrapHandle, or
+ * GetScrapSize should import host text.  ret_bank is the caller's program bank.
+ * A JML caller pushes its own return address after its parameters, so the
+ * parameter offsets match the JSL case.  The shim's own calls (host RAM bank)
+ * are never redirected or published. */
 word32
-clip_toolbox_jsl(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
+clip_toolbox_call(word32 xreg, word32 stack, word32 psr, word32 ret_bank,
 								word32 target)
 {
 	word32	sp;
 	int	from_guest;
 
-	if(((target & 0xffffff) != CLIP_TOOLBOX_ENTRY) || (psr & 0x100)) {
+	target &= 0xffffff;
+	if(((target != CLIP_TOOLBOX_ENTRY) && (target != CLIP_TOOLBOX_ENTRY2)) ||
+			(psr & 0x100)) {
 		return target;
 	}
 	sp = stack & 0xffff;

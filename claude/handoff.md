@@ -129,7 +129,7 @@ Checking state:
   - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. The Copy byte values ($8E for é) confirm the Mac Roman reading at runtime.
   - Open: $DB is mapped to ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. Its on-screen glyph in Hermes was not confirmed.
 - Other GS/OS apps' Copy and Paste are untested.
-- Whether GS/OS sends every Toolbox call through `$E10000` is unverified beyond the GetScrap family used by Hermes. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
+- The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
 

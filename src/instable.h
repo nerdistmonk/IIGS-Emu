@@ -244,7 +244,7 @@ case 0x22:			/*  JSL Long */
 	CYCLES_PLUS_3;
 	INC_KPC_3;
 	PUSH24_UNSAFE(kpc);
-	tmp1 = clip_toolbox_jsl(xreg, stack, psr, (kpc >> 16) & 0xff, tmp1);
+	tmp1 = clip_toolbox_call(xreg, stack, psr, (kpc >> 16) & 0xff, tmp1);
 	kpc = tmp1 & 0xffffff;
 	break;
 
@@ -643,7 +643,8 @@ case 0x5b:			/*  TCD */
 case 0x5c:			/*  JMP Long */
 	GET_3BYTE_ARG;
 	CYCLES_PLUS_2;
-	kpc = arg;
+	arg = clip_toolbox_call(xreg, stack, psr, (kpc >> 16) & 0xff, arg);
+	kpc = arg & 0xffffff;
 	break;
 
 case 0x5d:			/*  EOR Abs,X */
