@@ -4,8 +4,9 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 
 ## Resume here
 - Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
-- Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see Open items).
-- Last code commits: `656e97c` (copy bottom rows in MIX mode), `948542f` (copy from visible page), `6b1ea9d` (skip clipboard copy in SHR).
+- Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see `claude/CLAUDE.md`, Clipboard).
+- FileWriter virtual printer is committed (`cde0f91`). Status and gaps are under "FileWriter status" below. ESC l (CR insertion) is parsed in the working tree but not yet committed.
+- Last code commits: `cde0f91` (FileWriter printer), `502f4c4` (document wheel binds), `623dc0e` (mouse wheel as a bind source). Run `git log --oneline -10` for the full list.
 
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
@@ -26,7 +27,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 - `src/input_map.c`
   - Default map `g_default_map`. `key:PAUSE = adb:0x71` (F15) is a default binding. Copy and paste are `ctrl+shift+key:C` and `ctrl+shift+key:V`.
   - Mouse wheel: `wheel:UP = adb:0x3e` and `wheel:DOWN = adb:0x3d` are default bindings. `imap_mouse_wheel()` sends one press/release per notch, or captures the direction when a remap is pending. The config panel ignores wheel input.
-  - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (Mouse and Actions). `imap_remap_bind()`.
+  - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (group `IMAP_RG_MOUSE`). `imap_remap_bind()`.
   - Actions enum `enum imap_action` in `src/input_map.h`; name table `g_action_names` in `src/input_map.c`. Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
 - `g_vbl_count` (defined in `src/sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
 - FileWriter printer (`src/filewriter.c`): `scc_port_open()` sets `cur_state = SCC_STATE_FILEWRITER` (4). The TX mask and 8th-bit handling bypass `g_serial_mask` for this state. `filewriter_flush_all()` runs after the main loop in `sdl_driver.c`. `exit()` calls in `sim65816.c` and error paths in `sdl_driver.c` skip it, so an unflushed page is lost on those paths.
@@ -39,7 +40,15 @@ The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/
    ```
    apt-get install -y cmake ninja-build git build-essential p7zip-full xdotool xclip imagemagick xserver-xorg-core xserver-xorg-video-dummy xauth x11-utils sway python3-venv 64tass libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev libxinerama-dev libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libdrm-dev libgbm-dev libegl-dev libgl-dev libgles-dev libpulse-dev libasound2-dev libpipewire-0.3-dev libsndio-dev libdbus-1-dev libudev-dev libibus-1.0-dev
    ```
-2. Extract the uploaded assets. ROMs, disk images, and reference docs are not in the repo. Extract them from the session's upload folder: `tar -xjf Apple_IIGS_Dev.tar.bz2 -C /root/iigs-assets` and `7z x System6_and_Games.7z -o/root/iigs-assets/System6_and_Games`.
+2. Extract the uploaded assets. ROMs, disk images, and reference docs are not in the repo. The upload folder is `/root/.copilot/uploads/<session>/`, and its name changes each session. Find it with `ls -d /root/.copilot/uploads/*/`. Then run:
+   ```
+   U=/root/.copilot/uploads/<session>
+   mkdir -p /root/iigs-assets
+   for a in Apple_Hardware_References Apple_II_Specific_References Apple_Software_References; do tar -xjf $U/$a.tar.bz2 -C /root/iigs-assets; done
+   7z x $U/System6_and_Games.7z -o/root/iigs-assets/System6_and_Games
+   7z x $U/Tech_Notes_roms_and_disks.7z -o/root/iigs-assets/Tech_Notes_roms_and_disks
+   cp $U/Productivity_and_Graphics.hdv /root/iigs-assets/
+   ```
 3. Copy the scripts, make them executable, and create the venv that `fakepad.py` needs:
    ```
    mkdir -p /root/iigs-env /root/iigs-test/work
@@ -50,7 +59,7 @@ The scripts use absolute paths: `/root/iigs-env`, `/root/iigs-test`, and `/root/
    ```
 4. Provide the ROM. Loading a config changes the working directory to `/root/iigs-test/work`, so the link goes there, not in `/root/iigs-test`. ROM 3 is the image that boots (see `claude/CLAUDE.md`, Runtime Requirements):
    ```
-   ln -sfn /path/to/your/rom /root/iigs-test/work/ROM.03
+   ln -sfn "/root/iigs-assets/Tech_Notes_roms_and_disks/Apple IIGS ROM 3 Tenspeed Late 1988 Early 1989 v25.bin" /root/iigs-test/work/ROM.03
    ```
 5. Build: see `claude/CLAUDE.md`, Build Commands.
 
@@ -68,6 +77,7 @@ Run:
   - `boot-nodisk.cfg`: boots to `]` with no disks.
   - `boot-sys604.cfg`: `boot-nodisk.cfg` with `s7d1 = /root/iigs-assets/System6_and_Games/System 604.hdv`. Use it for Hermes and clipboard tests.
   - `boot-28.cfg`: `boot-sys604.cfg` plus `g_limit_speed = 2` (2.8 MHz).
+- The emulator rewrites the `bramN[xx]` lines on config save (`clk_write_bram()`, called from `config.c:2049`). So the work copies in `/root/iigs-test/work` drift from `claude/configs/`. Copy the repo versions again for a clean baseline.
 - Gamepads: `/root/iigs-env/fakepad.py xbox360|snes` creates a uinput pad and reads commands from `/root/iigs-env/pad.fifo`. It needs root.
 
 Checking state:
@@ -83,6 +93,10 @@ Checking state:
 - Display check: `xdpyinfo -display :1`.
 
 ## Verified (emulator only, not hardware)
+- FileWriter (scratch harness, not kept): 15 scenarios, and the PNG output was checked. Guest-side printing through the serial TX path is not verified.
+- Clipboard in Hermes after the Mac Roman fix: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7), and paste rendered them.
+- Ctrl+Shift+V after the paste-pending fix: host `xé€ü` gave `x???`. Before the fix, host `abc` gave only `c`. With Ctrl+Shift held 2.5 s after V, `abc` typed in full.
+- Text-page copy with the alternate charset on: codes `$40 $41 $C1 $61 $21` copied as `??Aa!`. With it off, `@AAa!`.
 - F1 held: `$C061`=0, `$C025`=16, no character.
 - Nav keys: no character, `$C025` bit 0x10 while held.
 - Remap host F7 → adb:0x73 (Home): `$C025`=48 while held, `$C061`=0, no stray character.
@@ -108,7 +122,7 @@ Checking state:
 ## Test fixtures
 
 - `/root/iigs-assets/System6_and_Games/System 604.hdv` (the image `boot-sys604.cfg` mounts) contains ShrinkIt as `/ARCHIVE.UTILS/GS.SHRINKIT` (type $B3, aux $DB07).
-- `GS.GS.Diag.sdk` and `GSMEMTESTv20.sdk` are NuFX archives, not AppleSingle.
+- `GS.Diag.v2.1.SDK` and `GSMEMTESTv20.SDK` (in `/root/iigs-assets/Tech_Notes_roms_and_disks/`) are NuFX archives, not AppleSingle.
 - ShrinkIt creates AppleSingle through the Special menu, "Create AppleSingle...". Drag from Special to the item (mousedown, mouseup). The File menu has no AppleSingle option.
 - The desktop wallpaper, drawn by DeskMaker, contains fake disk-like icons. Trust only real volume icons and window contents.
 
@@ -123,14 +137,20 @@ Checking state:
   - `prodos_tool.py IMAGE CMD`: reads ProDOS `.po`/`.hdv` images. Commands: `ls`, `get NAME OUTFILE`, `find PATTERN`, `tools NAME...`, and the Toolbox-call scans `scan`, `scrap`, `le`.
 - Not kept: the `kbd-blind-test` positive control. It needs `DIAG-PASTE` logging, which the normal build does not have.
 
+## FileWriter status
+- Committed in `cde0f91`. Code: `src/filewriter.c`, `src/filewriter_font.h`, and `write_png_gray1()` in `src/png_write.c`. Serial config value 4 selects FileWriter in both serial menus (`config.c`).
+- Output per page: a 1-bit greyscale `.png` (pixel-faithful) and a `.txt` (Mac Roman, CR line endings; `filewriter.c:12`). The canvas is 1360×1584 px (8.5×11 in at 160×144 dpi). The 8th bit is included by default.
+- Implemented: printable text, CR, LF, FF, BS, and CTRL-_ n feed. ESC pitch (n N E e q Q p P; proportional uses 8-dot cells). ESC T L F H D Z R G S g V A B f r c l. ESC l 0 turns CR insertion on (default), ESC l 1 turns it off. Values other than 0 or 1 are ignored.
+- Not implemented:
+  - MouseText, custom characters, ribbon, double width, bold, underline.
+  - Tab stops. TAB (0x09) is a no-op.
+- Flush: pages flush on FF, page end, port close, and at normal quit (`filewriter_flush_all()`, `sdl_driver.c`). The `exit()` calls in `sim65816.c` and the `sdl_driver.c` error paths skip it, so an unflushed page is lost.
+- Unverified: guest-side printing through the serial TX path. The "W" glyph and the ESC H and ESC c edge cases.
+
 ## Open items
-- PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. The Toolbox PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/`, not `/root/iigs-assets`.
-- Non-ASCII (é) on Edit>Copy/Paste: fixed with Mac Roman ↔ UTF-8 mapping in `clipboard.c`. Runtime check in Hermes: Option dead keys gave é ä ñ ç. Copy wrote UTF-8 (C3 A9, C3 A4, C3 B1, C3 A7). Paste rendered them. Host € pasted as `?`. Ctrl+Shift+V (`clip_paste_text`) types one `?` per non-ASCII UTF-8 character. Runtime check: host `xé€ü` gave `???` after the leading `x` was lost (see next item). Ctrl+Shift+C (text-page copy) is changed too: with the alternate character set on (`$C00F`), codes $40–$5F show MouseText and copy as `?` (`cfg_text_screen_char` in `config.c`). Runtime check (Applesoft, POKE into row 20 at 1616): alt on gave `??Aa!` for `$40 $41 $C1 $61 $21`. Alt off (`$C00E`) gave `@AAa!`. Normal letters are unchanged.
-  - Ctrl+Shift+V used to lose its first characters. The paste fed `$C000` directly, and GS/OS read Ctrl or Shift held during the drain as a modifier (host `abc` gave only `c`). Fixed: the paste waits until Ctrl and Shift are released (`sdl_clip_paste_pending` in `sdl_driver.c`). Runtime: host `xé€ü` gave `x???`. With Ctrl+Shift held for 2.5 s after V, `abc` typed in full.
-  - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The "roman" text matches in Vol. 1–3 are false positives.
-  - The Clipboard glossary (Vol. 3 p.1041) defines the Clipboard as the buffer for the last cut or copied item. "Desk scrap: See Clipboard" (p.1045). Toolbox Revealed p.84 says the desk scrap is "sometimes called a clipboard."
-  - GS/OS Reference treats bytes ≥128 as extended ASCII, with the high bit significant. The Copy byte values ($8E for é) confirm the Mac Roman reading at runtime.
-  - Open: $DB is mapped to ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. Its on-screen glyph in Hermes was not confirmed.
+- PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. Vol. 1 and 2 PDFs are only in the upload folder (see Working conventions).
+- Open: $DB is mapped to ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. Its on-screen glyph in Hermes was not confirmed.
+- No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The Mac Roman reading rests on the GS/OS Reference's extended-ASCII note (bytes ≥128, high bit significant) and on the Copy bytes seen at runtime (`$8E` for é).
 - Other GS/OS apps' Copy and Paste are untested.
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
@@ -148,4 +168,8 @@ Checking state:
   Git identity is not set globally, so pass the author through `GIT_AUTHOR_*` and `GIT_COMMITTER_*`.
 - Do not create planning or notes markdown in the repo, except this `claude/` folder when asked.
 - Check outside advice against the code and the uploaded docs before adopting it. Some of it has been wrong.
-- Uploaded reference docs are not in the repo and are copyrighted. Local copies: the Apple firmware reference text (353 pages), the IIgs hardware reference PDF (text), and GSHARDWAREREF.pdf (earlier noted as scanned with no text layer, but the user says their PDFs have OCR text, so re-check). The Toolbox Reference Vol. 1–3 PDFs are in `/root/.copilot/uploads/2026-11-24-c0e02a2a/` and have OCR text layers. Extract text with pypdf in a venv, not system pip.
+- Reference docs are copyrighted and are not in the repo. The user confirmed that all uploaded PDFs have OCR text layers. Local copies under `/root/iigs-assets/`:
+  - `Apple Hardware References/`: `Apple_IIgs_Hardware_Reference_HiRes_text.pdf`, `IIgs_2523030_Hardware_Ref.pdf`, `apple_iigs_toolbox_reference_volume_3.pdf`, the ADB spec, and others.
+  - `Apple Software References/`: `Apple_IIgs_Firmware_Reference_text.pdf`, `Apple IIgs GS_OS Reference.pdf.txt`, `TheAppleIIGSToolboxRevealed.pdf`, and others.
+  - Toolbox Reference Vol. 1 and 2 and the ImageWriter II manual are only in the upload folder (`/root/.copilot/uploads/<session>/`).
+  - Extract text with pypdf in a venv (`/root/iigs-env/pdf-venv` exists), not system pip.

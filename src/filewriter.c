@@ -481,6 +481,7 @@ fw_cmd_format(int c)
 	case 'S': return "4";
 	case 'g': return "3";
 	case 'V': return "4r";
+	case 'l': return "1";
 	}
 	return NULL;
 }
@@ -561,6 +562,11 @@ fw_cmd_exec(FwPort *p)
 		break;
 	case 'c':
 		fw_soft_reset(p);
+		break;
+	case 'l':
+		if(p->fv[0] <= 1) {
+			p->cr_insert = (p->fv[0] == 0);
+		}
 		break;
 	default:
 		if(fw_pitch_dpi(p->cmd)) {
