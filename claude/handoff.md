@@ -139,7 +139,7 @@ Checking state:
 
 ## FileWriter status
 - Committed in `cde0f91`. Code: `src/filewriter.c`, `src/filewriter_font.h`, and `write_png_gray1()` in `src/png_write.c`. Serial config value 4 selects FileWriter in both serial menus (`config.c`).
-- Output per page: a 1-bit greyscale `.png` (pixel-faithful) and a `.txt` (Mac Roman, CR line endings; `filewriter.c:12`). The canvas is 1360×1584 px (8.5×11 in at 160×144 dpi). The 8th bit is included by default.
+- Output per page: a 1-bit greyscale `.png` (pixel-faithful) and a `.txt` (Mac Roman, CR line endings; `filewriter.c:12`). The `.txt` is written only if the page has ASCII text. Bitmap-only pages (ESC S/G, such as Hermes printouts) get just the `.png`. The canvas is 1360×1584 px (8.5×11 in at 160×144 dpi). The 8th bit is included by default.
 - Implemented: printable text, CR, LF, FF, BS, and CTRL-_ n feed. ESC pitch (n N E e q Q p P; proportional uses 8-dot cells). ESC T L F H D Z R G S g V A B f r c l. ESC l 0 turns CR insertion on (default), ESC l 1 turns it off. Values other than 0 or 1 are ignored.
 - Not implemented:
   - MouseText, custom characters, ribbon, double width, bold, underline.

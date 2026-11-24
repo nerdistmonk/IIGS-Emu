@@ -9,7 +9,8 @@
  * Emulates an Apple ImageWriter II on a serial port. The guest's bytes are
  * parsed as ImageWriter commands and rendered onto a 1-bit page at 160 x 144
  * dots per inch. Each finished page is written as <stem>.png (a pixel
- * printout) and <stem>.txt (text only, Mac Roman, CR line endings).
+ * printout) and <stem>.txt (text only, Mac Roman, CR line endings; written
+ * only when the page has text, so bitmap-only pages have just the .png).
  *
  * A page ends on FF, when paper runs past the page length, when the port
  * closes, and at emulator exit. A page with no ink writes no files.
@@ -191,8 +192,10 @@ fw_write_page(FwPort *p)
 		printf("FileWriter: wrote %s\n", path);
 	}
 
-	fw_build_path(path, sizeof(path), stem, ".txt");
-	fw_write_txt(p, path);
+	if(p->txt_maxrow >= 0) {
+		fw_build_path(path, sizeof(path), stem, ".txt");
+		fw_write_txt(p, path);
+	}
 }
 
 static void
