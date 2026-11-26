@@ -5,7 +5,7 @@
 An Apple IIGS Emulator derived from GSPlus/KEGS lineage.
 
 Credit to Dagen for his SDL3 port of GSPlus.
-Credit to Kent Dicket for KEGS.
+Credit to Kent Dickey for KEGS.
 
 ## Requires Apple IIGS ROM (Not Included)
 
