@@ -75,7 +75,7 @@ window.
   it is a rough approximation. MyWord has no color support, so its Color job
   prints black.
   
-- **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
+- **CMake build** - a single SDL3 app built with CMake, with prebuilt
   GNU/Linux downloads.
 
 ### Features:
@@ -161,19 +161,21 @@ placed by file size.
 
 ## Building from source
 
-IIGS-Emu builds with CMake (Ninja generator). SDL3 is used if installed, otherwise
-built from source automatically. From the repository root:
+IIGS-Emu builds with CMake. SDL3 is used if installed, otherwise built from source
+automatically. From the repository root:
 
 ```sh
-cmake -G Ninja -B build -S src
+cmake -B build -S src
 cmake --build build --target gsplus-sdl
 ```
 
-This produces the `build/iigs-emu` executable.
+This produces the `build/iigs-emu` executable. CMake uses its default generator
+(Unix Makefiles on Linux); pass `-G Ninja` to the first command to use Ninja instead.
 
 ### Dependencies
 
-You need a C compiler (GCC), CMake, Ninja, and git. SDL3 is used if installed;
+You need a C compiler (GCC), CMake, a build tool such as Make or Ninja, and git.
+SDL3 is used if installed;
 otherwise it is built from source, which needs development headers for your
 system's display and audio stacks:
 

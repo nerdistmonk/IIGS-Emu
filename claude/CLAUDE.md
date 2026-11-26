@@ -16,17 +16,17 @@ The `upstream` remote points at digarok/gsplus; `main` is the primary developmen
 
 Linux is the only supported platform. From the repository root:
 ```bash
-cmake -G Ninja -B build -S src
+cmake -B build -S src
 cmake --build build --target gsplus-sdl
 ```
 Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. Ubuntu 24.04 has no SDL3 package, so CMake fetches SDL3 `release-3.4.10` there. The apt packages for the full test setup are listed in `handoff.md` (Setup and run).
 
 ### Debug build (outside the repo)
 ```bash
-cmake -G Ninja -B /root/build-dbg -S /root/IIGS-Emu/src -DCMAKE_BUILD_TYPE=Debug
+cmake -B /root/build-dbg -S /root/IIGS-Emu/src -DCMAKE_BUILD_TYPE=Debug
 cmake --build /root/build-dbg -j4
 ```
-Produces `/root/build-dbg/iigs-emu`. The directory does not exist until configured. Use `cmake --build`; there is no Makefile.
+Produces `/root/build-dbg/iigs-emu`. The directory does not exist until configured. Use `cmake --build`, which works with any generator.
 
 ### Clean
 ```bash
