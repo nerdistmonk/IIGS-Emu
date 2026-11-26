@@ -1,4 +1,4 @@
-![IIGS-Emu - GNU/Linux Apple IIgs emulator](gsplus-social.png)
+![IIGS-Emu - GNU/Linux Apple IIgs emulator](iiemu.png)
 
 # IIGS-Emu
 
