@@ -753,7 +753,7 @@ imap_load_file(const char *path)
  * commented out, so the file documents them without overriding them.
  */
 static const char *const g_map_file_header[] = {
-	"# GSplus input map.  One binding per line: source = target [invert]",
+	"# IIGS-Emu input map.  One binding per line: source = target [invert]",
 	"# Sources: key:NAME mouse:LEFT|MIDDLE|RIGHT wheel:UP|DOWN pad:NAME axis:NAME",
 	"#          (keys take shift+ ctrl+ alt+ gui+ prefixes)",
 	"# Targets: adb:0xNN mouse:1 pdl:N [invert] butn:N action:NAME none",

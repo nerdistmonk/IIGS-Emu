@@ -278,6 +278,9 @@ fw_save_png(const FwPort *p, const char *path)
 	unsigned char *bits;
 	int y, x, rc, color = 0;
 
+	if(p->page_len < 1) {
+		return -1;
+	}
 	for(y = 0; y < p->page_len && !color; y++) {
 		const unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
 

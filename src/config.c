@@ -132,7 +132,7 @@ void	*g_cfg_edit_ptr = 0;
 char *g_argv0_path = ".";
 
 const char *g_kegs_default_paths[] = { "", "./", "${HOME}/",
-	"${HOME}/Library/KEGS/", "${0}/../", "${0}/",
+	"${0}/../", "${0}/",
 	"${0}/Contents/Resources/", 0 };
 
 

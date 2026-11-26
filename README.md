@@ -170,11 +170,11 @@ cmake --build build --target gsplus-sdl
 ```
 
 This produces the `build/iigs-emu` executable. CMake uses its default generator
-(Unix Makefiles on Linux); pass `-G Ninja` to the first command to use Ninja instead.
+(Unix Makefiles on Linux).
 
 ### Dependencies
 
-You need a C compiler (GCC), CMake, a build tool such as Make or Ninja, and git.
+You need a C compiler (GCC), CMake, Make, and git.
 SDL3 is used if installed;
 otherwise it is built from source, which needs development headers for your
 system's display and audio stacks:
