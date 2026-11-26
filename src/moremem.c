@@ -1340,7 +1340,8 @@ io_read(word32 loc, dword64 *cyc_ptr)
 			return 0;
 		case 0x6a: /* 0xc06a */
 		case 0x6b: /* 0xc06b */
-			UNIMPL_READ;
+			/* Unassigned; reading 0 keeps the probe off the test-mode path */
+			return 0;
 		case 0x6c: /* 0xc06c */
 		case 0x6d: /* 0xc06d */
 		case 0x6e: /* 0xc06e */
@@ -1961,7 +1962,8 @@ io_write(word32 loc, word32 val, dword64 *cyc_ptr)
 			return;
 		case 0x6a: /* 0xc06a */
 		case 0x6b: /* 0xc06b */
-			UNIMPL_WRITE;
+			/* Unassigned; writes are ignored */
+			return;
 		case 0x6c: /* 0xc06c */
 			g_c06c_latched_cyc = (word32)(dfcyc >> 16);
 			return;
