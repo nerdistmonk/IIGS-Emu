@@ -43,6 +43,8 @@ extern char *g_cfg_ssdir;
 #define FW_DEF_SPACING	24		/* 6 lpi */
 #define FW_IDLE_FRAMES	60		/* frames without a byte before saving, about 1 s */
 #define FW_EPS		1e-9
+#define FW_MAX_TABS	32		/* tab stops that can be set */
+#define FW_MAX_COLS	160		/* widest column number: 160 dpi (ESC P) */
 
 #define FW_REG_A_LF_FULL	0x20	/* LF when the line is full */
 #define FW_REG_A_PRINT_CMDS	0x40	/* CR/LF/FF act; clear = only CR acts */
@@ -54,7 +56,8 @@ enum {
 	FW_ESC,
 	FW_ARGS,
 	FW_UNDERSCORE,
-	FW_DATA
+	FW_DATA,
+	FW_LIST
 };
 
 typedef struct {
@@ -88,6 +91,13 @@ typedef struct {
 	int		fval;		/* value of the current numeric field */
 	int		fv[2];		/* completed fields */
 	int		data_left;	/* graphics data bytes still expected */
+	double		tab_in[FW_MAX_TABS];	/* tab stops, inches from paper left, ascending */
+	int		tab_n;
+	int		lst[FW_MAX_COLS];	/* in-range columns of an ESC ( or ESC ) list */
+	int		lst_n;
+	int		lst_last;	/* last list number, -1 before the first */
+	int		lst_digit;	/* the current list number has a digit, not only spaces */
+	int		lst_bad;	/* the current list is malformed; skip to its period */
 } FwPort;
 
 static FwPort	g_fw[2];
@@ -496,6 +506,7 @@ fw_soft_reset(FwPort *p)
 {
 	p->margin = 0.0;
 	p->hx = 0.0;
+	p->tab_n = 0;
 	p->dpi = FW_DEF_DPI;
 	p->spacing = FW_DEF_SPACING;
 	p->reverse = 0;
@@ -503,6 +514,73 @@ fw_soft_reset(FwPort *p)
 	p->reg_a &= (unsigned char)~(FW_REG_A_LF_AFTER_CR | FW_REG_A_LF_FULL);
 	p->reg_a |= FW_REG_A_PRINT_CMDS;
 	fw_set_page_len(p, FW_DEF_LEN);
+}
+
+/* Tab columns count from the paper's left edge at the current pitch. */
+static double
+fw_col_in(const FwPort *p, int col)
+{
+	return (col - 1) * 8.0 / p->dpi;
+}
+
+static int
+fw_tab_find(const FwPort *p, double x)
+{
+	int i;
+
+	for(i = 0; i < p->tab_n; i++) {
+		if(p->tab_in[i] - x < FW_EPS && x - p->tab_in[i] < FW_EPS) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void
+fw_tab_add(FwPort *p, int col)
+{
+	double x;
+	int i;
+
+	if(col < 1 || col > p->dpi || p->tab_n >= FW_MAX_TABS) {
+		return;
+	}
+	x = fw_col_in(p, col);
+	if(fw_tab_find(p, x) >= 0) {
+		return;
+	}
+	for(i = p->tab_n; i > 0 && p->tab_in[i - 1] > x; i--) {
+		p->tab_in[i] = p->tab_in[i - 1];
+	}
+	p->tab_in[i] = x;
+	p->tab_n++;
+}
+
+static void
+fw_tab_remove(FwPort *p, int col)
+{
+	int i = fw_tab_find(p, fw_col_in(p, col));
+
+	if(i < 0) {
+		return;
+	}
+	for(; i + 1 < p->tab_n; i++) {
+		p->tab_in[i] = p->tab_in[i + 1];
+	}
+	p->tab_n--;
+}
+
+static void
+fw_tab_next(FwPort *p)
+{
+	int i;
+
+	for(i = 0; i < p->tab_n; i++) {
+		if(p->tab_in[i] > p->hx + FW_EPS) {
+			p->hx = p->tab_in[i];
+			return;
+		}
+	}
 }
 
 static int
@@ -525,7 +603,7 @@ static int
 fw_is_simple(int c)
 {
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
-		c == 'f' || c == 'r' || c == 'c';
+		c == 'f' || c == 'r' || c == 'c' || c == '~';
 }
 
 /* Argument layout after ESC + letter. Each character is a field: a digit
@@ -546,6 +624,7 @@ fw_cmd_format(int c)
 	case 'g': return "3";
 	case 'V': return "4r";
 	case 'l': return "1";
+	case 'u': return "3";
 	}
 	return NULL;
 }
@@ -627,6 +706,12 @@ fw_cmd_exec(FwPort *p)
 	case 'c':
 		fw_soft_reset(p);
 		break;
+	case 'u':
+		fw_tab_add(p, p->fv[0]);
+		break;
+	case '~':
+		p->tab_n = 0;
+		break;
 	case 'l':
 		if(p->fv[0] <= 1) {
 			p->cr_insert = (p->fv[0] == 0);
@@ -644,6 +729,18 @@ fw_cmd_exec(FwPort *p)
 }
 
 static void
+fw_list_start(FwPort *p)
+{
+	p->state = FW_LIST;
+	p->fval = 0;
+	p->fdigits = 0;
+	p->lst_n = 0;
+	p->lst_last = -1;
+	p->lst_digit = 0;
+	p->lst_bad = 0;
+}
+
+static void
 fw_esc_byte(FwPort *p, unsigned char b)
 {
 	const char *fmt = fw_cmd_format(b);
@@ -657,6 +754,8 @@ fw_esc_byte(FwPort *p, unsigned char b)
 		p->fv[0] = 0;
 		p->fv[1] = 0;
 		p->state = FW_ARGS;
+	} else if(b == '(' || b == ')') {
+		fw_list_start(p);
 	} else if(fw_is_simple(b)) {
 		fw_cmd_exec(p);
 	} else {
@@ -672,7 +771,8 @@ fw_idle_byte(FwPort *p, unsigned char b)
 		fw_backspace(p);
 		break;
 	case 0x09:
-		break;			/* TAB: no tab stops are set */
+		fw_tab_next(p);
+		break;
 	case 0x0a:
 		fw_feed_cmd(p, 1, p->prev_cr);
 		break;
@@ -694,6 +794,79 @@ fw_idle_byte(FwPort *p, unsigned char b)
 			fw_text(p, b);
 		}
 		break;
+	}
+}
+
+static void
+fw_list_end(FwPort *p)
+{
+	int i;
+
+	p->state = FW_IDLE;
+	if(p->cmd == '(') {
+		p->tab_n = 0;
+		for(i = 0; i < p->lst_n; i++) {
+			fw_tab_add(p, p->lst[i]);
+		}
+	} else {
+		for(i = 0; i < p->lst_n; i++) {
+			fw_tab_remove(p, p->lst[i]);
+		}
+	}
+}
+
+/* Parses an ESC ( or ESC ) list: three-digit numerals, leading zeros may be
+ * spaces, ascending, comma-separated, ended by a period. A malformed list is
+ * ignored in full: its digits, spaces and commas are skipped up to the period.
+ * Any other byte ends the command and is handled normally. */
+static void
+fw_list_byte(FwPort *p, unsigned char b)
+{
+	int listch = b == ' ' || b == ',' || (b >= '0' && b <= '9');
+
+	if(p->lst_bad) {
+		if(b == '.') {
+			p->state = FW_IDLE;
+		} else if(!listch) {
+			p->state = FW_IDLE;
+			fw_idle_byte(p, b);
+		}
+		return;
+	}
+	if(b == ' ' && !p->lst_digit && p->fdigits < 3) {
+		p->fdigits++;
+		return;
+	}
+	if(b >= '0' && b <= '9' && p->fdigits < 3) {
+		p->fval = p->fval * 10 + (b - '0');
+		p->lst_digit = 1;
+		p->fdigits++;
+		return;
+	}
+	if((b == ',' || b == '.') && p->fdigits == 3 && p->lst_digit && p->fval > p->lst_last) {
+		p->lst_last = p->fval;
+		if(p->fval >= 1 && p->fval <= p->dpi && p->lst_n < FW_MAX_COLS) {
+			p->lst[p->lst_n++] = p->fval;
+		}
+		p->fval = 0;
+		p->fdigits = 0;
+		p->lst_digit = 0;
+		if(b == '.') {
+			fw_list_end(p);
+		}
+		return;
+	}
+	if(b == '.' && p->lst_last < 0 && p->fdigits == 0) {
+		fw_list_end(p);
+		return;
+	}
+	if(b == '.') {
+		p->state = FW_IDLE;
+	} else if(listch) {
+		p->lst_bad = 1;
+	} else {
+		p->state = FW_IDLE;
+		fw_idle_byte(p, b);
 	}
 }
 
@@ -849,6 +1022,9 @@ filewriter_put(int port, unsigned char b)
 		break;
 	case FW_ARGS:
 		fw_arg_byte(p, b);
+		break;
+	case FW_LIST:
+		fw_list_byte(p, b);
 		break;
 	case FW_ESC:
 		fw_esc_byte(p, b);
