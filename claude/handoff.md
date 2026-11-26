@@ -124,7 +124,7 @@ Checking state:
 - FileWriter in the sandbox (Hermes):
   - Open Hermes from the bottom item of the Apple menu. Type text first, or Print... does nothing.
   - Print... is in the document's own File menu (about 84,96), not the desktop File menu (greyed out).
-  - Enable FileWriter in the serial config: Ctrl+F1, then Serial Port Configuration, so the printer slot is 4 (`g_serial_cfg[1] = 4`).
+  - Enable FileWriter in the serial config: Ctrl+F1, then Serial Port Configuration, so the printer slot is 4. Use Slot 1 (port 0, `g_serial_cfg[0] = 4`). Slot 2 (`g_serial_cfg[1]`) receives nothing from Hermes.
   - Control Panel > DC Printer: Port = Printer, Type = ImageWriter.
   - Quit with Special > Shut Down (press-and-hold). At "Save changes?", choose Discard.
   - SIGTERM flushes a buffered page normally (SDL turns SIGTERM into a quit event).
