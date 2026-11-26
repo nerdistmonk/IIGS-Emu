@@ -87,14 +87,19 @@ Some features that are a part of the SDL3 build:
   hotkeys can be rebound under Remap Controls > Mouse and Actions.
 - **FileWriter virtual printer** - set a serial port's Main setting to
   `FileWriter printer` under Serial Port Configuration (Ctrl+F1). The printer
-  emulates an Apple ImageWriter II. Each page is saved as a pixel-faithful
-  `.png` and a text-only `.txt` (Mac Roman, CR line endings) in the Screenshot
-  Directory (`ssdir`), or the config.kegs folder if unset. Pages are written at
-  form feed, when the paper runs past the page length, when the port is
-  changed, and at normal quit. A page that crashes the emulator before one of
-  these points is lost. The Serial Mask setting does not apply; the printer's own
-  8th-bit switch decides. Not emulated: true proportional spacing, custom
-  characters, MouseText, tabs, and bold or underline.
+  emulates an Apple ImageWriter II and answers its ESC ? self-ID as a color
+  ribbon printer (`IW10C`), so GS/OS apps such as Paint256 enable Color. Each
+  page is saved as a pixel-faithful `.png` in the Screenshot Directory (`ssdir`),
+  or the config.kegs folder if unset. A page with any colored ink is saved in
+  RGB. A page with ASCII text also gets a text-only `.txt` (Mac Roman, CR line
+  endings). Pages are written at form feed, when the paper runs past the page
+  length, when the port is changed, at normal quit, and at emulator exit. A page
+  is also saved after about 1 s without output, and a job ends after about 5 s
+  without output, so the next job starts on a fresh sheet. Continuous printing
+  can still lose the page on a crash or SIGKILL. The Serial Mask setting does not
+  apply; the printer's own 8th-bit switch decides. Not emulated: true
+  proportional spacing, sub/superscript, high-ASCII MouseText (ESC Z), and a real
+  NLQ font. Known gap: MyWord's Color job prints black.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 
