@@ -20,7 +20,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # Declare the project: a name, a version, and the language used.
 project(gsplus
-    VERSION 1.40.0
+    VERSION 1.50.0
     DESCRIPTION "IIGS-Emu - Apple IIgs emulator (GSplus-based)"
     LANGUAGES C)
 
@@ -30,7 +30,7 @@ endif()
 
 # ----------------------------------------------------------------------------
 # Version, MAJOR.MINOR.PATCH, set in project() below.
-# CI passes the exact git tag via -DGSPLUS_VERSION (e.g. -DGSPLUS_VERSION=1.40.0)
+# CI passes the exact git tag via -DGSPLUS_VERSION (e.g. -DGSPLUS_VERSION=1.50.0)
 # so the tag, the app, and the release artifacts all carry the same version.
 # Local builds without -DGSPLUS_VERSION fall back to the project() version above.
 # ----------------------------------------------------------------------------
