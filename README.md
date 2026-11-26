@@ -4,11 +4,11 @@
 
 An Apple IIGS Emulator derived from GSPlus/KEGS lineage.
 
-Credit to Dagen for his SDL3 port of GSPlus.
-Credit to Kent Dickey for KEGS.
-
-IIGS-Emu design by R.Shaklfrd.
-IIGS-Emu programming by Claude Haiku.
+- Credit to Dagen for his SDL3 port of GSPlus.
+- Credit to Kent Dickey for KEGS.
+- Credit to Fredric Devernay for his contributions to the debugger.
+- IIGS-Emu design by R.Shaklfrd.
+- IIGS-Emu programming by Claude Haiku.
 
 ## Requires Apple IIGS ROM (Not Included)
 
