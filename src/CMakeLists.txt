@@ -30,9 +30,8 @@ endif()
 
 # ----------------------------------------------------------------------------
 # Version, MAJOR.MINOR.PATCH, set in project() below.
-# CI passes the exact git tag via -DGSPLUS_VERSION (e.g. -DGSPLUS_VERSION=1.50.0)
-# so the tag, the app, and the release artifacts all carry the same version.
-# Local builds without -DGSPLUS_VERSION fall back to the project() version above.
+# Pass -DGSPLUS_VERSION=<version> to override it (e.g. -DGSPLUS_VERSION=1.50.0).
+# Without it, the project() version above is used.
 # ----------------------------------------------------------------------------
 if(NOT DEFINED GSPLUS_VERSION OR GSPLUS_VERSION STREQUAL "")
     set(GSPLUS_VERSION "${PROJECT_VERSION}")
@@ -102,10 +101,9 @@ message(STATUS "IIGS-Emu: build type: ${CMAKE_BUILD_TYPE}")
 #  etc.) and gives us the SDL3::SDL3 target carrying its include paths and link
 #  flags -- no hand-written -I/-l bookkeeping.
 # ----------------------------------------------------------------------------
-# Find SDL3 on the system (Homebrew, apt, vcpkg, ...). If it isn't installed --
-# common on CI runners, since SDL3 is new -- fetch and build it from source so
-# the build is self-sufficient everywhere. Locally this is instant (Homebrew's
-# SDL3 is found); only CI without SDL3 pays the one-time build cost.
+# Find SDL3 on the system (Homebrew, apt, vcpkg, ...). If it isn't installed,
+# fetch and build it from source so the build is self-sufficient everywhere.
+# Locally this is instant when SDL3 is found; otherwise it pays a one-time build cost.
 find_package(SDL3 CONFIG QUIET)
 if(NOT SDL3_FOUND)
     message(STATUS "IIGS-Emu: SDL3 not found on system -- fetching from source")

@@ -1196,7 +1196,7 @@ sdl_poll_events(void)
 	sdl_poll_gamepad_axes();
 }
 
-/* Build "[<ssdir>/]gsplus_screenshot_YYYYMMDD_HHMMSS.png" into buf. With no
+/* Build "[<ssdir>/]iigs-emu_screenshot_YYYYMMDD_HHMMSS.png" into buf. With no
  * ssdir configured the file lands in the current working directory. */
 static void
 sdl_build_screenshot_path(char *buf, size_t buflen)
