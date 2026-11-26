@@ -823,7 +823,7 @@ fw_is_simple(int c)
 {
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
 		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"' ||
-		c == 'X' || c == 'Y' || c == 'M' || c == 'm' || c == '&' || c == '$' ||
+		c == 'X' || c == 'Y' || c == 'M' || c == '&' || c == '$' ||
 		c == '-' || c == '+' || c == 'I' || c == '*';
 }
 
@@ -849,6 +849,7 @@ fw_cmd_format(int c)
 	case 'a': return "1";	/* print quality: 2 selects NLQ, 0 and 1 correspondence and draft */
 	case 'K': return "1";	/* ribbon color */
 	case 's': return "1";	/* proportional dot spacing, read and ignored */
+	case 'm': return "1";	/* NLQ off; digit read and ignored */
 	}
 	return NULL;
 }
