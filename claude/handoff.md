@@ -168,7 +168,7 @@ Checking state:
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. Vol. 1 and 2 PDFs are only in the upload folder (see Working conventions).
-- Open: FileWriter ESC c with real software is untested. The sandbox has no Hermes or printing app, so it is verified only with a gdb byte stream.
+- Open: FileWriter ESC c on the user's build is untested. In the sandbox, WordPerfect 2.1 (Apple ImageWriter II driver, Printer #1 in slot 1 = port 0) sends ESC c at job start (`0D 1B 63 1B 4F 1B 3C 1B 5A 20 00`) and mid-job (`0D 1B 63 1B 41`). This was seen with a gdb byte log on `filewriter_put` (sandbox only). The ESC c hits in `/PRODUCTIVITY/WORD.PERFECT/WP.PRINTER` on `Productivity_and_Graphics.hdv` are the driver's command data.
 - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The Mac Roman reading rests on the GS/OS Reference's extended-ASCII note (bytes ≥128, high bit significant) and on the Copy bytes seen at runtime (`$8E` for é).
 - Other GS/OS apps' Copy and Paste are untested.
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
