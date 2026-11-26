@@ -24,46 +24,18 @@ KB**. If IIGS-Emu boots to the "Check startup device" screen, the ROM loaded fin
 it just needs a disk. Press **Ctrl+F1** to mount a disk image, or drag one onto the
 window.
 
-### What's been added in IIGS-Emu
+### Features Unique to IIGS-Emu:
 
-- **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
-  `-highdpi`, `-nohwaccel`, plus window position.
-  
-- **Screenshot capture** - writes the framebuffer to disk. Ctrl+F5 by default; rebind
-  under Remap Controls. Files go to the Screenshot Directory (`ssdir`), or the config.kegs folder if unset.
-  
-- **Gamepad support** - SDL3 Support for the IIgs joystick, with hotplug.
+- **Rewritten Input System with Gamepad support** - SDL3 Support for the IIgs joystick.
   Buttons and sticks can be rebound under Remap Controls, and any key can be
   bound to a joystick button or paddle there. Uses the controllerdb.txt to
   support a wide range of gamepads.
-  
-- **Terminal debugger** - a REPL for the built-in 65816 debugger from the
-  controlling terminal.
-  
-- **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
-  picks the slot from the WOZ disk type or the file size.
-  
-- **Centered 8-bit video modes** - 40/80-column text, GR, HGR and DHGR are
-  560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
-  GSplus's left-align. `-centera2 0` (or the Display Effects menu) restores
-  the GSplus behavior.
-  
-- **CRT scanline simulator** - `-scanline <0-100>`. Bind the scanlines action under Remap Controls to toggle it.
-- **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
-  / `-crtvignette`. Bind the crt action under Remap Controls to toggle it. Screen curvature, RGB phosphor mask,
-  bloom, and vignette; composes with the scanline simulator.
-  
+
 - **Zoom** - Ctrl+1 zooms in and Ctrl+2 zooms out, 100-200% in 1% steps. It
   magnifies the final processed image around the centre, so filters and CRT
   still apply. The level is saved as `zoom` in config.kegs. Both keys are
   rebindable under Remap Controls > Mouse and Actions.
-  
-- **Speed control** - Ctrl+F3 cycles Unlimited, 1.024 MHz, 2.8 MHz, and ZipGS
-  Accelerator (the default). ZipGS Accelerator runs at the clock set by
 
-  **ZipGS Speed** (8–128 MHz, default 8) in the main Ctrl+F1 menu, but only while software
-  has enabled the ZipGS card. Otherwise that clock is not used.
-  
 - **On-screen display** - a short message in the top-right corner when a hotkey
   changes something (zoom, speed, fast disk, scanlines, CRT, mouse capture,
   screenshots, and so on). It stays for 2 seconds and does not scale with zoom.
@@ -105,6 +77,36 @@ window.
   
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
+
+### Features:
+
+- **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
+  `-highdpi`, `-nohwaccel`, plus window position.
+  
+- **Screenshot capture** - writes the framebuffer to disk. Ctrl+F5 by default; rebind
+  under Remap Controls. Files go to the Screenshot Directory (`ssdir`), or the config.kegs folder if unset.
+  
+- **Terminal debugger** - a REPL for the built-in 65816 debugger from the
+  controlling terminal.
+  
+- **Drag-and-drop disk loading** - drop a disk image on the window and IIGS-Emu
+  picks the slot from the WOZ disk type or the file size.
+  
+- **Centered 8-bit video modes** - 40/80-column text, GR, HGR and DHGR are
+  560 pixels wide vs. super-hires' 640; IIGS-Emu centers them instead of
+  GSplus's left-align. `-centera2 0` (or the Display Effects menu) restores
+  the GSplus behavior.
+  
+- **CRT scanline simulator** - `-scanline <0-100>`. Bind the scanlines action under Remap Controls to toggle it.
+- **Curved CRT effect** - `-crt 1` with `-crtcurve` / `-crtmask` / `-crtglow`
+  / `-crtvignette`. Bind the crt action under Remap Controls to toggle it. Screen curvature, RGB phosphor mask,
+  bloom, and vignette; composes with the scanline simulator.
+  
+- **Speed control** - Ctrl+F3 cycles Unlimited, 1.024 MHz, 2.8 MHz, and ZipGS
+  Accelerator (the default). ZipGS Accelerator runs at the clock set by
+
+  **ZipGS Speed** (8–128 MHz, default 8) in the main Ctrl+F1 menu, but only while software
+  has enabled the ZipGS card. Otherwise that clock is not used.
 
 ## Controls
 
