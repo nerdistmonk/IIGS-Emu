@@ -92,8 +92,9 @@ window.
   without output, so the next job starts on a fresh sheet. Continuous printing
   can still lose the page on a crash or SIGKILL. The Serial Mask setting does not
   apply; the printer's own 8th-bit switch decides. Not emulated: true
-  proportional spacing, sub/superscript, high-ASCII MouseText (ESC Z), and a real
-  NLQ font. Known gap: MyWord's Color job prints black.
+  proportional spacing, high-ASCII MouseText (ESC Z), and a real NLQ font.
+  Sub/superscript (ESC x, ESC y, ESC z) squashes each 9-row glyph into 5 rows, so
+  it is a rough approximation. Known gap: MyWord's Color job prints black.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 

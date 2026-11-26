@@ -50,6 +50,8 @@ extern dword64 g_cur_dfcyc;
 #define FW_MAX_COLS	160		/* widest column number: 160 dpi (ESC P) */
 #define FW_CUSTOM_NARROW	8	/* widest custom character in dots, ESC - */
 #define FW_CUSTOM_WIDE	16		/* widest custom character in dots, ESC + */
+#define FW_SCRIPT_SUP	1		/* ESC x: superscript, text in the top 5 wires */
+#define FW_SCRIPT_SUB	2		/* ESC y: subscript, text in the bottom 5 wires */
 
 #define FW_REG_A_LF_FULL	0x20	/* LF when the line is full */
 #define FW_REG_A_PRINT_CMDS	0x40	/* CR/LF/FF act; clear = only CR acts */
@@ -110,6 +112,7 @@ typedef struct {
 	int		bold;		/* ESC ! boldface: glyph columns are printed twice */
 	int		dw;		/* CTRL-N double-width: each dot column is printed twice */
 	int		ul;		/* ESC X underline: the bottom dot row is printed */
+	int		script;		/* 0 normal, FW_SCRIPT_SUP or FW_SCRIPT_SUB: text is squashed to 5 rows */
 	int		nlq;		/* ESC a 2 NLQ: text is struck twice */
 	int		mt;		/* ESC & MouseText: codes 0x40-0x5F print MouseText glyphs */
 	int		cfont;		/* 0 standard, 1 custom (ESC ' or ESC .), 2 high-ASCII custom (ESC *) */
@@ -547,6 +550,27 @@ fw_wrap_check(FwPort *p, double adv)
 	}
 }
 
+/* Squashes a 9-row text column into 5 rows. Source rows are grouped into five
+ * bands, and a band that has any ink sets its row. Superscript uses rows 0-4,
+ * subscript rows 4-8. */
+static unsigned int
+fw_squash(unsigned int m, int script)
+{
+	const int base = script == FW_SCRIPT_SUB ? 4 : 0;
+	unsigned int out = 0;
+	int d, r;
+
+	for(d = 0; d < 5; d++) {
+		for(r = d * 9 / 5; r < (d + 1) * 9 / 5; r++) {
+			if(m & (1u << r)) {
+				out |= 1u << (base + d);
+				break;
+			}
+		}
+	}
+	return out;
+}
+
 /* Prints one character cell or graphics column. cols[] holds ncols dot
  * columns, bit r of each mask is dot row r. adv is the advance in dots at the
  * current pitch. Double width prints each dot column twice. Boldface and NLQ
@@ -560,9 +584,16 @@ fw_cell(FwPort *p, const unsigned int *cols, int ncols, int nrows, int adv,
 	const int f = p->dw ? 2 : 1;
 	const int strikes = 1 + p->bold + (text && p->nlq);
 	const double width = (double)adv * f / p->dpi;
+	unsigned int sq[FW_CUSTOM_WIDE];
 	int k, j, s, i;
 
 	fw_wrap_check(p, width);
+	if(text && p->script) {
+		for(k = 0; k < ncols; k++) {
+			sq[k] = fw_squash(cols[k], p->script);
+		}
+		cols = sq;
+	}
 	for(k = 0; k < ncols; k++) {
 		for(j = 0; j < f; j++) {
 			double x = p->hx + (double)(k * f + j) / p->dpi;
@@ -728,6 +759,7 @@ fw_soft_reset(FwPort *p)
 	p->bold = 0;
 	p->dw = 0;
 	p->ul = 0;
+	p->script = 0;
 	p->nlq = 0;
 	p->mt = 0;
 	p->cfont = 0;
@@ -827,6 +859,7 @@ fw_is_simple(int c)
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
 		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"' ||
 		c == 'X' || c == 'Y' || c == 'M' || c == '&' || c == '$' ||
+		c == 'x' || c == 'y' || c == 'z' ||
 		c == '-' || c == '+' || c == 'I' || c == '*' || c == '?';
 }
 
@@ -970,6 +1003,15 @@ fw_cmd_exec(FwPort *p)
 		break;
 	case 'm':
 		p->nlq = 0;
+		break;
+	case 'x':
+		p->script = FW_SCRIPT_SUP;
+		break;
+	case 'y':
+		p->script = FW_SCRIPT_SUB;
+		break;
+	case 'z':
+		p->script = 0;
 		break;
 	case '&':
 		p->mt = 1;
