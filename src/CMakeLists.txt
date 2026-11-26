@@ -92,7 +92,7 @@ message(STATUS "IIGS-Emu: build type: ${CMAKE_BUILD_TYPE}")
 
 
 # ============================================================================
-#  The SDL3 executable (gsplus-sdl -> iigs-emu)
+#  The SDL3 executable (iigs-emu)
 # ============================================================================
 #
 #  SDL3 provides display, input, and audio from one set of driver files
@@ -133,29 +133,32 @@ target_compile_options(gsplus_core_sdl PRIVATE -Wall)
 # The portable executable: SDL driver + SDL audio backend, linked against the
 # SDL-flavoured core and SDL3 itself. (PUBLIC SDL_AUDIO from the core propagates
 # to these sources too, keeping the audio routing consistent.)
-add_executable(gsplus-sdl
+add_executable(iigs-emu
     sdl_driver.c
     sdl_snd_driver.c
     xbrz.c
 )
-target_link_libraries(gsplus-sdl PRIVATE gsplus_core_sdl SDL3::SDL3)
+target_link_libraries(iigs-emu PRIVATE gsplus_core_sdl SDL3::SDL3)
 
 # paddles.c uses sqrt(); glibc keeps it in libm
-target_link_libraries(gsplus-sdl PRIVATE m)
+target_link_libraries(iigs-emu PRIVATE m)
 
 # Copy SDL's controller mapping database next to the binary; sdl_driver.c loads
 # it at startup so non-XInput pads (e.g. SNES USB) are recognized as gamepads.
-add_custom_command(TARGET gsplus-sdl POST_BUILD
+# README and LICENSE are copied alongside the binary for distribution.
+add_custom_command(TARGET iigs-emu POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/../data/gamecontrollerdb.txt"
-        "$<TARGET_FILE_DIR:gsplus-sdl>/gamecontrollerdb.txt")
+        "$<TARGET_FILE_DIR:iigs-emu>/gamecontrollerdb.txt"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/../README.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"
+        "$<TARGET_FILE_DIR:iigs-emu>")
 
-# The binary is just "iigs-emu" (no -sdl). $ORIGIN lets it find a co-located
-# SDL3 shared library at runtime.
-set_target_properties(gsplus-sdl PROPERTIES
-    OUTPUT_NAME "iigs-emu"
+# $ORIGIN lets the binary find a co-located SDL3 shared library at runtime.
+set_target_properties(iigs-emu PROPERTIES
     INSTALL_RPATH "$ORIGIN")
 
-message(STATUS "IIGS-Emu: configured SDL3 target (gsplus-sdl)")
+message(STATUS "IIGS-Emu: configured SDL3 target (iigs-emu)")
 
 

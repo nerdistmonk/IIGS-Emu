@@ -17,7 +17,7 @@ The `upstream` remote points at digarok/gsplus; `main` is the primary developmen
 Linux is the only supported platform. From the repository root:
 ```bash
 cmake -B build -S src
-cmake --build build --target gsplus-sdl
+cmake --build build --target iigs-emu
 ```
 Produces `build/iigs-emu`. SDL3 is used if installed, otherwise CMake fetches and builds it. Ubuntu 24.04 has no SDL3 package, so CMake fetches SDL3 `release-3.4.10` there. The apt packages for the full test setup are listed in `handoff.md` (Setup and run).
 

@@ -166,7 +166,7 @@ automatically. From the repository root:
 
 ```sh
 cmake -B build -S src
-cmake --build build --target gsplus-sdl
+cmake --build build --target iigs-emu
 ```
 
 This produces the `build/iigs-emu` executable. CMake uses its default generator
