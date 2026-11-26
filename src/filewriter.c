@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "defc.h"
 #include "filewriter_font.h"
@@ -85,6 +86,8 @@ typedef struct {
 
 static FwPort	g_fw[2];
 static int	g_fw_seq = 0;
+static pid_t	g_fw_owner_pid;
+static int	g_fw_atexit_set = 0;
 
 /* ---- output files ------------------------------------------------------- */
 
@@ -687,6 +690,16 @@ fw_data_byte(FwPort *p, unsigned char b)
 
 /* ---- public interface --------------------------------------------------- */
 
+/* exit() skips main()'s flush, so flush at exit too. The config's fork()ed
+ * child inherits g_fw and runs exit(), so only the owning process flushes. */
+static void
+fw_atexit(void)
+{
+	if(getpid() == g_fw_owner_pid) {
+		filewriter_flush_all();
+	}
+}
+
 void
 filewriter_open(int port)
 {
@@ -696,6 +709,11 @@ filewriter_open(int port)
 
 	if(port < 0 || port > 1) {
 		return;
+	}
+	if(!g_fw_atexit_set) {
+		g_fw_owner_pid = getpid();
+		g_fw_atexit_set = 1;
+		atexit(fw_atexit);
 	}
 	filewriter_close(port);
 

@@ -34,7 +34,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
   - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (group `IMAP_RG_MOUSE`). `imap_remap_bind()`.
   - Actions enum `enum imap_action` in `src/input_map.h`; name table `g_action_names` in `src/input_map.c`. Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
 - `g_vbl_count` (defined in `src/sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
-- FileWriter printer (`src/filewriter.c`): `scc_port_open()` sets `cur_state = SCC_STATE_FILEWRITER` (4). The TX mask and 8th-bit handling bypass `g_serial_mask` for this state. `filewriter_flush_all()` runs after the main loop in `sdl_driver.c`. `exit()` calls in `sim65816.c` and error paths in `sdl_driver.c` skip it, so an unflushed page is lost on those paths.
+- FileWriter printer (`src/filewriter.c`): `scc_port_open()` sets `cur_state = SCC_STATE_FILEWRITER` (4). The TX mask and 8th-bit handling bypass `g_serial_mask` for this state. `filewriter_flush_all()` runs after the main loop in `sdl_driver.c`, and `fw_atexit` runs it on any `exit()` in the owning process. Only a crash or SIGKILL loses an unflushed page.
 
 ## Setup and run
 
@@ -126,8 +126,8 @@ Checking state:
   - Print... is in the document's own File menu (about 84,96), not the desktop File menu (greyed out).
   - Enable FileWriter in the serial config: Ctrl+F1, then Serial Port Configuration, so the printer slot is 4 (`g_serial_cfg[1] = 4`).
   - Control Panel > DC Printer: Port = Printer, Type = ImageWriter.
-  - Shut down with Special > Shut Down (press-and-hold). At "Save changes?", choose Discard.
-  - SIGTERM loses the buffered page (see Open items).
+  - Quit with Special > Shut Down (press-and-hold). At "Save changes?", choose Discard.
+  - SIGTERM flushes a buffered page normally (SDL turns SIGTERM into a quit event).
   - Mouse input needs a keypress first to focus the guest.
 - Hand-written 65816 programs: keep code and data out of `$0400–$07FF` (the text page). Load them through the monitor, run with `300G`, and end with `jmp $ff69` to return to the monitor.
 - gdb batch pattern: `timeout 120 gdb -batch -x script.gdb --args /root/build-dbg/iigs-emu -cfg x.cfg`. End scripts with `kill` so the emulator exits. `$fp` is a built-in register alias, so use other names for convenience variables. Calling emulator functions while stopped works, for example `call dynapro_handle_write_file($dskp, $fileh)`. This exercises real code paths without guest I/O.
@@ -157,7 +157,7 @@ Checking state:
 - Not implemented:
   - MouseText, custom characters, ribbon, double width, bold, underline.
   - Tab stops. TAB (0x09) is a no-op.
-- Flush: pages flush on FF, page end, port close, and at normal quit (`filewriter_flush_all()`, `sdl_driver.c`). The `exit()` calls in `sim65816.c` and the `sdl_driver.c` error paths skip it, so an unflushed page is lost.
+- Flush: pages flush on FF, page end, port close, normal quit (`filewriter_flush_all()`, `sdl_driver.c`), and any `exit()` (`fw_atexit`, `filewriter.c`). Only a crash or SIGKILL loses an unflushed page.
 - User-verified on their build: Hermes Print... produces a page. Sandbox runs never flushed a page (cause unknown, sandbox-only).
 - Still unverified: the "W" glyph and the ESC H and ESC c edge cases.
 
@@ -169,7 +169,7 @@ Checking state:
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
-- FileWriter: a page is buffered until FF, page end, port close, or normal quit. SIGTERM and the `exit()` paths lose it (see Flush above). Not fixed; no user request.
+- FileWriter: a crash or SIGKILL loses a page that is still buffered. Not fixed; no user request.
 - FileWriter sandbox: a Hermes print never flushed a file in the sandbox. The user's build works. Dropped by the user.
 
 ## Working conventions
