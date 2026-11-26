@@ -10,6 +10,12 @@ An Apple IIGS Emulator derived from GSPlus/KEGS lineage.
 - IIGS-Emu design by R.Shaklfrd.
 - IIGS-Emu programming by Claude Haiku.
 
+Note: I know some folk have a disdain for AI entities performing
+software development, but do understand I put a great deal of hours,
+human hours, into quality assurance on any project I work on, I do
+not 'vibe code' and walk away to get a sandwich while my transistorized
+compadres run wild with no guidance.
+
 ## Requires Apple IIGS ROM (Not Included)
 
 **Which ROM:** the IIgs shipped with two ROM versions. **ROM 03** (256 KB, the
