@@ -422,16 +422,17 @@ fw_backspace(FwPort *p)
 /* ---- commands ----------------------------------------------------------- */
 
 /* If the head is already past a shorter new page length, the current page
- * ends and the head moves to the top of a fresh one. */
+ * ends at its old length (so text above the head is kept) and the head moves
+ * to the top of a fresh one. */
 static void
 fw_set_page_len(FwPort *p, int len)
 {
-	p->page_len = len;
-	if(p->vy >= p->page_len) {
+	if(p->vy >= len) {
 		fw_page_end(p);
 		p->vy = 0;
 		p->trow = 0;
 	}
+	p->page_len = len;
 }
 
 static void
@@ -444,6 +445,7 @@ fw_soft_reset(FwPort *p)
 	p->reverse = 0;
 	p->cr_insert = 1;
 	p->reg_a &= (unsigned char)~(FW_REG_A_LF_AFTER_CR | FW_REG_A_LF_FULL);
+	p->reg_a |= FW_REG_A_PRINT_CMDS;
 	fw_set_page_len(p, FW_DEF_LEN);
 }
 

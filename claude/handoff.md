@@ -159,7 +159,7 @@ Checking state:
   - Tab stops. TAB (0x09) is a no-op.
 - Flush: pages flush on FF, page end, port close, normal quit (`filewriter_flush_all()`, `sdl_driver.c`), and any `exit()` (`fw_atexit`, `filewriter.c`). Only a crash or SIGKILL loses an unflushed page.
 - User-verified on their build: Hermes Print... produces a page. Sandbox runs never flushed a page (cause unknown, sandbox-only).
-- Still unverified: the "W" glyph and the ESC H and ESC c edge cases.
+- ESC H and ESC c: when the head is already past the new page length, the page ends at its old length, so text above the head is kept (`fw_set_page_len`). Verified at runtime. ESC c also restores CR/LF/FF printing (`fw_soft_reset` sets `FW_REG_A_PRINT_CMDS`, manual Table A-2); verified at runtime with ESC Z 0x40 0x00, ESC c, then LF, which now gives `A\rB\r`. Open: ESC c does not reset the 8th-bit setting. The W glyph's left diagonal has a one-row gap at row 2. The rendered PNG matches the font table, so the gap is in the table (cosmetic).
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. Vol. 1 and 2 PDFs are only in the upload folder (see Working conventions).
