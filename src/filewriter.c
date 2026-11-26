@@ -41,6 +41,7 @@ extern char *g_cfg_ssdir;
 #define FW_DEF_DPI	96		/* ESC E, Elite: 12 cpi */
 #define FW_DEF_LEN	(11 * FW_CANVAS_DPI_Y)
 #define FW_DEF_SPACING	24		/* 6 lpi */
+#define FW_IDLE_FRAMES	60		/* frames without a byte before saving, about 1 s */
 #define FW_EPS		1e-9
 
 #define FW_REG_A_LF_FULL	0x20	/* LF when the line is full */
@@ -62,6 +63,9 @@ typedef struct {
 	unsigned char	*txt;		/* FW_TXT_ROWS x FW_TXT_COLS, 0 = blank */
 	int		txt_maxrow;	/* last transcript row used, -1 if none */
 	int		dirty;		/* page has ink or text */
+	char		stem[64];	/* file stem once the page has been saved, "" before */
+	int		unsaved;	/* page changed since it was last saved */
+	int		idle_frames;	/* frames since the last byte */
 	int		page_len;	/* paper steps */
 	int		vy;		/* paper position, canvas rows */
 	int		trow;		/* transcript row of the current line */
@@ -182,15 +186,18 @@ fw_write_txt(const FwPort *p, const char *path)
 	fclose(f);
 }
 
+/* Save the page under its stem. The first save picks the stem; later saves
+ * of the same page overwrite the same files. */
 static void
 fw_write_page(FwPort *p)
 {
-	char stem[64];
 	char path[1024];
 
-	fw_new_stem(stem, sizeof(stem));
+	if(!p->stem[0]) {
+		fw_new_stem(p->stem, sizeof(p->stem));
+	}
 
-	fw_build_path(path, sizeof(path), stem, ".png");
+	fw_build_path(path, sizeof(path), p->stem, ".png");
 	if(write_png_gray1(path, p->canvas, FW_PAGE_W, p->page_len) != 0) {
 		printf("FileWriter: cannot write %s\n", path);
 	} else {
@@ -198,9 +205,10 @@ fw_write_page(FwPort *p)
 	}
 
 	if(p->txt_maxrow >= 0) {
-		fw_build_path(path, sizeof(path), stem, ".txt");
+		fw_build_path(path, sizeof(path), p->stem, ".txt");
 		fw_write_txt(p, path);
 	}
+	p->unsaved = 0;
 }
 
 static void
@@ -212,6 +220,8 @@ fw_clear_page(FwPort *p)
 	p->txt_maxrow = -1;
 	memset(p->canvas, 0xff, (size_t)FW_STRIDE * FW_CANVAS_ROWS);
 	p->dirty = 0;
+	p->stem[0] = '\0';
+	p->unsaved = 0;
 }
 
 /* Count the canvas rows from page_len down that hold ink: the lower part of
@@ -251,6 +261,8 @@ fw_page_end(FwPort *p)
 	if(k > 0) {
 		memcpy(p->canvas, spill, (size_t)k * FW_STRIDE);
 		p->dirty = 1;
+		p->unsaved = 1;
+		p->idle_frames = 0;
 	}
 }
 
@@ -821,6 +833,8 @@ filewriter_put(int port, unsigned char b)
 		return;
 	}
 
+	p->unsaved = 1;
+	p->idle_frames = 0;
 	p->prev_cr = p->last_cr;
 	p->last_cr = 0;
 
@@ -856,6 +870,25 @@ filewriter_flush_all(void)
 	for(i = 0; i < 2; i++) {
 		if(g_fw[i].open) {
 			fw_flush_port(&g_fw[i]);
+		}
+	}
+}
+
+/* Called once per emulated frame. A page that has gone FW_IDLE_FRAMES
+ * frames without a byte is saved, so a crash during a pause does not lose it. */
+void
+filewriter_tick(void)
+{
+	int i;
+	FwPort *p;
+
+	for(i = 0; i < 2; i++) {
+		p = &g_fw[i];
+		if(!p->open || !p->dirty || !p->unsaved) {
+			continue;
+		}
+		if(++p->idle_frames >= FW_IDLE_FRAMES) {
+			fw_write_page(p);
 		}
 	}
 }

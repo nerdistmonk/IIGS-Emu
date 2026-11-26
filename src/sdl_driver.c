@@ -1777,6 +1777,7 @@ main(int argc, char **argv)
 			printf("run_16ms returned: %d\n", ret);
 			break;
 		}
+		filewriter_tick();
 		sdl_poll_events();
 		sdl_debugger_poll();
 		sdl_update_display(&g_mainwin_info);

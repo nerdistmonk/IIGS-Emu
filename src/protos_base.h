@@ -343,6 +343,7 @@ void filewriter_open(int port);
 void filewriter_close(int port);
 void filewriter_put(int port, unsigned char b);
 void filewriter_flush_all(void);
+void filewriter_tick(void);
 
 /* png_write.c */
 int write_png_rgba(const char *path, const unsigned char *rgba, int w, int h);

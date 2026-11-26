@@ -34,7 +34,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
   - Remap catalog `g_remap_items[]` entries "Copy text screen" and "Paste clipboard" (group `IMAP_RG_MOUSE`). `imap_remap_bind()`.
   - Actions enum `enum imap_action` in `src/input_map.h`; name table `g_action_names` in `src/input_map.c`. Default-unbound actions: fullscreen, scanlines, crt, status, debug_go, warp_pointer. Bound: mouse_grab (Ctrl+F2 and middle-click), config_panel (Ctrl+F1), reset (Ctrl+F12), zoom_in (Ctrl+1), zoom_out (Ctrl+2), screenshot (Ctrl+F5), speed (Ctrl+F3), fast_disk (Ctrl+F4), copy (Ctrl+Shift+C), paste (Ctrl+Shift+V).
 - `g_vbl_count` (defined in `src/sim65816.c`, incremented in `run_16ms()`) advances on wall-clock time, not per guest cycle. Why paste is paced: see the Input section of `claude/CLAUDE.md`.
-- FileWriter printer (`src/filewriter.c`): `scc_port_open()` sets `cur_state = SCC_STATE_FILEWRITER` (4). The TX mask and 8th-bit handling bypass `g_serial_mask` for this state. `filewriter_flush_all()` runs after the main loop in `sdl_driver.c`, and `fw_atexit` runs it on any `exit()` in the owning process. Only a crash or SIGKILL loses an unflushed page.
+- FileWriter printer (`src/filewriter.c`): `scc_port_open()` sets `cur_state = SCC_STATE_FILEWRITER` (4). The TX mask and 8th-bit handling bypass `g_serial_mask` for this state. `filewriter_flush_all()` runs after the main loop in `sdl_driver.c`, and `fw_atexit` runs it on any `exit()` in the owning process. A page idle for about 1 s is also saved (see Status below).
 
 ## Setup and run
 
@@ -157,7 +157,8 @@ Checking state:
 - Not implemented:
   - MouseText, custom characters, ribbon, double width, bold, underline.
   - Tab stops. TAB (0x09) is a no-op.
-- Flush: pages flush on FF, page end, port close, normal quit (`filewriter_flush_all()`, `sdl_driver.c`), and any `exit()` (`fw_atexit`, `filewriter.c`). Only a crash or SIGKILL loses an unflushed page.
+- Flush: pages flush on FF, page end, port close, normal quit (`filewriter_flush_all()`, `sdl_driver.c`), and any `exit()` (`fw_atexit`, `filewriter.c`).
+- Crash protection: `filewriter_tick()` runs once per frame from the main loop (`sdl_driver.c`). After `FW_IDLE_FRAMES` (60, about 1 s) with no byte, the in-progress page is saved under a stable stem (`fw_write_page`). Later saves of the same page overwrite the same PNG and TXT, so FF or page end replaces the snapshot. Verified at runtime: `ABC\r` saved after the pause survived SIGKILL, and `DEF` plus FF rewrote the same files.
 - User-verified on their build: Hermes Print... produces a page. Sandbox runs never flushed a page (cause unknown, sandbox-only).
 - ESC H and ESC c: when the head is already past the new page length, the page ends at its old length, so text above the head is kept (`fw_set_page_len`). Verified at runtime. ESC c also restores CR/LF/FF printing (`fw_soft_reset` sets `FW_REG_A_PRINT_CMDS`, manual Table A-2); verified at runtime with ESC Z 0x40 0x00, ESC c, then LF, which now gives `A\rB\r`. ESC c leaves the 8th-bit setting as Include (decided by the user, not Ignore as the manual says), so accented Mac Roman bytes are kept. The W glyph's left diagonal has a one-row gap at row 2. The rendered PNG matches the font table, so the gap is in the table (cosmetic).
 - A glyph that crosses the page bottom is split. The part below the edge is kept in spare canvas rows and carried to the top of the next page (`fw_page_end`, `fw_spill_rows`). Verified at runtime on a 490-row page (`ESC H 0490`): the D's bottom bar appears at rows 2–3 of page 2, and the D has no ink in dot rows 7–8.
@@ -172,7 +173,7 @@ Checking state:
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
-- FileWriter: a crash or SIGKILL loses a page that is still buffered. Not fixed; no user request.
+- FileWriter: the idle save does not cover continuous printing. With no 1 s gap between bytes, a crash or SIGKILL still loses the page. The user chose not to add a periodic save.
 - FileWriter sandbox: a Hermes print never flushed a file in the sandbox. The user's build works. Dropped by the user.
 
 ## Working conventions
