@@ -5,12 +5,12 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 ## Resume here
 - Status: clipboard bridge works for ASCII text. Copy and paste with WordPerfect, Hermes, and System 6 are verified (see Verified below).
 - Non-ASCII on Edit>Copy/Paste is handled: guest bytes $80–$FF are Mac Roman, converted to and from UTF-8 in `clipboard.c`. Verified in Hermes (é ä ñ ç). Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see `claude/CLAUDE.md`, Clipboard).
-- FileWriter virtual printer is committed: `cde0f91` (printer), `e9e3ac7` (ESC l CR insertion), `7fd32ad` (skip `.txt` for pages with no text). The user's latest build prints correctly from Hermes. Status and gaps are under "FileWriter status" below.
+- FileWriter virtual printer is committed through `902000d`. History: `cde0f91` (printer), `e9e3ac7` (ESC l CR insertion), `7fd32ad` (skip `.txt` for pages with no text), `747cb72` (flush on exit), `4206152` (page length and ESC c), `6c5cca2` (glyph carry across page breaks), `902000d` (save the in-progress page after 1 s idle). The user's build prints correctly from Hermes. Status and gaps are under "FileWriter status" below.
 - Dropped by the user: the right-mouse bind discussion. Do not raise it again.
-- No open request from the user. Wait for the next task.
-- Sandbox: the emulator is stopped. Xorg `:1` and sway may still run; `/root/iigs-env/stop-displays.sh` stops them. Scratch files outside the repo: `/tmp/*.png`, `/tmp/emu.log`, `/tmp/close_win.py`, `/tmp/xlibenv`, `/root/iigs-test/work/boot-fw.cfg`.
-- Working tree: `claude/handoff.md` is edited and uncommitted. Commit and push only on request.
-- Last code commits: `7fd32ad`, `e9e3ac7`, `cde0f91` (FileWriter), `502f4c4` (document wheel binds), `623dc0e` (mouse wheel as a bind source). Run `git log --oneline -10` for the full list.
+- Open items are under "Open items" below. The user has no open request right now; wait for the next task.
+- Sandbox: no emulator or displays are running. Start displays with `/root/iigs-env/start-displays.sh` and stop them with `/root/iigs-env/stop-displays.sh`. Test scripts and PNG compare tools are in `/root/iigs-test/work`, outside the repo.
+- Working tree: clean at `902000d`. Commit and push only on request.
+- Recent commits: `902000d`, `6c5cca2`, `4206152`, `747cb72`, `1d9cd03`. Run `git log --oneline -10` for the full list.
 
 ## Project
 - IIgs-Emu: Apple IIgs emulator forked from KEGS/GSplus, SDL3 build.
@@ -162,12 +162,14 @@ Checking state:
 - User-verified on their build: Hermes Print... produces a page. Sandbox runs never flushed a page (cause unknown, sandbox-only).
 - ESC H and ESC c: when the head is already past the new page length, the page ends at its old length, so text above the head is kept (`fw_set_page_len`). Verified at runtime. ESC c also restores CR/LF/FF printing (`fw_soft_reset` sets `FW_REG_A_PRINT_CMDS`, manual Table A-2); verified at runtime with ESC Z 0x40 0x00, ESC c, then LF, which now gives `A\rB\r`. ESC c leaves the 8th-bit setting as Include (decided by the user, not Ignore as the manual says), so accented Mac Roman bytes are kept. The W glyph's left diagonal has a one-row gap at row 2. The rendered PNG matches the font table, so the gap is in the table (cosmetic).
 - A glyph that crosses the page bottom is split. The part below the edge is kept in spare canvas rows and carried to the top of the next page (`fw_page_end`, `fw_spill_rows`). Verified at runtime on a 490-row page (`ESC H 0490`): the D's bottom bar appears at rows 2–3 of page 2, and the D has no ink in dot rows 7–8.
+- Glyphs 0x80 Ä and 0x81 Å now draw the dieresis and ring above the A (both were plain A). 0xDB draws ¤ (was €). These three are hand-drawn, not from the FreeFont generator. Verified at runtime with `fw-glyph.gdb` (ASCII render of the saved PNG).
 - A carry that is still pending at port close or exit is written as its own page (`fw_flush_port`, which loops `fw_page_end` while dirty). Verified at runtime: a second straddle at exit produced a carry-only page 3 holding the bar at rows 2–3.
 - After FF, the carried part sits at the top of the next page, so text printed right after FF overlaps it. The user chose to keep this.
 
 ## Open items
 - PutScrap appends unless ZeroScrap runs first. Toolbox Reference Vol. 2, p.346 says so, and the bridge matches it. Vol. 1 and 2 PDFs are only in the upload folder (see Working conventions).
-- Open: $DB is mapped to ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. Its on-screen glyph in Hermes was not confirmed.
+- Open: FileWriter $DB prints ¤ (U+00A4, 1984 table), not €. It round-trips as C2 A4. The glyph is hand-drawn and has not been checked on screen in Hermes.
+- Open: FileWriter ESC c with real software is untested. The sandbox has no Hermes or printing app, so it is verified only with a gdb byte stream.
 - No Toolbox reference states the TEXT scrap encoding (Vol. 2 pp.341–357). None mentions Mac Roman. The Mac Roman reading rests on the GS/OS Reference's extended-ASCII note (bytes ≥128, high bit significant) and on the Copy bytes seen at runtime (`$8E` for é).
 - Other GS/OS apps' Copy and Paste are untested.
 - The Toolbox hook (`clip_toolbox_call()`, called from the JSL and JML handlers) covers `$E10000` (DISPATCH1) and `$E10004` (DISPATCH2). Runtime: PutScrap via JSL `$E10004` and JML `$E10000` published the 135-byte table to the host; GetScrapSize via JML `$E10000` and JSL `$E10004` returned the staged host length (7 for `Héllo ü`, 6 for `Café ñ`). Not covered: the `$E1000x` user dispatch vectors (UDISPATCH, `$E10008`/`$E1000C`). Static scans show them in MAZER.II, but whether they carry Scrap calls is unverified. AppleWorks GS uses other `$E1` entries (`$E10064`, `$E10068`), but none carried Scrap Manager calls during Edit>Copy or Edit>Paste.
