@@ -95,7 +95,8 @@ window.
   ESC v, software select, true proportional spacing, paper-out, and perforation
   skip. Not emulated: high-ASCII MouseText (ESC Z) and a real NLQ font.
   Sub/superscript (ESC x, ESC y, ESC z) squashes each 9-row glyph into 5 rows, so
-  it is a rough approximation. Known gap: MyWord's Color job prints black.
+  it is a rough approximation. MyWord has no color support, so its Color job
+  prints black.
 - **CMake build** - a single SDL3 app built with CMake and Ninja, with prebuilt
   GNU/Linux downloads.
 

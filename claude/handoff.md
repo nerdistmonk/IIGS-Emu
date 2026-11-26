@@ -185,7 +185,7 @@ Checking state:
 - AppleWorks GS Edit>Copy and Edit>Paste do not use the Scrap Manager (no `$16` calls on any `$E1` entry, with Cmd+C and Cmd+V). Out of scope by decision. Ctrl+Shift+C only copies in text or MIX mode.
 - A leading `# ` was lost once in an 8 MHz keystroke paste. Not reproduced.
 - FileWriter: the idle save does not cover continuous printing. With no 1 s gap between bytes, a crash or SIGKILL still loses the page. The user chose not to add a periodic save.
-- FileWriter color (MyWord, unresolved): with Range 1–1 and Chroma = Color, the job sent 72 `ESC K` commands, all with digit `0` (black). The PNG was 1-bit grayscale, so the driver never selected Y, M, or C. Our ESC K parsing and ink table (`fw_ribbon_ink`, `filewriter.c`) match Table 8-6. The driver's color choice is not found yet. It may read self-ID bits or the print record's Chroma. Paint256 Color does print RGB after the `IW10C` reply. Replying `IW10CF` with CR did not change MyWord's output. The driver load base is unresolved (`$0D5459` vs `$0D5531`). Trace work is scratch only, not committed.
+- Accepted: MyWord has no color support. With Range 1–1 and Chroma = Color, its job sent 72 `ESC K` commands, all with digit `0` (black), so it prints black. Not a FileWriter bug. Paint256 Color prints RGB after the `IW10C` reply.
 
 ## Working conventions
 - CMake and GCC only. Do not suggest or use Clang tooling (clang-format, clang-tidy).
