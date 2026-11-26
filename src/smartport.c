@@ -229,7 +229,7 @@ do_c70d(word32 arg0)
 			engine.yreg = 0;
 			disk_printf("just finished unit %d, stat 0\n", unit);
 		} else if(ctl_code == 3) {
-			if((unit > MAX_C7_DISKS) ||
+			if((unit == 0) || (unit > MAX_C7_DISKS) ||
 					(g_iwm.smartport[unit-1].fd < 0)) {
 				stat_val = 0x80;
 				dsize = 0;
