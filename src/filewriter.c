@@ -848,6 +848,7 @@ fw_cmd_format(int c)
 	case 'u': return "3";
 	case 'a': return "1";	/* print quality: 2 selects NLQ, 0 and 1 correspondence and draft */
 	case 'K': return "1";	/* ribbon color */
+	case 's': return "1";	/* proportional dot spacing, read and ignored */
 	}
 	return NULL;
 }
@@ -985,6 +986,8 @@ fw_cmd_exec(FwPort *p)
 		if(p->fv[0] <= 6) {
 			p->ink = fw_ribbon_ink[p->fv[0]];
 		}
+		break;
+	case 's':
 		break;
 	case 'l':
 		if(p->fv[0] <= 1) {
