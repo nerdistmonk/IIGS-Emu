@@ -484,7 +484,7 @@ int	g_screen_depth = 8;
 void
 print_usage(const char *argv0)
 {
-	printf("KEGS/IIGS-Emu v%s - Apple IIgs emulator\n\n",
+	printf("IIGS-Emu v%s - Apple IIgs emulator\n\n",
 						&g_kegs_version_str[0]);
 	printf("Usage: %s [options]\n\n", argv0);
 	printf("Options:\n");
@@ -541,7 +541,7 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 	(void)open("/tmp/out1", O_WRONLY | O_CREAT | O_TRUNC, 0x1b6);
 #endif
 
-	printf("Starting KEGS v%s\n", &g_kegs_version_str[0]);
+	printf("Starting IIGS-Emu v%s\n", &g_kegs_version_str[0]);
 
 	// parse arguments
 	// First, Check if KEGS_BIG_ENDIAN is set correctly

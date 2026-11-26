@@ -178,7 +178,7 @@ sound_set_audio_rate(int rate)
 	g_fcyc_per_samp = (DCYCS_1_MHZ * 65536.0 / (rate*1.0));
 	g_sound_min_samples = rate * g_sound_min_msecs / 1000;
 
-	printf("Set g_audio_rate = %d in main KEGS process, min_samples:%d\n",
+	printf("Set g_audio_rate = %d in main IIGS-Emu process, min_samples:%d\n",
 		rate, g_sound_min_samples);
 }
 

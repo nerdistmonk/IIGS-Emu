@@ -454,7 +454,7 @@ Dbg_longcmd g_debug_longcmds[] = {
 void
 debugger_help()
 {
-	dbg_printf("KEGS Debugger help (courtesy Fredric Devernay\n");
+	dbg_printf("IIGS-Emu Debugger help (courtesy Fredric Devernay\n");
 	dbg_printf("General command syntax: [bank]/[address][command]\n");
 	dbg_printf("e.g. 'e1/0010B' to set a breakpoint at the interrupt jump "
 								"pt\n");
@@ -504,7 +504,7 @@ debugger_help()
 	dbg_printf("[bank]/[addr1].[addr2]ul[file]  Load mem area from "
 								"[file]\n");
 	dbg_printf("v                       Show video information\n");
-	dbg_printf("q                       Exit Debugger (and KEGS)\n");
+	dbg_printf("q                       Exit Debugger (and IIGS-Emu)\n");
 }
 
 void

@@ -4367,7 +4367,7 @@ cfg_file_draw()
 			cfg_shorten_filename(&g_config_kegs_name[0], 56));
 
 	cfg_htab_vtab(2, 2);
-	cfg_printf("Current KEGS directory: %-50s",
+	cfg_printf("Current directory: %-50s",
 			cfg_shorten_filename(&g_cfg_cwd_str[0], 50));
 
 	cfg_htab_vtab(2, 3);
