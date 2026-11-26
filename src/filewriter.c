@@ -36,6 +36,8 @@ extern char *g_cfg_ssdir;
 #define FW_TXT_COLS	160
 #define FW_TXT_ROWS	10000
 #define FW_DOT_PX	2		/* a 1/72 in dot row spans 2 canvas rows */
+#define FW_SPILL_ROWS	(FW_DOT_PX * 9)	/* a glyph's height: the most ink that can cross the page end */
+#define FW_CANVAS_ROWS	(FW_MAX_LEN + FW_SPILL_ROWS)
 #define FW_DEF_DPI	96		/* ESC E, Elite: 12 cpi */
 #define FW_DEF_LEN	(11 * FW_CANVAS_DPI_Y)
 #define FW_DEF_SPACING	24		/* 6 lpi */
@@ -56,7 +58,7 @@ enum {
 
 typedef struct {
 	int		open;
-	unsigned char	*canvas;	/* FW_STRIDE x FW_MAX_LEN, 1 = paper */
+	unsigned char	*canvas;	/* FW_STRIDE x FW_CANVAS_ROWS, 1 = paper */
 	unsigned char	*txt;		/* FW_TXT_ROWS x FW_TXT_COLS, 0 = blank */
 	int		txt_maxrow;	/* last transcript row used, -1 if none */
 	int		dirty;		/* page has ink or text */
@@ -208,22 +210,64 @@ fw_clear_page(FwPort *p)
 		memset(p->txt, 0, (size_t)(p->txt_maxrow + 1) * FW_TXT_COLS);
 	}
 	p->txt_maxrow = -1;
-	memset(p->canvas, 0xff, (size_t)FW_STRIDE * FW_MAX_LEN);
+	memset(p->canvas, 0xff, (size_t)FW_STRIDE * FW_CANVAS_ROWS);
 	p->dirty = 0;
 }
 
+/* Count the canvas rows from page_len down that hold ink: the lower part of
+ * a glyph that crossed the page bottom. Scans only FW_SPILL_ROWS rows, the
+ * most a glyph can reach past the bottom. */
+static int
+fw_spill_rows(const FwPort *p)
+{
+	int y, x;
+
+	for(y = p->page_len + FW_SPILL_ROWS - 1; y >= p->page_len; y--) {
+		const unsigned char *row = p->canvas + (size_t)y * FW_STRIDE;
+
+		for(x = 0; x < FW_STRIDE; x++) {
+			if(row[x] != 0xff) {
+				return y - p->page_len + 1;
+			}
+		}
+	}
+	return 0;
+}
+
+/* Write the page, then move any spill to the top of a fresh page. */
 static void
 fw_page_end(FwPort *p)
 {
-	if(p->dirty) {
-		fw_write_page(p);
-		fw_clear_page(p);
+	unsigned char spill[FW_SPILL_ROWS * FW_STRIDE];
+	int k;
+
+	if(!p->dirty) {
+		return;
+	}
+	k = fw_spill_rows(p);
+	memcpy(spill, p->canvas + (size_t)p->page_len * FW_STRIDE, (size_t)k * FW_STRIDE);
+	fw_write_page(p);
+	fw_clear_page(p);
+	if(k > 0) {
+		memcpy(p->canvas, spill, (size_t)k * FW_STRIDE);
+		p->dirty = 1;
+	}
+}
+
+/* Write everything left, including a carried spill, which becomes a page
+ * of its own. */
+static void
+fw_flush_port(FwPort *p)
+{
+	while(p->dirty) {
+		fw_page_end(p);
 	}
 }
 
 /* ---- drawing ------------------------------------------------------------ */
 
-/* Blacken canvas rows y0..y0+h-1 across x0..x1-1, clipped to the page. */
+/* Blacken canvas rows y0..y0+h-1 across x0..x1-1. Rows past page_len are kept
+ * so fw_page_end can carry them onto the next page. */
 static void
 fw_ink(FwPort *p, int x0, int x1, int y0, int h)
 {
@@ -239,8 +283,8 @@ fw_ink(FwPort *p, int x0, int x1, int y0, int h)
 	if(y0 < 0) {
 		y0 = 0;
 	}
-	if(y1 > p->page_len) {
-		y1 = p->page_len;
+	if(y1 > FW_CANVAS_ROWS) {
+		y1 = FW_CANVAS_ROWS;
 	}
 	if(x0 >= x1 || y0 >= y1) {
 		return;
@@ -719,7 +763,7 @@ filewriter_open(int port)
 	}
 	filewriter_close(port);
 
-	canvas = malloc((size_t)FW_STRIDE * FW_MAX_LEN);
+	canvas = malloc((size_t)FW_STRIDE * FW_CANVAS_ROWS);
 	txt = calloc((size_t)FW_TXT_ROWS, FW_TXT_COLS);
 	if(!canvas || !txt) {
 		free(canvas);
@@ -727,7 +771,7 @@ filewriter_open(int port)
 		printf("FileWriter: out of memory\n");
 		return;
 	}
-	memset(canvas, 0xff, (size_t)FW_STRIDE * FW_MAX_LEN);
+	memset(canvas, 0xff, (size_t)FW_STRIDE * FW_CANVAS_ROWS);
 
 	p = &g_fw[port];
 	memset(p, 0, sizeof(*p));
@@ -755,7 +799,7 @@ filewriter_close(int port)
 	if(!p->open) {
 		return;
 	}
-	fw_page_end(p);
+	fw_flush_port(p);
 	free(p->canvas);
 	free(p->txt);
 	p->canvas = NULL;
@@ -811,7 +855,7 @@ filewriter_flush_all(void)
 
 	for(i = 0; i < 2; i++) {
 		if(g_fw[i].open) {
-			fw_page_end(&g_fw[i]);
+			fw_flush_port(&g_fw[i]);
 		}
 	}
 }
