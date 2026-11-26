@@ -77,6 +77,7 @@ typedef struct {
 	int		dpi;		/* pitch, dots per inch */
 	int		spacing;	/* line feed step, paper steps */
 	int		reverse;	/* reverse line feed */
+	int		bold;		/* ESC ! boldface: glyph columns are printed twice */
 	int		cr_insert;	/* insert CR before LF, FF, CTRL-_ n */
 	unsigned char	reg_a;
 	unsigned char	reg_b;
@@ -414,13 +415,18 @@ fw_text(FwPort *p, unsigned char ch)
 	fw_wrap_check(p, adv);
 	for(k = 0; k < 7; k++) {
 		unsigned int mask = 0;
+		int pass;
 
 		for(r = 0; r < 9; r++) {
 			if(fw_glyphs[ch - 32][r] & (0x40 >> k)) {
 				mask |= 1u << r;
 			}
 		}
-		fw_column(p, p->hx + k / (double)p->dpi, mask, 9);
+		/* Boldface overstrikes the column one canvas dot to the right. */
+		for(pass = 0; pass < (p->bold ? 2 : 1); pass++) {
+			fw_column(p, p->hx + k / (double)p->dpi + pass / (double)FW_CANVAS_DPI_X,
+				mask, 9);
+		}
 	}
 	if(ch != ' ') {
 		fw_txt_store(p, ch);
@@ -510,6 +516,7 @@ fw_soft_reset(FwPort *p)
 	p->dpi = FW_DEF_DPI;
 	p->spacing = FW_DEF_SPACING;
 	p->reverse = 0;
+	p->bold = 0;
 	p->cr_insert = 1;
 	p->reg_a &= (unsigned char)~(FW_REG_A_LF_AFTER_CR | FW_REG_A_LF_FULL);
 	p->reg_a |= FW_REG_A_PRINT_CMDS;
@@ -603,7 +610,7 @@ static int
 fw_is_simple(int c)
 {
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
-		c == 'f' || c == 'r' || c == 'c' || c == '~';
+		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"';
 }
 
 /* Argument layout after ESC + letter. Each character is a field: a digit
@@ -625,6 +632,7 @@ fw_cmd_format(int c)
 	case 'V': return "4r";
 	case 'l': return "1";
 	case 'u': return "3";
+	case 'a': return "1";	/* print quality: consumed, all qualities print alike */
 	}
 	return NULL;
 }
@@ -711,6 +719,12 @@ fw_cmd_exec(FwPort *p)
 		break;
 	case '~':
 		p->tab_n = 0;
+		break;
+	case '!':
+		p->bold = 1;
+		break;
+	case '"':
+		p->bold = 0;
 		break;
 	case 'l':
 		if(p->fv[0] <= 1) {
