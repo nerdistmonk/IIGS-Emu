@@ -5,11 +5,7 @@
 Originally based on [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
 emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey.
 
-## You'll need a ROM
-
-Like any IIgs emulator, IIGS-Emu needs an Apple IIgs ROM file to boot. Without one
-it starts into a configuration screen with nothing to run. The ROM is Apple's
-copyrighted firmware, so IIGS-Emu can't ship it — you supply your own.
+## Requires Apple IIGS ROM (Not Included)
 
 **Which ROM:** the IIgs shipped with two ROM versions. **ROM 03** (256 KB, the
 later model) is the usual choice; **ROM 01** (128 KB) is also fully supported.
@@ -27,8 +23,6 @@ it just needs a disk. Press **Ctrl+F1** to mount a disk image, or drag one onto 
 window.
 
 ### What's been added in IIGS-Emu
-
-Some features that are a part of the SDL3 build:
 
 - **Window & display options** - `-fullscreen`, `-borderless`, `-noaspect`,
   `-highdpi`, `-nohwaccel`, plus window position. Fullscreen has no
