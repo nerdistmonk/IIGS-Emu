@@ -28,6 +28,7 @@
 #include "filewriter_font.h"
 
 extern char *g_cfg_ssdir;
+extern dword64 g_cur_dfcyc;
 
 #define FW_CANVAS_DPI_X	160		/* canvas pixels per inch, across */
 #define FW_CANVAS_DPI_Y	144		/* canvas rows per inch = paper steps */
@@ -826,7 +827,7 @@ fw_is_simple(int c)
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
 		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"' ||
 		c == 'X' || c == 'Y' || c == 'M' || c == '&' || c == '$' ||
-		c == '-' || c == '+' || c == 'I' || c == '*';
+		c == '-' || c == '+' || c == 'I' || c == '*' || c == '?';
 }
 
 /* Argument layout after ESC + letter. Each character is a field: a digit
@@ -854,6 +855,19 @@ fw_cmd_format(int c)
 	case 'm': return "1";	/* NLQ off; digit read and ignored */
 	}
 	return NULL;
+}
+
+/* ESC ? self-ID reply. IW = ImageWriter, 10 = 10-inch carriage, C = color
+ * ribbon in place. The CR ends the reply; the driver waits for it. */
+static void
+fw_self_id(FwPort *p)
+{
+	const char *id = "IW10C\r";
+	int port = (int)(p - g_fw);
+
+	while(*id) {
+		scc_add_to_readbuf(g_cur_dfcyc, port, (unsigned char)*id++);
+	}
 }
 
 static void
@@ -996,6 +1010,9 @@ fw_cmd_exec(FwPort *p)
 		if(p->fv[0] <= 1) {
 			p->cr_insert = (p->fv[0] == 0);
 		}
+		break;
+	case '?':
+		fw_self_id(p);
 		break;
 	default:
 		if(fw_pitch_dpi(p->cmd)) {
