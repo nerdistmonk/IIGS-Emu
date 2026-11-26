@@ -2,8 +2,10 @@
 
 # IIGS-Emu
 
-Originally based on [GSplus](https://github.com/digarok/gsplus), an Apple IIgs
-emulator derived from [KEGS](http://kegs.sourceforge.net) by Kent Dickey.
+An Apple IIGS Emulator derived from GSPlus/KEGS lineage.
+
+Credit to Dagen for his SDL3 port of GSPlus.
+Credit to Kent Dicket for KEGS.
 
 ## Requires Apple IIGS ROM (Not Included)
 
