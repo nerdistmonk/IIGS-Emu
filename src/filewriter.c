@@ -7,10 +7,12 @@
 /* FileWriter virtual printer.
  *
  * Emulates an Apple ImageWriter II on a serial port. The guest's bytes are
- * parsed as ImageWriter commands and rendered onto a 1-bit page at 160 x 144
- * dots per inch. Each finished page is written as <stem>.png (a pixel
- * printout) and <stem>.txt (text only, Mac Roman, CR line endings; written
- * only when the page has text, so bitmap-only pages have just the .png).
+ * parsed as ImageWriter commands and rendered onto a page at 160 x 144 dots
+ * per inch. The page keeps one byte per dot: the ribbon colors that printed
+ * it, 0 for paper. Each finished page is written as <stem>.png (a pixel
+ * printout, 1-bit when it is all black, otherwise RGB for color ribbons) and
+ * <stem>.txt (text only, Mac Roman, CR line endings; written only when the
+ * page has text, so bitmap-only pages have just the .png).
  *
  * A page ends on FF, when paper runs past the page length, when the port
  * closes, and at emulator exit. A page with no ink writes no files.
@@ -30,7 +32,6 @@ extern char *g_cfg_ssdir;
 #define FW_CANVAS_DPI_X	160		/* canvas pixels per inch, across */
 #define FW_CANVAS_DPI_Y	144		/* canvas rows per inch = paper steps */
 #define FW_PAGE_W	1360		/* 8.5 in of canvas */
-#define FW_STRIDE	(FW_PAGE_W / 8)
 #define FW_PRINT_W	8.0		/* printable width, inches */
 #define FW_MAX_LEN	9999		/* longest page, paper steps */
 #define FW_TXT_COLS	160
@@ -45,11 +46,31 @@ extern char *g_cfg_ssdir;
 #define FW_EPS		1e-9
 #define FW_MAX_TABS	32		/* tab stops that can be set */
 #define FW_MAX_COLS	160		/* widest column number: 160 dpi (ESC P) */
+#define FW_CUSTOM_NARROW	8	/* widest custom character in dots, ESC - */
+#define FW_CUSTOM_WIDE	16		/* widest custom character in dots, ESC + */
 
 #define FW_REG_A_LF_FULL	0x20	/* LF when the line is full */
 #define FW_REG_A_PRINT_CMDS	0x40	/* CR/LF/FF act; clear = only CR acts */
 #define FW_REG_A_LF_AFTER_CR	0x80
 #define FW_REG_B_IGNORE_8TH	0x20
+
+/* Ribbon colors, one bit each. A dot holds the bits of the ink that printed
+ * it; overprinting sets more than one. */
+#define FW_INK_Y	0x01
+#define FW_INK_M	0x02
+#define FW_INK_C	0x04
+#define FW_INK_K	0x08
+
+/* ESC K digit to ribbon ink, Table 8-6. Digits above 6 select nothing. */
+static const unsigned char fw_ribbon_ink[7] = {
+	FW_INK_K,
+	FW_INK_Y,
+	FW_INK_M,
+	FW_INK_C,
+	FW_INK_Y | FW_INK_M,
+	FW_INK_Y | FW_INK_C,
+	FW_INK_M | FW_INK_C,
+};
 
 enum {
 	FW_IDLE,
@@ -57,12 +78,18 @@ enum {
 	FW_ARGS,
 	FW_UNDERSCORE,
 	FW_DATA,
-	FW_LIST
+	FW_LIST,
+	FW_PICK,	/* after ESC ' or ESC ., the key follows */
+	FW_PICK_KEY,	/* key read, waiting to see whether ESC S follows */
+	FW_PICK_ESC,	/* key and ESC read, waiting for S */
+	FW_LOAD_KEY,	/* after ESC I: a key, or CTRL-D to end */
+	FW_LOAD_WIDTH,
+	FW_LOAD_DATA
 };
 
 typedef struct {
 	int		open;
-	unsigned char	*canvas;	/* FW_STRIDE x FW_CANVAS_ROWS, 1 = paper */
+	unsigned char	*canvas;	/* FW_PAGE_W x FW_CANVAS_ROWS, 0 = paper, else FW_INK_* bits */
 	unsigned char	*txt;		/* FW_TXT_ROWS x FW_TXT_COLS, 0 = blank */
 	int		txt_maxrow;	/* last transcript row used, -1 if none */
 	int		dirty;		/* page has ink or text */
@@ -78,6 +105,22 @@ typedef struct {
 	int		spacing;	/* line feed step, paper steps */
 	int		reverse;	/* reverse line feed */
 	int		bold;		/* ESC ! boldface: glyph columns are printed twice */
+	int		dw;		/* CTRL-N double-width: each dot column is printed twice */
+	int		ul;		/* ESC X underline: the bottom dot row is printed */
+	int		nlq;		/* ESC a 2 NLQ: text is struck twice */
+	int		mt;		/* ESC & MouseText: codes 0x40-0x5F print MouseText glyphs */
+	int		cfont;		/* 0 standard, 1 custom (ESC ' or ESC .), 2 high-ASCII custom (ESC *) */
+	int		cmax;		/* custom character width limit in dots: 8 (ESC -) or 16 (ESC +) */
+	unsigned char	cw[256];	/* custom character width by key, 0 = none loaded */
+	unsigned short	cdat[256][FW_CUSTOM_WIDE];	/* custom character columns, bit r = dot row r */
+	unsigned char	pick_key;	/* key given after ESC ', held until the next byte is known */
+	int		lkey;		/* load: key of the character being loaded */
+	int		lwidth;		/* load: width in dots of that character */
+	int		lcol;		/* load: columns read so far */
+	int		lbot;		/* load: lowercase width code, so the column uses the bottom 8 wires */
+	int		lstore;		/* load: the character is kept, not skipped */
+	double		tshift;		/* inches of double-width growth on this line, for the transcript */
+	unsigned char	ink;		/* ribbon color that new dots take, FW_INK_* bits */
 	int		cr_insert;	/* insert CR before LF, FF, CTRL-_ n */
 	unsigned char	reg_a;
 	unsigned char	reg_b;
@@ -197,6 +240,96 @@ fw_write_txt(const FwPort *p, const char *path)
 	fclose(f);
 }
 
+/* RGB of one canvas byte: each ink in `bits` multiplies white paper, so
+ * overprinted inks darken. */
+static void
+fw_ink_rgb(unsigned char bits, unsigned char rgb[3])
+{
+	static const unsigned char ink[4][3] = {
+		{ 255, 242, 0 },	/* yellow */
+		{ 236, 0, 140 },	/* magenta */
+		{ 0, 174, 239 },	/* cyan */
+		{ 0, 0, 0 },		/* black */
+	};
+	int i, c;
+
+	rgb[0] = rgb[1] = rgb[2] = 255;
+	for(i = 0; i < 4; i++) {
+		if(bits & (1 << i)) {
+			for(c = 0; c < 3; c++) {
+				rgb[c] = (unsigned char)(rgb[c] * ink[i][c] / 255);
+			}
+		}
+	}
+}
+
+/* Save the page as a PNG. A page with only black ink is written 1-bit
+ * (black on white); a page with any color ink is written as RGB. */
+static int
+fw_save_png(const FwPort *p, const char *path)
+{
+	size_t stride = FW_PAGE_W / 8;
+	unsigned char *bits;
+	int y, x, rc, color = 0;
+
+	for(y = 0; y < p->page_len && !color; y++) {
+		const unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
+
+		for(x = 0; x < FW_PAGE_W; x++) {
+			if(row[x] & (FW_INK_Y | FW_INK_M | FW_INK_C)) {
+				color = 1;
+				break;
+			}
+		}
+	}
+	if(color) {
+		unsigned char pal[16][3];
+		unsigned char *rgba = malloc((size_t)FW_PAGE_W * p->page_len * 4);
+
+		if(!rgba) {
+			return -1;
+		}
+		for(x = 0; x < 16; x++) {
+			fw_ink_rgb((unsigned char)x, pal[x]);
+		}
+		for(y = 0; y < p->page_len; y++) {
+			const unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
+			unsigned char *out = rgba + (size_t)y * FW_PAGE_W * 4;
+
+			for(x = 0; x < FW_PAGE_W; x++) {
+				const unsigned char *c = pal[row[x] & 0x0f];
+
+				out[0] = c[0];
+				out[1] = c[1];
+				out[2] = c[2];
+				out[3] = 255;
+				out += 4;
+			}
+		}
+		rc = write_png_rgba(path, rgba, FW_PAGE_W, p->page_len);
+		free(rgba);
+		return rc;
+	}
+
+	bits = calloc(stride, (size_t)p->page_len);
+	if(!bits) {
+		return -1;
+	}
+	for(y = 0; y < p->page_len; y++) {
+		const unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
+		unsigned char *out = bits + (size_t)y * stride;
+
+		for(x = 0; x < FW_PAGE_W; x++) {
+			if(!row[x]) {
+				out[x >> 3] |= (unsigned char)(0x80 >> (x & 7));
+			}
+		}
+	}
+	rc = write_png_gray1(path, bits, FW_PAGE_W, p->page_len);
+	free(bits);
+	return rc;
+}
+
 /* Save the page under its stem. The first save picks the stem; later saves
  * of the same page overwrite the same files. */
 static void
@@ -209,7 +342,7 @@ fw_write_page(FwPort *p)
 	}
 
 	fw_build_path(path, sizeof(path), p->stem, ".png");
-	if(write_png_gray1(path, p->canvas, FW_PAGE_W, p->page_len) != 0) {
+	if(fw_save_png(p, path) != 0) {
 		printf("FileWriter: cannot write %s\n", path);
 	} else {
 		printf("FileWriter: wrote %s\n", path);
@@ -229,7 +362,7 @@ fw_clear_page(FwPort *p)
 		memset(p->txt, 0, (size_t)(p->txt_maxrow + 1) * FW_TXT_COLS);
 	}
 	p->txt_maxrow = -1;
-	memset(p->canvas, 0xff, (size_t)FW_STRIDE * FW_CANVAS_ROWS);
+	memset(p->canvas, 0, (size_t)FW_PAGE_W * FW_CANVAS_ROWS);
 	p->dirty = 0;
 	p->stem[0] = '\0';
 	p->unsaved = 0;
@@ -244,10 +377,10 @@ fw_spill_rows(const FwPort *p)
 	int y, x;
 
 	for(y = p->page_len + FW_SPILL_ROWS - 1; y >= p->page_len; y--) {
-		const unsigned char *row = p->canvas + (size_t)y * FW_STRIDE;
+		const unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
 
-		for(x = 0; x < FW_STRIDE; x++) {
-			if(row[x] != 0xff) {
+		for(x = 0; x < FW_PAGE_W; x++) {
+			if(row[x]) {
 				return y - p->page_len + 1;
 			}
 		}
@@ -259,18 +392,18 @@ fw_spill_rows(const FwPort *p)
 static void
 fw_page_end(FwPort *p)
 {
-	unsigned char spill[FW_SPILL_ROWS * FW_STRIDE];
+	unsigned char spill[FW_SPILL_ROWS * FW_PAGE_W];
 	int k;
 
 	if(!p->dirty) {
 		return;
 	}
 	k = fw_spill_rows(p);
-	memcpy(spill, p->canvas + (size_t)p->page_len * FW_STRIDE, (size_t)k * FW_STRIDE);
+	memcpy(spill, p->canvas + (size_t)p->page_len * FW_PAGE_W, (size_t)k * FW_PAGE_W);
 	fw_write_page(p);
 	fw_clear_page(p);
 	if(k > 0) {
-		memcpy(p->canvas, spill, (size_t)k * FW_STRIDE);
+		memcpy(p->canvas, spill, (size_t)k * FW_PAGE_W);
 		p->dirty = 1;
 		p->unsaved = 1;
 		p->idle_frames = 0;
@@ -313,10 +446,10 @@ fw_ink(FwPort *p, int x0, int x1, int y0, int h)
 		return;
 	}
 	for(y = y0; y < y1; y++) {
-		unsigned char *row = p->canvas + (size_t)y * FW_STRIDE;
+		unsigned char *row = p->canvas + (size_t)y * FW_PAGE_W;
 
 		for(x = x0; x < x1; x++) {
-			row[x >> 3] &= (unsigned char)~(0x80 >> (x & 7));
+			row[x] |= p->ink;
 		}
 	}
 	p->dirty = 1;
@@ -345,7 +478,7 @@ static void
 fw_txt_store(FwPort *p, unsigned char ch)
 {
 	int row = p->trow;
-	int col = (int)(p->hx * (p->dpi / 8.0) + 0.5);
+	int col = (int)((p->hx - p->tshift) * (p->dpi / 8.0) + 0.5);
 
 	if(col < 0) {
 		col = 0;
@@ -358,6 +491,14 @@ fw_txt_store(FwPort *p, unsigned char ch)
 		p->txt_maxrow = row;
 	}
 	p->dirty = 1;
+}
+
+/* Head returns to the margin, starting a new transcript line. */
+static void
+fw_home(FwPort *p)
+{
+	p->hx = p->margin;
+	p->tshift = 0.0;
 }
 
 /* ---- paper and head motion ---------------------------------------------- */
@@ -396,58 +537,117 @@ static void
 fw_wrap_check(FwPort *p, double adv)
 {
 	if(p->hx + adv > FW_PRINT_W + FW_EPS) {
-		p->hx = p->margin;
+		fw_home(p);
 		if(p->reg_a & FW_REG_A_LF_FULL) {
 			fw_motion(p, 1);
 		}
 	}
 }
 
+/* Prints one character cell or graphics column. cols[] holds ncols dot
+ * columns, bit r of each mask is dot row r. adv is the advance in dots at the
+ * current pitch. Double width prints each dot column twice. Boldface and NLQ
+ * strike the cell again one canvas dot to the right. Underline (text only)
+ * prints the bottom dot row across the whole advance, spaces included. tch is
+ * the transcript character, 0 for none. */
+static void
+fw_cell(FwPort *p, const unsigned int *cols, int ncols, int nrows, int adv,
+	int text, unsigned char tch)
+{
+	const int f = p->dw ? 2 : 1;
+	const int strikes = 1 + p->bold + (text && p->nlq);
+	const double width = (double)adv * f / p->dpi;
+	int k, j, s, i;
+
+	fw_wrap_check(p, width);
+	for(k = 0; k < ncols; k++) {
+		for(j = 0; j < f; j++) {
+			double x = p->hx + (double)(k * f + j) / p->dpi;
+
+			for(s = 0; s < strikes; s++) {
+				fw_column(p, x + s / (double)FW_CANVAS_DPI_X, cols[k], nrows);
+			}
+		}
+	}
+	if(text && p->ul) {
+		for(i = 0; i < adv * f; i++) {
+			double x = p->hx + i / (double)p->dpi;
+
+			for(s = 0; s < 1 + p->bold; s++) {
+				fw_column(p, x + s / (double)FW_CANVAS_DPI_X, 1u << 8, 9);
+			}
+		}
+	}
+	if(text && tch && tch != ' ') {
+		fw_txt_store(p, tch);
+	}
+	if(text && p->dw) {
+		p->tshift += adv / (double)p->dpi;
+	}
+	p->hx += width;
+}
+
+/* A custom character is text, and its advance is its width in dots. A key
+ * with no character loaded prints a blank standard-width cell. A negative key
+ * has no custom character and also prints blank. */
+static void
+fw_custom_cell(FwPort *p, int key)
+{
+	unsigned int cols[FW_CUSTOM_WIDE] = {0};
+	int w = 0, k;
+
+	if(key >= 0) {
+		w = p->cw[key];
+		for(k = 0; k < w; k++) {
+			cols[k] = p->cdat[key][k];
+		}
+	}
+	fw_cell(p, cols, w, 9, w ? w : 8, 1, 0);
+}
+
 static void
 fw_text(FwPort *p, unsigned char ch)
 {
-	const double adv = 8.0 / p->dpi;
-	int k, r;
+	unsigned int cols[7];
+	const unsigned char *glyph;
+	int mt, k, r;
 
 	if(ch < 0x20 || ch == 0x7f) {
 		return;
 	}
-	fw_wrap_check(p, adv);
+	if(p->cfont == 2) {
+		fw_custom_cell(p, (ch >= 32 && ch <= 111) ? ch + 128 : -1);
+		return;
+	}
+	if(p->cfont == 1) {
+		fw_custom_cell(p, ch);
+		return;
+	}
+	mt = p->mt && ch >= 0x40 && ch <= 0x5f;
+	glyph = mt ? fw_mousetext[ch - 0x40] : fw_glyphs[ch - 32];
 	for(k = 0; k < 7; k++) {
-		unsigned int mask = 0;
-		int pass;
-
+		cols[k] = 0;
 		for(r = 0; r < 9; r++) {
-			if(fw_glyphs[ch - 32][r] & (0x40 >> k)) {
-				mask |= 1u << r;
+			if(glyph[r] & (0x40 >> k)) {
+				cols[k] |= 1u << r;
 			}
 		}
-		/* Boldface overstrikes the column one canvas dot to the right. */
-		for(pass = 0; pass < (p->bold ? 2 : 1); pass++) {
-			fw_column(p, p->hx + k / (double)p->dpi + pass / (double)FW_CANVAS_DPI_X,
-				mask, 9);
-		}
 	}
-	if(ch != ' ') {
-		fw_txt_store(p, ch);
-	}
-	p->hx += adv;
+	fw_cell(p, cols, 7, 9, 8, 1, mt ? 0 : ch);
 }
 
 static void
 fw_gfx_column(FwPort *p, unsigned char mask)
 {
-	const double adv = 1.0 / p->dpi;
+	unsigned int col = mask;
 
-	fw_wrap_check(p, adv);
-	fw_column(p, p->hx, mask, 8);
-	p->hx += adv;
+	fw_cell(p, &col, 1, 8, 1, 0, 0);
 }
 
 static void
 fw_cr(FwPort *p)
 {
-	p->hx = p->margin;
+	fw_home(p);
 	p->last_cr = 1;
 	if(p->reg_a & FW_REG_A_LF_AFTER_CR) {
 		fw_motion(p, 1);
@@ -463,7 +663,7 @@ fw_feed_cmd(FwPort *p, int lines, int after_cr)
 		return;
 	}
 	if(p->cr_insert) {
-		p->hx = p->margin;
+		fw_home(p);
 	}
 	fw_motion(p, lines);
 }
@@ -475,19 +675,25 @@ fw_ff(FwPort *p, int after_cr)
 		return;
 	}
 	if(p->cr_insert) {
-		p->hx = p->margin;
+		fw_home(p);
 	}
 	fw_page_end(p);
 	p->vy = 0;
 	p->trow = 0;
 }
 
+/* Backspace moves back one character cell, two when double width is on. */
 static void
 fw_backspace(FwPort *p)
 {
-	p->hx -= 8.0 / p->dpi;
+	const double adv = 8.0 / p->dpi;
+
+	p->hx -= p->dw ? 2.0 * adv : adv;
+	if(p->dw) {
+		p->tshift -= adv;
+	}
 	if(p->hx < p->margin) {
-		p->hx = p->margin;
+		fw_home(p);
 	}
 }
 
@@ -511,12 +717,18 @@ static void
 fw_soft_reset(FwPort *p)
 {
 	p->margin = 0.0;
-	p->hx = 0.0;
+	fw_home(p);
 	p->tab_n = 0;
 	p->dpi = FW_DEF_DPI;
 	p->spacing = FW_DEF_SPACING;
 	p->reverse = 0;
 	p->bold = 0;
+	p->dw = 0;
+	p->ul = 0;
+	p->nlq = 0;
+	p->mt = 0;
+	p->cfont = 0;
+	p->ink = FW_INK_K;
 	p->cr_insert = 1;
 	p->reg_a &= (unsigned char)~(FW_REG_A_LF_AFTER_CR | FW_REG_A_LF_FULL);
 	p->reg_a |= FW_REG_A_PRINT_CMDS;
@@ -610,7 +822,9 @@ static int
 fw_is_simple(int c)
 {
 	return fw_pitch_dpi(c) != 0 || c == 'A' || c == 'B' ||
-		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"';
+		c == 'f' || c == 'r' || c == 'c' || c == '~' || c == '!' || c == '"' ||
+		c == 'X' || c == 'Y' || c == 'M' || c == 'm' || c == '&' || c == '$' ||
+		c == '-' || c == '+' || c == 'I' || c == '*';
 }
 
 /* Argument layout after ESC + letter. Each character is a field: a digit
@@ -632,7 +846,8 @@ fw_cmd_format(int c)
 	case 'V': return "4r";
 	case 'l': return "1";
 	case 'u': return "3";
-	case 'a': return "1";	/* print quality: consumed, all qualities print alike */
+	case 'a': return "1";	/* print quality: 2 selects NLQ, 0 and 1 correspondence and draft */
+	case 'K': return "1";	/* ribbon color */
 	}
 	return NULL;
 }
@@ -726,6 +941,51 @@ fw_cmd_exec(FwPort *p)
 	case '"':
 		p->bold = 0;
 		break;
+	case 'X':
+		p->ul = 1;
+		break;
+	case 'Y':
+		p->ul = 0;
+		break;
+	case 'M':
+		p->nlq = 1;
+		break;
+	case 'm':
+		p->nlq = 0;
+		break;
+	case '&':
+		p->mt = 1;
+		p->cfont = 0;
+		break;
+	case '$':
+		p->mt = 0;
+		p->cfont = 0;
+		break;
+	case '*':
+		p->mt = 0;
+		p->cfont = 2;
+		break;
+	case '-':
+	case '+':
+		p->cmax = p->cmd == '-' ? FW_CUSTOM_NARROW : FW_CUSTOM_WIDE;
+		memset(p->cw, 0, sizeof(p->cw));
+		p->reg_b &= (unsigned char)~FW_REG_B_IGNORE_8TH;
+		break;
+	case 'I':
+		p->state = FW_LOAD_KEY;
+		break;
+	case 'a':
+		if(p->fv[0] == 2) {
+			p->nlq = 1;
+		} else if(p->fv[0] == 0 || p->fv[0] == 1) {
+			p->nlq = 0;
+		}
+		break;
+	case 'K':
+		if(p->fv[0] <= 6) {
+			p->ink = fw_ribbon_ink[p->fv[0]];
+		}
+		break;
 	case 'l':
 		if(p->fv[0] <= 1) {
 			p->cr_insert = (p->fv[0] == 0);
@@ -770,6 +1030,8 @@ fw_esc_byte(FwPort *p, unsigned char b)
 		p->state = FW_ARGS;
 	} else if(b == '(' || b == ')') {
 		fw_list_start(p);
+	} else if(b == '\'' || b == '.') {
+		p->state = FW_PICK;
 	} else if(fw_is_simple(b)) {
 		fw_cmd_exec(p);
 	} else {
@@ -795,6 +1057,12 @@ fw_idle_byte(FwPort *p, unsigned char b)
 		break;
 	case 0x0d:
 		fw_cr(p);
+		break;
+	case 0x0e:
+		p->dw = 1;
+		break;
+	case 0x0f:
+		p->dw = 0;
 		break;
 	case 0x1b:
 		p->state = FW_ESC;
@@ -933,6 +1201,154 @@ fw_data_byte(FwPort *p, unsigned char b)
 	}
 }
 
+static int
+fw_is_load(const FwPort *p)
+{
+	return p->state == FW_LOAD_KEY || p->state == FW_LOAD_WIDTH ||
+		p->state == FW_LOAD_DATA;
+}
+
+/* ESC - keeps 32-126 and 160-239; ESC + keeps only 32-126. */
+static int
+fw_key_loadable(const FwPort *p, int key)
+{
+	if(key >= 32 && key <= 126) {
+		return 1;
+	}
+	return p->cmax == FW_CUSTOM_NARROW && key >= 160 && key <= 239;
+}
+
+/* ESC I, then KEY, WIDTH and DATA per character; CTRL-D ends the load. A
+ * character that cannot be kept (bad key, too wide) still has its data read,
+ * so the next character stays in step. */
+static void
+fw_load_byte(FwPort *p, unsigned char b)
+{
+	if(p->state == FW_LOAD_KEY) {
+		if(b == 0x04) {
+			p->state = FW_IDLE;
+		} else {
+			p->lkey = b;
+			p->state = FW_LOAD_WIDTH;
+		}
+	} else if(p->state == FW_LOAD_WIDTH) {
+		int w = 0;
+
+		p->lbot = 0;
+		if(b >= 'A' && b <= 'P') {
+			w = b - 'A' + 1;
+		} else if(b >= 'a' && b <= 'p') {
+			w = b - 'a' + 1;
+			p->lbot = 1;
+		}
+		p->lwidth = w;
+		p->lcol = 0;
+		p->lstore = w > 0 && w <= p->cmax && fw_key_loadable(p, p->lkey);
+		if(p->lstore) {
+			p->cw[p->lkey] = (unsigned char)w;
+			memset(p->cdat[p->lkey], 0, sizeof(p->cdat[p->lkey]));
+		}
+		p->state = w > 0 ? FW_LOAD_DATA : FW_LOAD_KEY;
+	} else {
+		if(p->lstore) {
+			p->cdat[p->lkey][p->lcol] = p->lbot ? (unsigned short)(b << 1) : b;
+		}
+		if(++p->lcol >= p->lwidth) {
+			p->state = FW_LOAD_KEY;
+		}
+	}
+}
+
+static void fw_dispatch(FwPort *p, unsigned char b);
+
+/* ESC ' and ESC . select custom characters. The switch is held until the next
+ * byte shows whether it is a single symbol (ESC ' key ESC S), which leaves the
+ * font alone. */
+static void
+fw_pick_switch(FwPort *p)
+{
+	p->cfont = 1;
+	p->mt = 0;
+	p->state = FW_IDLE;
+}
+
+static void
+fw_pick_byte(FwPort *p, unsigned char b)
+{
+	if(b < 0x20 || b == 0x7f) {
+		fw_pick_switch(p);
+		fw_dispatch(p, b);
+	} else {
+		p->pick_key = b;
+		p->state = FW_PICK_KEY;
+	}
+}
+
+static void
+fw_pick_key_byte(FwPort *p, unsigned char b)
+{
+	if(b == 0x1b) {
+		p->state = FW_PICK_ESC;
+		return;
+	}
+	fw_pick_switch(p);
+	fw_dispatch(p, p->pick_key);
+	fw_dispatch(p, b);
+}
+
+static void
+fw_pick_esc_byte(FwPort *p, unsigned char b)
+{
+	if(b == 'S') {
+		fw_custom_cell(p, p->pick_key);
+		p->state = FW_IDLE;
+		return;
+	}
+	fw_pick_switch(p);
+	fw_dispatch(p, p->pick_key);
+	fw_dispatch(p, 0x1b);
+	fw_dispatch(p, b);
+}
+
+static void
+fw_dispatch(FwPort *p, unsigned char b)
+{
+	switch(p->state) {
+	case FW_DATA:
+		fw_data_byte(p, b);
+		break;
+	case FW_ARGS:
+		fw_arg_byte(p, b);
+		break;
+	case FW_LIST:
+		fw_list_byte(p, b);
+		break;
+	case FW_ESC:
+		fw_esc_byte(p, b);
+		break;
+	case FW_UNDERSCORE:
+		fw_us_byte(p, b);
+		break;
+	case FW_PICK:
+		fw_pick_byte(p, b);
+		break;
+	case FW_PICK_KEY:
+		fw_pick_key_byte(p, b);
+		break;
+	case FW_PICK_ESC:
+		fw_pick_esc_byte(p, b);
+		break;
+	case FW_LOAD_KEY:
+	case FW_LOAD_WIDTH:
+	case FW_LOAD_DATA:
+		fw_load_byte(p, b);
+		break;
+	default:
+		fw_idle_byte(p, b);
+		break;
+	}
+}
+
 /* ---- public interface --------------------------------------------------- */
 
 /* exit() skips main()'s flush, so flush at exit too. The config's fork()ed
@@ -962,7 +1378,7 @@ filewriter_open(int port)
 	}
 	filewriter_close(port);
 
-	canvas = malloc((size_t)FW_STRIDE * FW_CANVAS_ROWS);
+	canvas = calloc((size_t)FW_PAGE_W * FW_CANVAS_ROWS, 1);
 	txt = calloc((size_t)FW_TXT_ROWS, FW_TXT_COLS);
 	if(!canvas || !txt) {
 		free(canvas);
@@ -970,12 +1386,13 @@ filewriter_open(int port)
 		printf("FileWriter: out of memory\n");
 		return;
 	}
-	memset(canvas, 0xff, (size_t)FW_STRIDE * FW_CANVAS_ROWS);
 
 	p = &g_fw[port];
 	memset(p, 0, sizeof(*p));
 	p->open = 1;
 	p->canvas = canvas;
+	p->ink = FW_INK_K;
+	p->cmax = FW_CUSTOM_NARROW;
 	p->txt = txt;
 	p->txt_maxrow = -1;
 	p->page_len = FW_DEF_LEN;
@@ -1026,30 +1443,11 @@ filewriter_put(int port, unsigned char b)
 	p->last_cr = 0;
 
 	raw_arg = (p->state == FW_ARGS && p->fmt[p->fidx] == 'r');
-	if((p->reg_b & FW_REG_B_IGNORE_8TH) && p->state != FW_DATA && !raw_arg) {
+	if((p->reg_b & FW_REG_B_IGNORE_8TH) && p->state != FW_DATA && !raw_arg && !fw_is_load(p)) {
 		b &= 0x7f;
 	}
 
-	switch(p->state) {
-	case FW_DATA:
-		fw_data_byte(p, b);
-		break;
-	case FW_ARGS:
-		fw_arg_byte(p, b);
-		break;
-	case FW_LIST:
-		fw_list_byte(p, b);
-		break;
-	case FW_ESC:
-		fw_esc_byte(p, b);
-		break;
-	case FW_UNDERSCORE:
-		fw_us_byte(p, b);
-		break;
-	default:
-		fw_idle_byte(p, b);
-		break;
-	}
+	fw_dispatch(p, b);
 }
 
 void
