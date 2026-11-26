@@ -43,6 +43,7 @@ extern char *g_cfg_ssdir;
 #define FW_DEF_LEN	(11 * FW_CANVAS_DPI_Y)
 #define FW_DEF_SPACING	24		/* 6 lpi */
 #define FW_IDLE_FRAMES	60		/* frames without a byte before saving, about 1 s */
+#define FW_JOB_END_FRAMES	300	/* frames without a byte that end a job, about 5 s */
 #define FW_EPS		1e-9
 #define FW_MAX_TABS	32		/* tab stops that can be set */
 #define FW_MAX_COLS	160		/* widest column number: 160 dpi (ESC P) */
@@ -96,6 +97,7 @@ typedef struct {
 	char		stem[64];	/* file stem once the page has been saved, "" before */
 	int		unsaved;	/* page changed since it was last saved */
 	int		idle_frames;	/* frames since the last byte */
+	int		job_idle_frames;	/* frames since the last byte, for job end */
 	int		page_len;	/* paper steps */
 	int		vy;		/* paper position, canvas rows */
 	int		trow;		/* transcript row of the current line */
@@ -1443,6 +1445,7 @@ filewriter_put(int port, unsigned char b)
 
 	p->unsaved = 1;
 	p->idle_frames = 0;
+	p->job_idle_frames = 0;
 	p->prev_cr = p->last_cr;
 	p->last_cr = 0;
 
@@ -1466,6 +1469,17 @@ filewriter_flush_all(void)
 	}
 }
 
+/* A long pause ends the job: write what is left and start the next job on a
+ * fresh sheet at the top and left margin. */
+static void
+fw_end_job(FwPort *p)
+{
+	fw_flush_port(p);
+	fw_home(p);
+	p->vy = 0;
+	p->trow = 0;
+}
+
 /* Called once per emulated frame. A page that has gone FW_IDLE_FRAMES
  * frames without a byte is saved, so a crash during a pause does not lose it. */
 void
@@ -1476,11 +1490,14 @@ filewriter_tick(void)
 
 	for(i = 0; i < 2; i++) {
 		p = &g_fw[i];
-		if(!p->open || !p->dirty || !p->unsaved) {
+		if(!p->open || !p->dirty) {
 			continue;
 		}
-		if(++p->idle_frames >= FW_IDLE_FRAMES) {
+		if(p->unsaved && ++p->idle_frames >= FW_IDLE_FRAMES) {
 			fw_write_page(p);
+		}
+		if(++p->job_idle_frames >= FW_JOB_END_FRAMES) {
+			fw_end_job(p);
 		}
 	}
 }
