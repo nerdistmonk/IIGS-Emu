@@ -5,6 +5,7 @@ Read this first in a new session. It covers repo state, setup and run, test gotc
 ## Resume here
 - Status: the clipboard bridge handles ASCII and Mac Roman text (`clipboard.c`). Copy and paste are verified in WordPerfect, Hermes, and System 6. Ctrl+Shift+V types one `?` per non-ASCII character, and waits for Ctrl and Shift to be released first (see `claude/CLAUDE.md`, Clipboard).
 - FileWriter virtual printer: the user's build prints correctly from Hermes and WordPerfect. Behavior and gaps are under "FileWriter status" below.
+- Config panel (commit `4ad843a`): Z mounts the browsed folder as a DynaPro volume and A mounts all partitions of an image, both in the disk picker. The `-a2`/`-gs` presets and `-mem` precedence are in `src/sim65816.c` and `src/config.c`. README documents the picker keys and command-line options. Command and Ctrl combinations never reach the picker (`adb.c:1844`).
 - Dropped by the user: the right-mouse bind discussion. Do not raise it again.
 - Open items are under "Open items" below.
 - Sandbox: Xorg `:1` may still be running from an earlier session. Start displays with `/root/iigs-env/start-displays.sh` (it skips Xorg if `:1` is up) and stop them with `/root/iigs-env/stop-displays.sh`. Test scripts and PNG compare tools are in `/root/iigs-test/work`, outside the repo.

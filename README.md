@@ -113,9 +113,8 @@ window.
   
 - **Speed control** - Ctrl+F3 cycles Unlimited, 1.024 MHz, 2.8 MHz, and ZipGS
   Accelerator (the default). ZipGS Accelerator runs at the clock set by
-
-  **ZipGS Speed** (8–128 MHz, default 8) in the main Ctrl+F1 menu, but only while software
-  has enabled the ZipGS card. Otherwise that clock is not used.
+  **ZipGS Speed** (8, 16, 32, 64, or 128 MHz, default 8) in the main Ctrl+F1 menu,
+  but only while software has enabled the ZipGS card. Otherwise that clock is not used.
 
 ## Controls
 
@@ -167,6 +166,40 @@ sources are `wheel:UP` and `wheel:DOWN`.
 You can also **drag & drop** a disk image onto the window to mount it. WOZ images
 go to slot 6 (5.25") or slot 5 (3.5") from their disk type; other images are
 placed by file size.
+
+### Disk picker
+
+Open **Ctrl+F1 > Disk Configuration**, select a drive, and press Return to browse
+for an image. Keys inside the picker:
+
+| Key | Action |
+|---|---|
+| **Up / Down**, **Page Up / Page Down** | Move through the list |
+| **Return** | Open a folder, or mount the highlighted image |
+| **Tab** | Edit the path |
+| **Z** | Mount the browsed folder as a DynaPro volume in the selected drive. It cannot create new files, so saving a new file to it silently does nothing. |
+| **A** | On an image with several partitions, mount each partition from the cursor down, filling consecutive drives in that slot |
+| **Esc** | Eject the drive (if one is loaded) and close the picker |
+| **Other letters** | In the file list, jump to the first file starting with that letter |
+
+Keys with Command or Ctrl do not reach the picker, so its shortcuts are plain keys.
+
+## Command-line options
+
+Run `build/iigs-emu --help` for the full list. The common ones:
+
+- `-a2` - Apple II preset: 1.0 MHz, 0 MB expansion RAM, Mockingboard on.
+- `-gs` - IIgs preset: ZipGS 8 MHz, 8 MB expansion RAM, Mockingboard off.
+- `-mem <bytes>` - expansion RAM size. It is applied last, so it overrides `-a2`,
+  `-gs`, and the value saved in config.kegs.
+- `-s<slot>d<drive> <file>` - insert a disk at startup, for example `-s5d1 game.po`.
+- `-cfg <file>` - use another config file (created if missing). The working directory
+  changes to that file's folder.
+- `-map <file>` - use another input map (default: `input.map` beside config.kegs).
+- `-<name> <value>` - set any other config variable, for example `-scanline 40`.
+
+The Mockingboard in Slot 4 setting in the Ctrl+F1 menu applies on reset. `-a2` and
+`-gs` set it at startup.
 
 ## Building from source
 
