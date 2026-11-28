@@ -2,7 +2,7 @@
 
 # IIGS-Emu
 
-An Apple Family Emulator derived from GSPlus/KEGS lineage.
+An Apple II Family Emulator derived from GSPlus/KEGS lineage.
 
 - Credit to Dagen for his SDL3 port of GSPlus.
 - Credit to Kent Dickey for KEGS.
