@@ -499,6 +499,8 @@ print_usage(const char *argv0)
 	printf("  -16              Force 16-bit visual\n");
 	printf("  -15              Force 15-bit visual\n");
 #endif
+	printf("  -a2              Apple II preset: 1.0MHz, 0MB expansion, Mockingboard on\n");
+	printf("  -gs              IIgs preset: ZipGS 8MHz, 8MB expansion, Mockingboard off\n");
 	printf("  -mem <size>      Set memory size (bytes, masked to banks)\n");
 	printf("  -skip <n>        Set screen redraw skip amount\n");
 	printf("  -audio <n>       Set audio enable value (0=off, 1=on)\n");
@@ -595,6 +597,15 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 		} else if(!strcmp("-15", argv[i])) {
 			printf("Using 15-bit visual\n");
 			g_force_depth = 15;
+		} else if(!strcmp("-a2", argv[i])) {
+			config_add_argv_override("g_limit_speed=1", 0);
+			config_add_argv_override("g_mem_size_exp=0", 0);
+			config_add_argv_override("g_mockingboard_enable=1", 0);
+		} else if(!strcmp("-gs", argv[i])) {
+			config_add_argv_override("g_limit_speed=3", 0);
+			config_add_argv_override("g_zip_speed_mhz=8", 0);
+			config_add_argv_override("g_mem_size_exp=0x800000", 0);
+			config_add_argv_override("g_mockingboard_enable=0", 0);
 		} else if(!strcmp("-mem", argv[i])) {
 			if((i+1) >= argc) {
 				printf("Missing argument\n");
