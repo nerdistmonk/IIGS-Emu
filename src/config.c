@@ -1369,6 +1369,29 @@ cfg_load_charrom()
 	}
 }
 
+/* Some ROM 01 dumps store banks FE and FF in reverse. The reset vector */
+/* lives in bank FF, so a zero vector there with a set one in FE means swap. */
+static void
+config_rom1_fix_bank_order()
+{
+	byte *fe_ptr, *ff_ptr, tmp;
+	int fe_reset, ff_reset, i;
+
+	fe_ptr = &g_rom_fc_ff_ptr[2*65536];
+	ff_ptr = &g_rom_fc_ff_ptr[3*65536];
+	fe_reset = fe_ptr[0xfffc] | (fe_ptr[0xfffd] << 8);
+	ff_reset = ff_ptr[0xfffc] | (ff_ptr[0xfffd] << 8);
+	if(ff_reset != 0 || fe_reset == 0) {
+		return;
+	}
+	printf("ROM 01 banks FE and FF are stored reversed, swapping them\n");
+	for(i = 0; i < 65536; i++) {
+		tmp = fe_ptr[i];
+		fe_ptr[i] = ff_ptr[i];
+		ff_ptr[i] = tmp;
+	}
+}
+
 void
 config_load_roms()
 {
@@ -1436,6 +1459,10 @@ config_load_roms()
 		return;
 	}
 	close(fd);
+
+	if(g_rom_version == 1) {
+		config_rom1_fix_bank_order();
+	}
 
 	memset(&g_rom_cards_ptr[0], 0, 256*16);
 

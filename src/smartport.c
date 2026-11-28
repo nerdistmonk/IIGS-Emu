@@ -798,10 +798,15 @@ do_c700(word32 ret)
 	engine.kpc = 0x801;
 
 	if(ret != 0) {
-		printf("Failure reading boot disk in s7d1, trying slot 5!\n");
-		engine.kpc = 0xc500;		// Try to boot slot 5
-		if((slot == 5) || (g_rom_version == 0)) {
+		// Try slot 6 if s6d1 holds a disk (or for slot 5 / ROM 00 as before);
+		// otherwise try slot 5
+		if((slot == 5) || (g_rom_version == 0) ||
+				(iwm_get_dsk_from_slot_drive(6, 0)->fd >= 0)) {
+			printf("Failure reading boot disk in s7d1, trying slot 6!\n");
 			engine.kpc = 0xc600;	// Try to boot slot 6
+		} else {
+			printf("Failure reading boot disk in s7d1, trying slot 5!\n");
+			engine.kpc = 0xc500;	// Try to boot slot 5
 		}
 	}
 }
