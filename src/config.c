@@ -444,6 +444,7 @@ int g_cfg_defval_index = 0;
 
 word32 g_cfg_slotdrive = 0;
 int g_cfg_select_partition = -1;
+int g_cfg_dynapro_key = 0;
 char g_cfg_tmp_path[CFG_PATH_MAX];
 char g_cfg_file_path[CFG_PATH_MAX];
 char g_cfg_file_cachedpath[CFG_PATH_MAX];
@@ -4524,6 +4525,17 @@ cfg_partition_select_all()
 	slot_drive = g_cfg_slotdrive;
 	part_path_len = (int)strlen(&g_cfg_part_path[0]);
 	curent = g_cfg_partitionlist.curent;
+	if(curent >= g_cfg_partitionlist.last) {
+		return;
+	}
+	if(!strcmp(g_cfg_partitionlist.direntptr[curent].name,
+						"None - Whole image")) {
+		// Mount-all skips the whole-image entry
+		curent++;
+	}
+	if(curent >= g_cfg_partitionlist.last) {
+		return;
+	}
 	while(1) {
 		g_cfg_slotdrive = slot_drive;
 		g_cfg_partitionlist.curent = curent;
@@ -4604,19 +4616,19 @@ cfg_file_selected()
 {
 	struct stat stat_buf;
 	char	*str;
-	int	fmt, stat_errno, is_cmd_key_down;
+	int	fmt, stat_errno, is_dynapro;
 	int	ret;
 
-	is_cmd_key_down = adb_is_cmd_key_down() &&
+	is_dynapro = g_cfg_dynapro_key &&
 					((g_cfg_slotdrive & 0xfff) != 0xfff);
-		// Cmd-Return means create DynaPro image when using slot/drive
+		// Z means create DynaPro image when using slot/drive
 
 	if(g_cfg_select_partition > 0) {
 		cfg_partition_selected();
 		return;
 	}
 
-	if(!is_cmd_key_down && (g_cfg_file_pathfield == 0)) {
+	if(!is_dynapro && (g_cfg_file_pathfield == 0)) {
 		// in file section area of window
 		str = g_cfg_dirlist.direntptr[g_cfg_dirlist.curent].name;
 		if(!strcmp(str, "../")) {
@@ -4642,7 +4654,7 @@ cfg_file_selected()
 	cfg_printf("Stat'ing %s, st_mode is: %08x\n", &g_cfg_file_path[0],
 			(int)stat_buf.st_mode);
 
-	if((ret == 0) && (fmt == S_IFDIR) && is_cmd_key_down &&
+	if((ret == 0) && (fmt == S_IFDIR) && is_dynapro &&
 						(g_cfg_newdisk_select != 2)) {
 		// Make a new DynaPro disk
 		cfg_insert_disk_dynapro((g_cfg_slotdrive >> 8) & 0xf,
@@ -4694,7 +4706,7 @@ void
 cfg_file_handle_key(int key)
 {
 	Cfg_listhdr *listhdrptr;
-	int	len, lowkey, got_match_key, is_cmd_key_down;
+	int	len, lowkey, got_match_key;
 
 	// Modes: g_cfg_slotdrive: 1 to 0xfff: File selection dialog
 	//		otherwise: normal menu being shown
@@ -4713,11 +4725,8 @@ cfg_file_handle_key(int key)
 	}
 
 	listhdrptr = &g_cfg_dirlist;
-	is_cmd_key_down = 0;
 	if(g_cfg_select_partition > 0) {
 		listhdrptr = &g_cfg_partitionlist;
-		is_cmd_key_down = adb_is_cmd_key_down() &&
-					((g_cfg_slotdrive & 0xfff) != 0xfff);
 	}
 	if((key == 0x1074) || (key == 0x1079)) {	/* Page Up, Page Down */
 		if(g_cfg_file_pathfield == 0) {
@@ -4727,8 +4736,16 @@ cfg_file_handle_key(int key)
 	}
 	lowkey = tolower(key);
 	got_match_key = 0;
+	if((lowkey == 'z') && (g_cfg_select_partition <= 0) &&
+				((g_cfg_slotdrive & 0xfff) != 0xfff)) {
+		/* Z makes a DynaPro disk for the folder being browsed */
+		g_cfg_dynapro_key = 1;
+		cfg_file_selected();
+		g_cfg_dynapro_key = 0;
+		return;
+	}
 	if((g_cfg_file_pathfield == 0) && (lowkey >= 'a') && (lowkey <= 'z') &&
-						!is_cmd_key_down) {
+						(g_cfg_select_partition <= 0)) {
 		/* jump to file starting with this letter */
 		g_cfg_file_match[0] = key;
 		g_cfg_file_match[1] = 0;
@@ -4764,8 +4781,9 @@ cfg_file_handle_key(int key)
 		//printf("handling return press\n");
 		cfg_file_selected();
 		break;
+	case 0x41:	/* 'A' */
 	case 0x61:	/* 'a' */
-		if(is_cmd_key_down && (g_cfg_select_partition > 0)) {
+		if(g_cfg_select_partition > 0) {
 			cfg_partition_select_all();
 		}
 		break;
@@ -4952,10 +4970,10 @@ cfg_draw_menu()
 	if((g_cfg_slotdrive & 0xfff) > 0) {
 		cfg_printf("  Edit Path: \bTAB\b");
 		if(g_cfg_select_partition > 0) {
-			cfg_printf("  (\bCmd\b-\bA\b to mount all)");
+			cfg_printf("  (\bA\b to mount all)");
 		} else if((g_cfg_newdisk_type == 3) || !g_cfg_newdisk_select) {
 			// Dynamic ProDOS, select a directory
-			cfg_printf("  (\bCmd\b-\bEnter\b for DynaPro)");
+			cfg_printf("  (\bZ\b for DynaPro)");
 		}
 		if(g_cfg_newdisk_select && (g_cfg_newdisk_type != 3)) {
 			cfg_printf("  (Enter new name on Path)");
