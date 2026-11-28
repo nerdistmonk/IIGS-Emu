@@ -108,6 +108,11 @@ int	g_cfg_curs_inv = 0;
 int	g_cfg_curs_mousetext = 0;
 int	g_cfg_screen_changed = 0;
 byte	g_cfg_screen[24][80];
+#define CFG_HEADER_COLOR	0x00ffff00	/* yellow: section labels */
+#define CFG_KEYGUIDE_COLOR	0x0000ffff	/* cyan: key help line */
+
+// Text color override per screen row (0x00RRGGBB, 0 = menu text color)
+int	g_cfg_row_color[24];
 
 // Ignore case in filenames (default-off; case-sensitive on Linux)
 int	g_cfg_ignorecase = 0;
@@ -3160,6 +3165,7 @@ cfg_putchar(int c)
 		c = (c & 0x1f) | 0x40;
 	}
 	g_cfg_screen[y][x] = c;
+	g_cfg_row_color[y] = 0;
 	x++;
 	if(x >= 80) {
 		x = 0;
@@ -4818,12 +4824,44 @@ cfg_remap_print_status(const char *msg)
 	cfg_printf("%.78s", msg + cut + ((msg[cut] == ' ') ? 1 : 0));
 }
 
+// Headers and spacers have cfgtype 0 and can't be selected; move the cursor
+//  to the nearest selectable row, trying the last arrow direction first
+static int
+cfg_menu_snap_line(Cfg_menu *menuptr, int menu_line)
+{
+	int last, line, dir;
+
+	last = 0;
+	while((last < 23) && (menuptr[last + 1].str != 0)) {
+		last++;
+	}
+	if(menu_line > last) {
+		menu_line = last;
+	}
+	if(menu_line < 1) {
+		menu_line = 1;
+	}
+	dir = g_menu_inc ? 1 : -1;
+	for(line = menu_line; (line >= 1) && (line <= last); line += dir) {
+		if(menuptr[line].cfgtype != 0) {
+			return line;
+		}
+	}
+	for(line = menu_line; (line >= 1) && (line <= last); line -= dir) {
+		if(menuptr[line].cfgtype != 0) {
+			return line;
+		}
+	}
+	return menu_line;
+}
+
 void
 cfg_draw_menu()
 {
 	const char *str, *msg;
 	Cfg_menu *menuptr;
 	int	print_eject_help, line, type, match_found, menu_line, max_line;
+	int	row;
 
 
 	g_menu_redraw_needed = 0;
@@ -4843,7 +4881,7 @@ cfg_draw_menu()
 	max_line = 1;
 	match_found = 0;
 	print_eject_help = 0;
-	menu_line = g_menu_line;
+	menu_line = cfg_menu_snap_line(menuptr, g_menu_line);
 	cfg_printf("%s\n\n", menuptr[0].str);
 	while(line < 24) {
 		str = menuptr[line].str;
@@ -4859,20 +4897,18 @@ cfg_draw_menu()
 							menu_line, menuptr);
 #endif
 		cfg_parse_menu(menuptr, line, menu_line, 0);
-		if(line == g_menu_line) {
-			if(type != 0) {
-				match_found = 1;
-			} else if(g_menu_inc) {
-				menu_line++;
-			} else {
-				menu_line--;
-			}
+		if((line == menu_line) && (type != 0)) {
+			match_found = 1;
 		}
 		if(line > max_line) {
 			max_line = line;
 		}
 
+		row = g_cfg_curs_y;
 		cfg_printf("%s\n", g_cfg_opt_buf);
+		if((type == 0) && (str[0] != 0)) {
+			g_cfg_row_color[row] = CFG_HEADER_COLOR;
+		}
 		line++;
 	}
 	if((menu_line < 1) && !match_found) {
@@ -4925,6 +4961,7 @@ cfg_draw_menu()
 			cfg_printf("  (Enter new name on Path)");
 		}
 	}
+	g_cfg_row_color[23] = CFG_KEYGUIDE_COLOR;
 #if 0
 	cfg_htab_vtab(0, 22);
 	cfg_printf("menu_line: %d line: %d, vbl:%d, adb:%d key_dn:%d\n",
