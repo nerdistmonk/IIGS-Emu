@@ -48,6 +48,8 @@ int g_serial_modem_init_telnet = 1;		// 1 for BBS'es
 
 extern word32 g_mem_size_base;
 extern word32 g_mem_size_exp;
+extern int g_mem_size_cli_set;
+extern word32 g_mem_size_cli;
 extern int g_user_halt_bad;
 extern int g_joystick_square_range;
 extern int g_joystick_scale_factor_x;
@@ -1732,6 +1734,11 @@ config_parse_config_kegs_file()
 		printf("Doing override %d, %s\n", i, g_cfg_argv_overrides[i]);
 		cfg_parse_one_line(g_cfg_argv_overrides[i], 1001 + i);
 		g_config_kegs_update_needed = 1;
+	}
+
+	// -mem is applied last so it wins over -a2/-gs and saved config.kegs
+	if(g_mem_size_cli_set) {
+		g_mem_size_exp = g_mem_size_cli;
 	}
 }
 

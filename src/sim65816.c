@@ -119,6 +119,8 @@ int Halt_on = 0;
 
 word32 g_mem_size_base = 128*1024;	/* size of motherboard memory */
 word32 g_mem_size_exp = 8*1024*1024;	/* size of expansion RAM card */
+int g_mem_size_cli_set = 0;		/* -mem given on command line */
+word32 g_mem_size_cli = 0;
 word32 g_mem_size_total = 128*1024;	/* Total contiguous RAM from 0 */
 
 extern word32 g_slow_mem_changed[];
@@ -611,7 +613,9 @@ parse_argv(int argc, char **argv, int slashes_to_find)
 				printf("Missing argument\n");
 				return 1;
 			}
-			g_mem_size_exp = strtol(argv[i+1], 0, 0) & 0x00ff0000;
+			g_mem_size_cli = strtol(argv[i+1], 0, 0) & 0x00ff0000;
+			g_mem_size_cli_set = 1;
+			g_mem_size_exp = g_mem_size_cli;
 			printf("Using %d as memory size\n", g_mem_size_exp);
 			i++;
 		} else if(!strcmp("-skip", argv[i])) {
