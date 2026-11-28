@@ -2,7 +2,7 @@
 
 # IIGS-Emu
 
-An Apple IIGS Emulator derived from GSPlus/KEGS lineage.
+An Apple Family Emulator derived from GSPlus/KEGS lineage.
 
 - Credit to Dagen for his SDL3 port of GSPlus.
 - Credit to Kent Dickey for KEGS.
@@ -83,6 +83,11 @@ window.
   Sub/superscript (ESC x, ESC y, ESC z) squashes each 9-row glyph into 5 rows, so
   it is a rough approximation. MyWord has no color support, so its Color job
   prints black.
+
+- **Supports Apple II Software and the Mockingboard** - Mockingboard can be toggled
+  in the config menu, or the emulator can be started in Apple 2 mode with the -a2
+  argument (use -gs to start in GS mode, the config file remembers whatever mode you
+  were in last).
   
 - **CMake build** - a single SDL3 app built with CMake, with prebuilt
   GNU/Linux downloads.
