@@ -29,6 +29,7 @@ extern Page_info page_info_rd_wr[];
 extern int Verbose;
 extern int g_rom_version;
 extern int g_user_page2_shadow;
+extern int g_mockingboard_enable;
 extern Iwm g_iwm;
 extern int g_halt_sim;
 extern int g_config_control_panel;
@@ -323,7 +324,9 @@ fixup_intcx()
 		for(j = 0xc1; j < 0xc8; j++) {
 			mask = 1 << (j & 0xf);
 			rom_inc = SET_BANK_IO;
-			if(((g_c02d_int_crom & mask) == 0) || intcx) {
+			// The Mockingboard setting makes slot 4 act as "your card"
+			if((((g_c02d_int_crom & mask) == 0) &&
+					!(j == 0xc4 && g_mockingboard_enable)) || intcx) {
 				rom_inc = rom10000 + (j << 8);
 			} else {
 				// User-slot rom
@@ -2102,7 +2105,8 @@ io_write(word32 loc, word32 val, dword64 *cyc_ptr)
 		}
 		return;
 	case 4:
-		if((g_c02d_int_crom & 0x10) && !(g_c068_statereg & 1)) {
+		if(((g_c02d_int_crom & 0x10) || g_mockingboard_enable) &&
+					!(g_c068_statereg & 1)) {
 			// Slot 4 is set to Your Card and not INTCX
 			mockingboard_write(loc, val, dfcyc);
 			return;

@@ -89,6 +89,7 @@ const char *g_config_kegs_name_list[] = {
 int	g_highest_smartport_unit = -1;
 int	g_reparse_delay = 0;
 int	g_user_page2_shadow = 1;
+int	g_mockingboard_enable = 0;
 
 char	g_cfg_printf_buf[CFG_PRINTF_BUFSIZE];
 char	g_config_kegs_buf[CONF_BUF_LEN];
@@ -404,6 +405,8 @@ Cfg_menu g_cfg_main_menu[] = {
 { "Expansion Mem Size,0,0MB,0x100000,1MB,0x200000,2MB,0x300000,3MB,"
 	"0x400000,4MB,0x600000,6MB,0x800000,8MB,0xa00000,10MB,0xc00000,12MB,"
 	"0xe00000,14MB", KNMP(g_mem_size_exp), CFGTYPE_INT },
+{ "Mockingboard in Slot 4 (applies on reset),0,Disabled,1,Enabled",
+		KNMP(g_mockingboard_enable), CFGTYPE_INT },
 { "Show Status lines,0,Disabled,1,Enabled", KNMP(g_status_enable), CFGTYPE_INT},
 { "Show OSD,0,Disabled,1,Enabled", KNMP(g_osd_enable), CFGTYPE_INT },
 { "Fatal System Errors,0,Do not stop on bad accesses,1,Enter debugger on bad "
