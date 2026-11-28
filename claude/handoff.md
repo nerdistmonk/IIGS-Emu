@@ -169,6 +169,7 @@ Checking state:
 - Accepted: FileWriter ESC c has no direct test on the user's build. WordPerfect sends ESC c at job start and mid-job, so the user's WordPerfect prints exercise it.
 - FileWriter: the idle save does not cover continuous printing. With no 1 s gap between bytes, a crash or SIGKILL still loses the page. The user chose not to add a periodic save.
 - Accepted: MyWord prints black. Its Color job sends only `ESC K 0` (72 commands, all digit 0), so this is not a FileWriter bug. Paint256 Color prints RGB after the `IW10C` reply.
+- Config panel keys: the disk picker's Z (DynaPro) and A (mount all) read keys from the ADB panel queue (`adb.c:1844`), which uses the emulator's key-code table. A user remap of `z` or `a` in `input.map` changes what the picker sees. The user wants menu input routed through SDL instead. Not started, and the approach is not agreed.
 
 ## Working conventions
 - CMake and GCC only. Do not suggest or use Clang tooling (clang-format, clang-tidy).
