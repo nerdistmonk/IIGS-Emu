@@ -4344,6 +4344,29 @@ cfg_fix_topent(Cfg_listhdr *listhdrptr)
 	}
 }
 
+/* Moves the list one page up (dir -1) or down (dir 1), keeping the cursor
+ * on the same row of the window. Stops at the first and last page.
+ */
+static void
+cfg_file_page(Cfg_listhdr *listhdrptr, int dir)
+{
+	int	num_to_show, row, maxtop;
+
+	num_to_show = listhdrptr->num_to_show;
+	row = listhdrptr->curent - listhdrptr->topent;
+	maxtop = listhdrptr->last - num_to_show;
+
+	listhdrptr->topent += dir * num_to_show;
+	if(listhdrptr->topent > maxtop) {
+		listhdrptr->topent = maxtop;
+	}
+	if(listhdrptr->topent < 0) {
+		listhdrptr->topent = 0;
+	}
+	listhdrptr->curent = listhdrptr->topent + row;
+	cfg_fix_topent(listhdrptr);
+}
+
 void
 cfg_file_draw()
 {
@@ -4682,6 +4705,12 @@ cfg_file_handle_key(int key)
 		listhdrptr = &g_cfg_partitionlist;
 		is_cmd_key_down = adb_is_cmd_key_down() &&
 					((g_cfg_slotdrive & 0xfff) != 0xfff);
+	}
+	if((key == 0x1074) || (key == 0x1079)) {	/* Page Up, Page Down */
+		if(g_cfg_file_pathfield == 0) {
+			cfg_file_page(listhdrptr, (key == 0x1079) ? 1 : -1);
+		}
+		return;
 	}
 	lowkey = tolower(key);
 	got_match_key = 0;

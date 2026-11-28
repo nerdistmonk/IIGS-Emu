@@ -1809,6 +1809,18 @@ adb_panel_reset()
 	g_panel_held_a2 = -1;
 }
 
+static void
+adb_panel_queue_key(int key, int a2code)
+{
+	if(g_panel_nkeys < MAX_PANEL_KEYS) {
+		g_panel_keys[g_panel_nkeys++] = key;
+	}
+	/* A repeat delay of 0 means the user turned key repeat off */
+	g_panel_held_a2 = (g_adb_repeat_delay != 0) ? a2code : -1;
+	g_panel_held_ascii = key;
+	g_panel_repeat_vbl = g_vbl_count + g_adb_repeat_delay;
+}
+
 void
 adb_panel_key_event(int a2code, int shift, int is_up)
 {
@@ -1824,6 +1836,11 @@ adb_panel_key_event(int a2code, int shift, int is_up)
 		return;
 	}
 	base = g_a2_key_to_ascii[a2code][1];
+	if((base == 0x1074) || (base == 0x1079)) {
+		/* Page Up and Page Down, the file picker pages through its list */
+		adb_panel_queue_key(base, a2code);
+		return;
+	}
 	if((base & 0xef00) || adb_key_is_nonchar_extended(a2code)) {
 		/* Not a character key, the menu has nothing to read */
 		return;
@@ -1838,14 +1855,7 @@ adb_panel_key_event(int a2code, int shift, int is_up)
 		return;
 	}
 	ascii &= 0x7f;
-
-	if(g_panel_nkeys < MAX_PANEL_KEYS) {
-		g_panel_keys[g_panel_nkeys++] = ascii;
-	}
-	/* A repeat delay of 0 means the user turned key repeat off */
-	g_panel_held_a2 = (g_adb_repeat_delay != 0) ? a2code : -1;
-	g_panel_held_ascii = ascii;
-	g_panel_repeat_vbl = g_vbl_count + g_adb_repeat_delay;
+	adb_panel_queue_key(ascii, a2code);
 }
 
 /* Returns the next panel key as 7-bit ASCII, or -1 when none is waiting */
