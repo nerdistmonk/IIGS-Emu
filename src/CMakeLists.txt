@@ -20,7 +20,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # Declare the project: a name, a version, and the language used.
 project(gsplus
-    VERSION 1.50.0
+    VERSION 1.51.0
     DESCRIPTION "IIGS-Emu - Apple IIgs emulator (GSplus-based)"
     LANGUAGES C)
 
@@ -30,7 +30,7 @@ endif()
 
 # ----------------------------------------------------------------------------
 # Version, MAJOR.MINOR.PATCH, set in project() below.
-# Pass -DGSPLUS_VERSION=<version> to override it (e.g. -DGSPLUS_VERSION=1.50.0).
+# Pass -DGSPLUS_VERSION=<version> to override it (e.g. -DGSPLUS_VERSION=1.51.0).
 # Without it, the project() version above is used.
 # ----------------------------------------------------------------------------
 if(NOT DEFINED GSPLUS_VERSION OR GSPLUS_VERSION STREQUAL "")
