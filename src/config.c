@@ -172,12 +172,13 @@ char	*g_cfg_menu_bg = "1E2A56"; /* config menu background, RRGGBB hex */
 
 Cfg_menu g_cfg_disk_menu[] = {
 { "Disk Configuration", g_cfg_disk_menu, 0, 0, CFGTYPE_MENU },
+{ "3.5 inch disk media", 0, 0, 0, 0 },
 { "s5d1 = ", 0, 0, 0, CFGTYPE_DISK + 0x5000 },
 { "s5d2 = ", 0, 0, 0, CFGTYPE_DISK + 0x5010 },
-{ "", 0, 0, 0, 0 },
+{ "5.25 inch disk media", 0, 0, 0, 0 },
 { "s6d1 = ", 0, 0, 0, CFGTYPE_DISK + 0x6000 },
 { "s6d2 = ", 0, 0, 0, CFGTYPE_DISK + 0x6010 },
-{ "", 0, 0, 0, 0 },
+{ "Hard disk media", 0, 0, 0, 0 },
 { "s7d1 = ", 0, 0, 0, CFGTYPE_DISK + 0x7000 },
 { "s7d2 = ", 0, 0, 0, CFGTYPE_DISK + 0x7010 },
 { "s7d3 = ", 0, 0, 0, CFGTYPE_DISK + 0x7020 },
